@@ -114,9 +114,15 @@ if (loading) {
           <p className="text-slate-600">Welcome back! Here's what's happening today.</p>
         </div>
 
-        {/* Key Metrics - Clean Cards */}
+        {/* Key Metrics - Clean Cards (now clickable) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card
+            className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/manager/sales-performance");
+            }}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
@@ -133,7 +139,13 @@ if (loading) {
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card
+            className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/manager/leads");
+            }}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 mb-1">Active Leads</p>
@@ -150,7 +162,13 @@ if (loading) {
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card
+            className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/manager/performance");
+            }}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 mb-1">Win Rate</p>
@@ -167,7 +185,13 @@ if (loading) {
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card
+            className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/manager/projects");
+            }}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 mb-1">Active Projects</p>
