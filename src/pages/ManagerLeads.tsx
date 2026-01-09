@@ -235,17 +235,42 @@ const ManagerLeads = () => {
       console.error('Invalid leadId or status:', { leadId, status });
       return;
     }
+    
     setUpdatingLeadId(leadId);
     try {
-      console.log('Updating lead status:', { leadId, status });
+      console.log('Updating lead status:', { leadId, status, selectedProject: selectedProject?.id });
+      
       const result = await updateLead(leadId, { status });
       console.log('Update result:', result);
       
+      // Check if there was an error in the result
+      if (result.error) {
+        console.error('Update lead error:', result.error);
+        alert(`Failed to update lead status: ${result.error.message || 'Unknown error'}`);
+        setUpdatingLeadId(null);
+        return;
+      }
+      
+      if (!result.data) {
+        console.error('No data returned from update');
+        alert('Failed to update lead status: No data returned');
+        setUpdatingLeadId(null);
+        return;
+      }
+      
+      console.log('Status updated successfully, refreshing leads...');
+      
       // Refresh leads for the current project
       const leadsRes = await getLeads();
-      const allLeads = leadsRes.data || [];
-      const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject?.id);
-      setLeads(projectLeads);
+      if (leadsRes.error) {
+        console.error('Error fetching leads after update:', leadsRes.error);
+        alert('Status updated but failed to refresh the list. Please refresh the page.');
+      } else {
+        const allLeads = leadsRes.data || [];
+        const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject?.id);
+        console.log('Refreshed leads:', projectLeads.length);
+        setLeads(projectLeads);
+      }
     } catch (error) {
       console.error('Failed to update status:', error);
       alert(`Failed to update lead status: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -595,9 +620,15 @@ const ManagerLeads = () => {
                             </SelectContent>
                           </Select>
                           <Select
-                            value={lead.status}
+                            value={normalizeStatus(lead.status) || lead.status}
                             onValueChange={(value) => {
-                              console.log('Status change triggered:', { leadId: lead.id, newStatus: value, currentStatus: lead.status });
+                              console.log('Status change triggered:', { 
+                                leadId: lead.id, 
+                                newStatus: value, 
+                                currentStatus: lead.status,
+                                normalizedCurrent: normalizeStatus(lead.status)
+                              });
+                              // Use the value directly (it's already normalized from the SelectItem values)
                               handleStatusChange(lead.id, value);
                             }}
                             disabled={updatingLeadId === lead.id}
@@ -606,17 +637,49 @@ const ManagerLeads = () => {
                               className="bg-white border-slate-200 text-slate-900 text-xs" 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                e.preventDefault();
                               }}
                             >
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent onClick={(e) => e.stopPropagation()}>
-                              <SelectItem value="new" onClick={(e) => e.stopPropagation()}>New</SelectItem>
-                              <SelectItem value="qualified" onClick={(e) => e.stopPropagation()}>Qualified</SelectItem>
-                              <SelectItem value="proposal" onClick={(e) => e.stopPropagation()}>In Proposal</SelectItem>
-                              <SelectItem value="closed_won" onClick={(e) => e.stopPropagation()}>Closed Won</SelectItem>
-                              <SelectItem value="not_interested" onClick={(e) => e.stopPropagation()}>Not Interested</SelectItem>
+                            <SelectContent 
+                              onClick={(e) => e.stopPropagation()}
+                              onPointerDown={(e) => e.stopPropagation()}
+                            >
+                              <SelectItem 
+                                value="new" 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                New
+                              </SelectItem>
+                              <SelectItem 
+                                value="qualified" 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Qualified
+                              </SelectItem>
+                              <SelectItem 
+                                value="proposal" 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                In Proposal
+                              </SelectItem>
+                              <SelectItem 
+                                value="closed_won" 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Closed Won
+                              </SelectItem>
+                              <SelectItem 
+                                value="not_interested" 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Not Interested
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
