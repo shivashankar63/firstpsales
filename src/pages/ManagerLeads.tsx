@@ -565,7 +565,7 @@ const ManagerLeads = () => {
                             <span className="text-slate-600">Assigned to: <span className="font-medium">{assignedName}</span></span>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-2 w-full lg:w-56">
+                        <div className="flex flex-col gap-2 w-full lg:w-56" onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={lead.assigned_to || "unassigned"}
                             onValueChange={(value) => {
@@ -573,7 +573,7 @@ const ManagerLeads = () => {
                             }}
                             disabled={assigningLead === lead.id}
                           >
-                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs">
+                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs" onClick={(e) => e.stopPropagation()}>
                               <SelectValue placeholder="Assign to..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -590,7 +590,7 @@ const ManagerLeads = () => {
                             onValueChange={(value) => handleStatusChange(lead.id, value)}
                             disabled={updatingLeadId === lead.id}
                           >
-                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs">
+                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs" onClick={(e) => e.stopPropagation()}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
