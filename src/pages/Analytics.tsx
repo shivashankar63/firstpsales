@@ -34,17 +34,16 @@ const Analytics = () => {
           total: leads.length,
           new: leads.filter((l: any) => l.status === 'new').length,
           qualified: leads.filter((l: any) => l.status === 'qualified').length,
-          negotiation: leads.filter((l: any) => l.status === 'negotiation').length,
-          won: leads.filter((l: any) => l.status === 'won').length,
+          proposal: leads.filter((l: any) => l.status === 'proposal').length,
+          closedWon: leads.filter((l: any) => l.status === 'closed_won').length,
         };
         
         setLeadSourceData(sources.length > 0 ? sources : fallbackLeadSources);
         setConversionFunnel([
           { stage: 'Leads', count: statusCounts.total },
           { stage: 'Qualified', count: statusCounts.qualified },
-          { stage: 'Proposal', count: statusCounts.negotiation },
-          { stage: 'Negotiation', count: statusCounts.negotiation },
-          { stage: 'Closed Won', count: statusCounts.won },
+          { stage: 'In Proposal', count: statusCounts.proposal },
+          { stage: 'Closed Won', count: statusCounts.closedWon },
         ]);
         setMonthlyRevenue(fallbackMonthlyRevenue); // Keep fallback for monthly
       } else {
@@ -78,8 +77,7 @@ const Analytics = () => {
   const fallbackConversionFunnel = [
     { stage: 'Leads', count: 450 },
     { stage: 'Qualified', count: 320 },
-    { stage: 'Proposal', count: 180 },
-    { stage: 'Negotiation', count: 95 },
+    { stage: 'In Proposal', count: 180 },
     { stage: 'Closed Won', count: 68 },
   ];
   return (

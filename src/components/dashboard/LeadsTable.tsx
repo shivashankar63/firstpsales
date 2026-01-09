@@ -16,18 +16,18 @@ interface Lead {
   name: string;
   avatar: string;
   project: string;
-  status: "new" | "negotiation" | "won" | "lost";
+  status: "new" | "proposal" | "closed_won" | "not_interested";
   assignedTo: string;
   value: number;
 }
 
 const mockLeads: Lead[] = [
   { id: "1", name: "Acme Corporation", avatar: "AC", project: "Project Alpha", status: "new", assignedTo: "", value: 45000 },
-  { id: "2", name: "TechStart Inc", avatar: "TS", project: "Enterprise Deal", status: "negotiation", assignedTo: "Agent Smith", value: 125000 },
-  { id: "3", name: "GlobalTech Ltd", avatar: "GT", project: "Project Beta", status: "won", assignedTo: "Agent Doe", value: 89000 },
-  { id: "4", name: "InnovateCo", avatar: "IC", project: "Consulting", status: "negotiation", assignedTo: "Agent Smith", value: 67000 },
+  { id: "2", name: "TechStart Inc", avatar: "TS", project: "Enterprise Deal", status: "proposal", assignedTo: "Agent Smith", value: 125000 },
+  { id: "3", name: "GlobalTech Ltd", avatar: "GT", project: "Project Beta", status: "closed_won", assignedTo: "Agent Doe", value: 89000 },
+  { id: "4", name: "InnovateCo", avatar: "IC", project: "Consulting", status: "proposal", assignedTo: "Agent Smith", value: 67000 },
   { id: "5", name: "DataDriven Corp", avatar: "DD", project: "SaaS License", status: "new", assignedTo: "", value: 34000 },
-  { id: "6", name: "CloudFirst Systems", avatar: "CF", project: "Implementation", status: "won", assignedTo: "Agent Doe", value: 156000 },
+  { id: "6", name: "CloudFirst Systems", avatar: "CF", project: "Implementation", status: "closed_won", assignedTo: "Agent Doe", value: 156000 },
 ];
 
 const salesmen = ["Agent Smith", "Agent Doe", "Agent Brown", "Agent Wilson"];
@@ -47,16 +47,16 @@ const LeadsTable = () => {
   const getStatusBadge = (status: Lead["status"]) => {
     const styles = {
       new: "bg-muted text-muted-foreground",
-      negotiation: "bg-warning/10 text-warning border-warning/20",
-      won: "bg-success/10 text-success border-success/20",
-      lost: "bg-destructive/10 text-destructive border-destructive/20",
+      proposal: "bg-warning/10 text-warning border-warning/20",
+      closed_won: "bg-success/10 text-success border-success/20",
+      not_interested: "bg-destructive/10 text-destructive border-destructive/20",
     };
 
     const labels = {
       new: "New",
-      negotiation: "Negotiation",
-      won: "Won",
-      lost: "Lost",
+      proposal: "In Proposal",
+      closed_won: "Closed Won",
+      not_interested: "Not Interested",
     };
 
     return (
@@ -101,9 +101,9 @@ const LeadsTable = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>Negotiation</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("won")}>Won</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("lost")}>Lost</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("proposal")}>In Proposal</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("closed_won")}>Closed Won</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("not_interested")}>Not Interested</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

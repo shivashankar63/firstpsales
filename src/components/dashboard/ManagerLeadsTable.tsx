@@ -19,7 +19,7 @@ interface Lead {
   id: string;
   company_name: string;
   contact_name: string;
-  status: "new" | "qualified" | "negotiation" | "won" | "lost";
+  status: "new" | "qualified" | "proposal" | "closed_won" | "not_interested";
   value: number;
   assigned_to?: string;
 }
@@ -96,17 +96,17 @@ const ManagerLeadsTable = () => {
     const styles = {
       new: "bg-blue/10 text-blue border-blue/20",
       qualified: "bg-purple/10 text-purple border-purple/20",
-      negotiation: "bg-warning/10 text-warning border-warning/20",
-      won: "bg-success/10 text-success border-success/20",
-      lost: "bg-destructive/10 text-destructive border-destructive/20",
+      proposal: "bg-warning/10 text-warning border-warning/20",
+      closed_won: "bg-success/10 text-success border-success/20",
+      not_interested: "bg-destructive/10 text-destructive border-destructive/20",
     };
 
     const labels = {
       new: "New",
       qualified: "Qualified",
-      negotiation: "Negotiation",
-      won: "Won",
-      lost: "Lost",
+      proposal: "In Proposal",
+      closed_won: "Closed Won",
+      not_interested: "Not Interested",
     };
 
     return (

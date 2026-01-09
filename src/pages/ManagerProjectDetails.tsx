@@ -74,10 +74,10 @@ const ManagerProjectDetails = () => {
 
   const totals = useMemo(() => {
     const value = leads.reduce((s, l) => s + (l.value || 0), 0);
-    const won = leads.filter(l => l.status === "won");
-    const wonValue = won.reduce((s, l) => s + (l.value || 0), 0);
-    const rate = leads.length ? Math.round((won.length / leads.length) * 100) : 0;
-    return { value, wonValue, rate };
+    const closedWon = leads.filter(l => l.status === "closed_won");
+    const closedWonValue = closedWon.reduce((s, l) => s + (l.value || 0), 0);
+    const rate = leads.length ? Math.round((closedWon.length / leads.length) * 100) : 0;
+    return { value, closedWonValue, rate };
   }, [leads]);
 
   const handleSaveLink = async () => {
@@ -284,8 +284,8 @@ const ManagerProjectDetails = () => {
           <Card className="p-5 bg-gradient-to-br from-emerald-900/40 to-slate-800/40 border-emerald-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-slate-600 text-sm">Won Value</div>
-                <div className="text-3xl font-bold text-slate-900">{currency(totals.wonValue)}</div>
+                <div className="text-slate-600 text-sm">Closed Won Value</div>
+                <div className="text-3xl font-bold text-slate-900">{currency(totals.closedWonValue)}</div>
               </div>
               <TrendingUp className="w-7 h-7 text-emerald-300"/>
             </div>

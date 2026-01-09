@@ -37,9 +37,9 @@ const ManagerPipeline = () => {
   const calculateStages = () => {
     const newLeads = leads.filter(l => l.status === 'new');
     const qualifiedLeads = leads.filter(l => l.status === 'qualified');
-    const negotiationLeads = leads.filter(l => l.status === 'negotiation');
-    const wonLeads = leads.filter(l => l.status === 'won');
-    const lostLeads = leads.filter(l => l.status === 'lost');
+    const proposalLeads = leads.filter(l => l.status === 'proposal');
+    const closedWonLeads = leads.filter(l => l.status === 'closed_won');
+    const notInterestedLeads = leads.filter(l => l.status === 'not_interested');
 
     return [
       { 
@@ -57,23 +57,23 @@ const ManagerPipeline = () => {
         color: "text-cyan-400"
       },
       { 
-        name: "Negotiation", 
-        count: negotiationLeads.length, 
-        value: negotiationLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
+        name: "In Proposal", 
+        count: proposalLeads.length, 
+        value: proposalLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
         sla: "7d",
         color: "text-orange-400"
       },
       { 
         name: "Closed Won", 
-        count: wonLeads.length, 
-        value: wonLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
+        count: closedWonLeads.length, 
+        value: closedWonLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
         sla: "-",
         color: "text-green-400"
       },
       { 
-        name: "Lost", 
-        count: lostLeads.length, 
-        value: lostLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
+        name: "Not Interested", 
+        count: notInterestedLeads.length, 
+        value: notInterestedLeads.reduce((sum, l) => sum + (l.value || 0), 0), 
         sla: "-",
         color: "text-red-400"
       },
@@ -155,8 +155,8 @@ const ManagerPipeline = () => {
             const pct = maxValue > 0 ? Math.round((stage.value / maxValue) * 100) : 0;
             const getStageColor = (name: string) => {
               if (name === 'Closed Won') return { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' };
-              if (name === 'Lost') return { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
-              if (name === 'Negotiation') return { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200' };
+              if (name === 'Not Interested') return { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
+              if (name === 'In Proposal') return { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200' };
               if (name === 'Qualified') return { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' };
               return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' };
             };

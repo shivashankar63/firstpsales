@@ -37,7 +37,7 @@ const ManagerLeads = () => {
     phone: "",
     value: "",
     assigned_to: "",
-    status: "new" as "new" | "qualified" | "negotiation" | "won" | "lost",
+    status: "new" as "new" | "qualified" | "proposal" | "closed_won" | "not_interested",
     description: "",
     link: "",
   });
@@ -247,9 +247,9 @@ const ManagerLeads = () => {
 
   const getStatusIcon = (status: string) => {
     switch(status) {
-      case 'won': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'lost': return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'negotiation': return <AlertCircle className="w-4 h-4 text-orange-500" />;
+      case 'closed_won': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'not_interested': return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'proposal': return <AlertCircle className="w-4 h-4 text-orange-500" />;
       case 'qualified': return <Clock className="w-4 h-4 text-blue-500" />;
       default: return <Clock className="w-4 h-4 text-slate-500" />;
     }
@@ -257,9 +257,9 @@ const ManagerLeads = () => {
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'won': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'lost': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      case 'negotiation': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      case 'closed_won': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'not_interested': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'proposal': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
       case 'qualified': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
       default: return 'bg-slate-500/20 text-slate-500 border-slate-500/30';
     }
@@ -311,8 +311,8 @@ const ManagerLeads = () => {
 
   const newLeads = leads.filter(l => l.status === 'new');
   const qualifiedLeads = leads.filter(l => l.status === 'qualified');
-  const negotiationLeads = leads.filter(l => l.status === 'negotiation');
-  const wonLeads = leads.filter(l => l.status === 'won');
+  const proposalLeads = leads.filter(l => l.status === 'proposal');
+  const closedWonLeads = leads.filter(l => l.status === 'closed_won');
   const totalValue = leads.reduce((sum, l) => sum + (l.value || 0), 0);
 
   // Debug logging
@@ -418,8 +418,8 @@ const ManagerLeads = () => {
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200">
                     <AlertCircle className="w-4 h-4 text-orange-400" />
                     <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-slate-900">{negotiationLeads.length}</span>
-                      <span className="text-xs text-slate-500 font-semibold">Negotiation</span>
+                      <span className="text-lg font-bold text-slate-900">{proposalLeads.length}</span>
+                      <span className="text-xs text-slate-500 font-semibold">In Proposal</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200">
@@ -449,9 +449,9 @@ const ManagerLeads = () => {
                       <SelectItem value="all" className="text-slate-900 hover:bg-slate-50 font-medium">All Statuses</SelectItem>
                       <SelectItem value="new" className="text-slate-900 hover:bg-slate-50 font-medium">New</SelectItem>
                       <SelectItem value="qualified" className="text-slate-900 hover:bg-slate-50 font-medium">Qualified</SelectItem>
-                      <SelectItem value="negotiation" className="text-slate-900 hover:bg-slate-50 font-medium">Negotiation</SelectItem>
-                      <SelectItem value="won" className="text-slate-900 hover:bg-slate-50 font-medium">Won</SelectItem>
-                      <SelectItem value="lost" className="text-slate-900 hover:bg-slate-50 font-medium">Lost</SelectItem>
+                      <SelectItem value="proposal" className="text-slate-900 hover:bg-slate-50 font-medium">In Proposal</SelectItem>
+                      <SelectItem value="closed_won" className="text-slate-900 hover:bg-slate-50 font-medium">Closed Won</SelectItem>
+                      <SelectItem value="not_interested" className="text-slate-900 hover:bg-slate-50 font-medium">Not Interested</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -562,9 +562,9 @@ const ManagerLeads = () => {
                             <SelectContent>
                               <SelectItem value="new">New</SelectItem>
                               <SelectItem value="qualified">Qualified</SelectItem>
-                              <SelectItem value="negotiation">Negotiation</SelectItem>
-                              <SelectItem value="won">Won</SelectItem>
-                              <SelectItem value="lost">Lost</SelectItem>
+                              <SelectItem value="proposal">In Proposal</SelectItem>
+                              <SelectItem value="closed_won">Closed Won</SelectItem>
+                              <SelectItem value="not_interested">Not Interested</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

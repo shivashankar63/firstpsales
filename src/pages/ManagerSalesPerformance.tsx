@@ -12,9 +12,9 @@ interface SalesPersonPerformance {
   email: string;
   leads: {
     total: number;
-    won: number;
-    lost: number;
-    negotiation: number;
+    closed_won: number;
+    not_interested: number;
+    proposal: number;
     new: number;
   };
   revenue: number;
@@ -57,15 +57,15 @@ const ManagerSalesPerformance = () => {
         // Calculate performance metrics for each salesman
         const performance = salespeople.map((salesman: any) => {
           const salesmanLeads = leads.filter((l: any) => l.assigned_to === salesman.id);
-          const wonLeads = salesmanLeads.filter((l: any) => l.status === "won");
-          const lostLeads = salesmanLeads.filter((l: any) => l.status === "lost");
-          const negotiationLeads = salesmanLeads.filter((l: any) => l.status === "negotiation");
+          const closedWonLeads = salesmanLeads.filter((l: any) => l.status === "closed_won");
+          const notInterestedLeads = salesmanLeads.filter((l: any) => l.status === "not_interested");
+          const proposalLeads = salesmanLeads.filter((l: any) => l.status === "proposal");
           const newLeads = salesmanLeads.filter((l: any) => l.status === "new");
 
-          const revenue = wonLeads.reduce((sum: number, l: any) => sum + (l.value || 0), 0);
+          const revenue = closedWonLeads.reduce((sum: number, l: any) => sum + (l.value || 0), 0);
           const quota = quotas.find((q: any) => q.user_id === salesman.id)?.target_amount || 150000;
-          const winRate = salesmanLeads.length > 0 ? Math.round((wonLeads.length / salesmanLeads.length) * 100) : 0;
-          const avgDealValue = salesmanLeads.length > 0 ? Math.round(revenue / (wonLeads.length || 1)) : 0;
+          const winRate = salesmanLeads.length > 0 ? Math.round((closedWonLeads.length / salesmanLeads.length) * 100) : 0;
+          const avgDealValue = salesmanLeads.length > 0 ? Math.round(revenue / (closedWonLeads.length || 1)) : 0;
 
           return {
             id: salesman.id,
@@ -73,9 +73,9 @@ const ManagerSalesPerformance = () => {
             email: salesman.email,
             leads: {
               total: salesmanLeads.length,
-              won: wonLeads.length,
-              lost: lostLeads.length,
-              negotiation: negotiationLeads.length,
+              closed_won: closedWonLeads.length,
+              not_interested: notInterestedLeads.length,
+              proposal: proposalLeads.length,
               new: newLeads.length,
             },
             revenue,
@@ -244,8 +244,8 @@ const ManagerSalesPerformance = () => {
                       <p className="font-bold text-slate-900 text-sm">${(salesman.quota / 1000).toFixed(0)}K</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-600 mb-1 font-medium">Won</p>
-                      <p className="font-bold text-slate-900 text-sm">{salesman.leads.won}</p>
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Closed Won</p>
+                      <p className="font-bold text-slate-900 text-sm">{salesman.leads.closed_won}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 hidden sm:block">
                       <p className="text-xs text-slate-600 mb-1 font-medium">Win Rate</p>
@@ -280,16 +280,16 @@ const ManagerSalesPerformance = () => {
                     {salesman.leads.new > 0 && (
                       <Badge className="bg-slate-100 text-slate-700 border-slate-200">New: {salesman.leads.new}</Badge>
                     )}
-                    {salesman.leads.negotiation > 0 && (
+                    {salesman.leads.proposal > 0 && (
                       <Badge className="bg-orange-50 text-orange-700 border-orange-200">
-                        Negotiation: {salesman.leads.negotiation}
+                        In Proposal: {salesman.leads.proposal}
                       </Badge>
                     )}
-                    {salesman.leads.won > 0 && (
-                      <Badge className="bg-green-50 text-green-700 border-green-200">Won: {salesman.leads.won}</Badge>
+                    {salesman.leads.closed_won > 0 && (
+                      <Badge className="bg-green-50 text-green-700 border-green-200">Closed Won: {salesman.leads.closed_won}</Badge>
                     )}
-                    {salesman.leads.lost > 0 && (
-                      <Badge className="bg-red-50 text-red-700 border-red-200">Lost: {salesman.leads.lost}</Badge>
+                    {salesman.leads.not_interested > 0 && (
+                      <Badge className="bg-red-50 text-red-700 border-red-200">Not Interested: {salesman.leads.not_interested}</Badge>
                     )}
                   </div>
                 </div>
@@ -357,16 +357,16 @@ const ManagerSalesPerformance = () => {
                       <p className="text-xs text-slate-600 mt-1">New</p>
                     </div>
                     <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 text-center">
-                      <p className="text-2xl font-bold text-orange-600">{selectedSalesman.leads.negotiation}</p>
-                      <p className="text-xs text-slate-600 mt-1">Negotiating</p>
+                      <p className="text-2xl font-bold text-orange-600">{selectedSalesman.leads.proposal}</p>
+                      <p className="text-xs text-slate-600 mt-1">In Proposal</p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
-                      <p className="text-2xl font-bold text-green-600">{selectedSalesman.leads.won}</p>
-                      <p className="text-xs text-slate-600 mt-1">Won</p>
+                      <p className="text-2xl font-bold text-green-600">{selectedSalesman.leads.closed_won}</p>
+                      <p className="text-xs text-slate-600 mt-1">Closed Won</p>
                     </div>
                     <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
-                      <p className="text-2xl font-bold text-red-600">{selectedSalesman.leads.lost}</p>
-                      <p className="text-xs text-slate-600 mt-1">Lost</p>
+                      <p className="text-2xl font-bold text-red-600">{selectedSalesman.leads.not_interested}</p>
+                      <p className="text-xs text-slate-600 mt-1">Not Interested</p>
                     </div>
                   </div>
                 </div>

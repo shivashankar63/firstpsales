@@ -157,7 +157,7 @@ export const createLead = async (leadData: {
   contact_name: string;
   email: string;
   phone: string;
-  status: 'new' | 'qualified' | 'negotiation' | 'won' | 'lost';
+  status: 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested';
   value: number;
   assigned_to?: string | null;
   project_id: string;
