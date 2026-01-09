@@ -1,6 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useEffect, useState } from 'react';
-import { getLeads, getQuotas } from '@/lib/supabase';
+import { getLeads } from '@/lib/supabase';
 import { Loader } from 'lucide-react';
 
 interface ChartDataPoint {
@@ -17,11 +17,9 @@ const RevenueChart = () => {
     const fetchData = async () => {
       try {
         const { data: leads } = await getLeads();
-        const { data: quotas } = await getQuotas();
 
         // Group revenue by month from leads
         const monthlyRevenue: { [key: string]: number } = {};
-        const monthlyTarget: { [key: string]: number } = {};
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         // Initialize months for the last 6 months
@@ -30,13 +28,12 @@ const RevenueChart = () => {
           const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
           const monthKey = monthNames[date.getMonth()];
           monthlyRevenue[monthKey] = 0;
-          monthlyTarget[monthKey] = 0;
         }
 
         // Aggregate leads revenue
         if (leads) {
           leads.forEach((lead: any) => {
-            if (lead.status === 'won' && lead.created_at) {
+            if (lead.status === 'closed_won' && lead.created_at) {
               const date = new Date(lead.created_at);
               const monthKey = monthNames[date.getMonth()];
               monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + (lead.value || 0);
@@ -44,22 +41,14 @@ const RevenueChart = () => {
           });
         }
 
-        // Aggregate quotas
-        if (quotas) {
-          quotas.forEach((quota: any) => {
-            const date = new Date(quota.period_start);
-            const monthKey = monthNames[date.getMonth()];
-            monthlyTarget[monthKey] = (monthlyTarget[monthKey] || 0) + (quota.target_amount || 0);
-          });
-        }
-
         // Convert to chart data format (last 6 months only)
+        // Target quota is 300k per month (standard benchmark)
         const chartData = Object.keys(monthlyRevenue)
           .slice(-6)
           .map(month => ({
             month,
             revenue: Math.round(monthlyRevenue[month] / 1000), // Convert to thousands
-            target: Math.round(monthlyTarget[month] / 1000),
+            target: 300, // 300k standard target
           }));
 
         setData(chartData.length > 0 ? chartData : [

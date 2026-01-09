@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getLeads, getCurrentUser, supabase, subscribeToLeadsForUser, createActivity } from "@/lib/supabase";
+import { getLeads, getCurrentUser, supabase, subscribeToLeads, createActivity } from "@/lib/supabase";
 
 interface Lead {
   id: string;
@@ -48,10 +48,11 @@ const SalesmanLeadsTable = () => {
       try {
         const user = await getCurrentUser();
         if (user) {
-          const { data } = await getLeads({ assignedTo: user.id });
-          setLeads(data || []);
+          const { data } = await getLeads();
+          const userLeads = (data || []).filter((l: any) => l.assigned_to === user.id);
+          setLeads(userLeads);
           // Realtime subscribe to this user's assigned leads
-          const sub = subscribeToLeadsForUser(user.id, (payload: any) => {
+          const sub = subscribeToLeads(async (payload: any) => {
             const et = payload?.eventType || payload?.type;
             const newRow = payload?.new;
             const oldRow = payload?.old;

@@ -69,7 +69,7 @@ const ManagerActivity = () => {
         // Subscribe to all activities for realtime updates
         const subs: any[] = [];
         (users || []).forEach((u: any) => {
-          const sub = subscribeToActivities(u.id, async () => {
+          const sub = subscribeToActivities(async () => {
             try {
               const { data: updated } = await getActivities();
               const enriched = (updated || [])

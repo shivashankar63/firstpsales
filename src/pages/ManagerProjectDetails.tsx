@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getProjectById, getLeadsForProject, getActivitiesForProject, subscribeToProjectLeads, subscribeToActivitiesAll, updateProject, createLead } from "@/lib/supabase";
+import { getProjectById, getLeadsForProject, getActivities, subscribeToProjects, subscribeToActivities, updateProject, createLead } from "@/lib/supabase";
 import { ArrowLeft, CalendarDays, DollarSign, Target, TrendingUp, Clock, Mail, Phone, FileText, CheckCircle2, ExternalLink, Edit2, AlertCircle, Check, Upload } from "lucide-react";
 
 const currency = (n: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n || 0);
@@ -37,7 +37,7 @@ const ManagerProjectDetails = () => {
       const [projRes, leadsRes, actsRes] = await Promise.all([
         getProjectById(id),
         getLeadsForProject(id),
-        getActivitiesForProject(id),
+        getActivities(),
       ]);
       setProject(projRes.data);
       setLeads(leadsRes.data || []);
@@ -48,21 +48,21 @@ const ManagerProjectDetails = () => {
 
   useEffect(() => {
     if (!id) return;
-    const sub = subscribeToProjectLeads(id, async () => {
+    const sub = subscribeToProjects(async () => {
       const [leadsRes, actsRes] = await Promise.all([
         getLeadsForProject(id),
-        getActivitiesForProject(id),
+        getActivities(),
       ]);
       setLeads(leadsRes.data || []);
       setActivities(actsRes.data || []);
     });
     // Also watch activities globally and refresh only if related to this project's leads
-    const subActs = subscribeToActivitiesAll(async (payload: any) => {
+    const subActs = subscribeToActivities(async (payload: any) => {
       const leadId = payload?.new?.lead_id || payload?.old?.lead_id;
       if (!leadId) return;
       const ids = new Set((leads || []).map((l) => l.id));
       if (ids.has(leadId)) {
-        const { data } = await getActivitiesForProject(id);
+        const { data } = await getActivities();
         setActivities(data || []);
       }
     });

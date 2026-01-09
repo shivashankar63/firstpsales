@@ -3,7 +3,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { DollarSign, TrendingUp, Calendar, Download, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { getRevenueAnalytics, getTopPerformers } from "@/lib/supabase";
+import { getLeads, getUsers } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,11 +21,67 @@ const RevenueReports = () => {
   useEffect(() => {
     const fetchRevenueData = async () => {
       setLoading(true);
-      const analytics = await getRevenueAnalytics();
-      const performers = await getTopPerformers();
+      const [leadsRes, usersRes] = await Promise.all([
+        getLeads(),
+        getUsers(),
+      ]);
       
-      setMonthlyData(analytics.monthlyRevenue);
-      setQuarterlyData(analytics.quarterlyData);
+      const leads = leadsRes.data || [];
+      const users = usersRes.data || [];
+      
+      // Calculate monthly revenue from leads
+      const monthlyRevenue: { [key: string]: { revenue: number; target: number; deals: number } } = {};
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      // Initialize last 6 months
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const month = monthNames[date.getMonth()];
+        monthlyRevenue[month] = { revenue: 0, target: 0, deals: 0 };
+      }
+      
+      // Aggregate from leads
+      leads.forEach((lead: any) => {
+        if (lead.created_at) {
+          const date = new Date(lead.created_at);
+          const month = monthNames[date.getMonth()];
+          if (monthlyRevenue[month]) {
+            monthlyRevenue[month].deals++;
+            if (lead.status === 'closed_won') {
+              monthlyRevenue[month].revenue += lead.value || 0;
+            }
+            monthlyRevenue[month].target = 300000; // 300k standard target
+          }
+        }
+      });
+      
+      // Calculate top performers
+      const performers = users
+        .filter((u: any) => u.role === 'salesman')
+        .map((user: any) => {
+          const userLeads = leads.filter((l: any) => l.assigned_to === user.id);
+          const closedWon = userLeads.filter((l: any) => l.status === 'closed_won');
+          const revenue = closedWon.reduce((sum: number, l: any) => sum + (l.value || 0), 0);
+          return {
+            id: user.id,
+            name: user.full_name || user.email,
+            revenue,
+            deals: closedWon.length,
+            quota: 250000,
+            achievement: Math.round((revenue / 250000) * 100),
+          };
+        })
+        .sort((a: any, b: any) => b.revenue - a.revenue)
+        .slice(0, 5);
+      
+      setMonthlyData(Object.entries(monthlyRevenue).map(([month, data]) => ({
+        month,
+        revenue: Math.round(data.revenue / 1000),
+        target: 300,
+        deals: data.deals,
+      })));
+      setQuarterlyData([]); // Placeholder for quarterly data
       setTopPerformers(performers);
       setLoading(false);
     };

@@ -2,7 +2,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { Loader } from "lucide-react";
-import { getLeads, getCurrentUser, getQuotas } from "@/lib/supabase";
+import { getLeads, getCurrentUser } from "@/lib/supabase";
 
 interface QuotaData {
   target: number;
@@ -23,13 +23,13 @@ const QuotaProgress = () => {
       try {
         const user = await getCurrentUser();
         if (user) {
-          // Get user's quota
-          const { data: quotas } = await getQuotas(user.id);
-          const currentQuota = quotas?.[0];
+          // Standard quota of 250k per month (can be customized)
+          const targetQuota = 250000;
           
           // Get user's won deals
-          const { data: leads } = await getLeads({ assignedTo: user.id });
-          const wonLeads = (leads || []).filter((l: any) => l.status === 'won');
+          const { data: leads } = await getLeads();
+          const userLeads = (leads || []).filter((l: any) => l.assigned_to === user.id);
+          const wonLeads = userLeads.filter((l: any) => l.status === 'closed_won');
           const achieved = wonLeads.reduce((sum: number, l: any) => sum + (l.value || 0), 0);
 
           // Calculate days left in month
@@ -38,7 +38,7 @@ const QuotaProgress = () => {
           const daysLeft = Math.ceil((endOfMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
           setQuota({
-            target: currentQuota?.target || 250000,
+            target: targetQuota,
             achieved,
             daysLeft: Math.max(1, daysLeft),
           });

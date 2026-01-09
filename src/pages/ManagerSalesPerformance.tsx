@@ -4,7 +4,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getCurrentUser, getUsers, getLeads, getQuotas } from "@/lib/supabase";
+import { getCurrentUser, getUsers, getLeads } from "@/lib/supabase";
 
 interface SalesPersonPerformance {
   id: string;
@@ -39,15 +39,13 @@ const ManagerSalesPerformance = () => {
           return;
         }
 
-        const [usersRes, leadsRes, quotasRes] = await Promise.all([
+        const [usersRes, leadsRes] = await Promise.all([
           getUsers(),
           getLeads(),
-          getQuotas(manager.id),
         ]);
 
         const users = usersRes.data || [];
         const leads = leadsRes.data || [];
-        const quotas = quotasRes.data || [];
 
         // Filter for salesman role
         const salespeople = users.filter((u: any) =>
@@ -63,7 +61,7 @@ const ManagerSalesPerformance = () => {
           const newLeads = salesmanLeads.filter((l: any) => l.status === "new");
 
           const revenue = closedWonLeads.reduce((sum: number, l: any) => sum + (l.value || 0), 0);
-          const quota = quotas.find((q: any) => q.user_id === salesman.id)?.target_amount || 150000;
+          const quota = 150000; // Standard quota - can be customized per salesman
           const winRate = salesmanLeads.length > 0 ? Math.round((closedWonLeads.length / salesmanLeads.length) * 100) : 0;
           const avgDealValue = salesmanLeads.length > 0 ? Math.round(revenue / (closedWonLeads.length || 1)) : 0;
 

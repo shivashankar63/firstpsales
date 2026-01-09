@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { getTeamsWithMembers } from "@/lib/supabase";
+import { getTeams, getUsers } from "@/lib/supabase";
 
 const Teams = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -14,8 +14,20 @@ const Teams = () => {
   useEffect(() => {
     const fetchTeams = async () => {
       setLoading(true);
-      const teamsData = await getTeamsWithMembers();
-      setTeams(teamsData);
+      const [teamsRes, usersRes] = await Promise.all([
+        getTeams(),
+        getUsers(),
+      ]);
+      const teams = teamsRes.data || [];
+      const users = usersRes.data || [];
+      
+      // Enrich teams with their members
+      const enrichedTeams = teams.map((team: any) => ({
+        ...team,
+        members: users.filter((u: any) => u.team_id === team.id),
+      }));
+      
+      setTeams(enrichedTeams);
       setLoading(false);
     };
     fetchTeams();
