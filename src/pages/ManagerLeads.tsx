@@ -91,7 +91,12 @@ const ManagerLeads = () => {
   useEffect(() => {
     const statusParam = searchParams.get("status");
     if (statusParam && ["new", "qualified", "negotiation", "won", "lost", "proposal", "closed_won", "not_interested"].includes(statusParam)) {
-      setStatusFilter(statusParam);
+      // Normalize old status values to new ones for consistency
+      const normalizedStatus = statusParam === "negotiation" ? "proposal" 
+        : statusParam === "won" ? "closed_won"
+        : statusParam === "lost" ? "not_interested"
+        : statusParam;
+      setStatusFilter(normalizedStatus);
     }
   }, [searchParams]);
 
@@ -240,8 +245,26 @@ const ManagerLeads = () => {
     }
   };
 
+  // Helper function to normalize status values (handle both old and new formats)
+  const normalizeStatus = (status: string): string => {
+    const statusMap: { [key: string]: string } = {
+      'negotiation': 'proposal',
+      'won': 'closed_won',
+      'lost': 'not_interested',
+    };
+    return statusMap[status] || status;
+  };
+
+  // Helper function to check if a lead status matches the filter
+  const statusMatches = (leadStatus: string, filterStatus: string): boolean => {
+    if (filterStatus === "all") return true;
+    const normalizedLeadStatus = normalizeStatus(leadStatus);
+    const normalizedFilterStatus = normalizeStatus(filterStatus);
+    return normalizedLeadStatus === normalizedFilterStatus || leadStatus === filterStatus;
+  };
+
   const filteredLeads = leads.filter((lead) => {
-    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    const matchesStatus = statusMatches(lead.status, statusFilter);
     const matchesAssignee =
       assigneeFilter === "all" ||
       (assigneeFilter === "unassigned" ? !lead.assigned_to : lead.assigned_to === assigneeFilter);
@@ -254,7 +277,8 @@ const ManagerLeads = () => {
   });
 
   const getStatusIcon = (status: string) => {
-    switch(status) {
+    const normalizedStatus = normalizeStatus(status);
+    switch(normalizedStatus) {
       case 'closed_won': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'not_interested': return <XCircle className="w-4 h-4 text-red-500" />;
       case 'proposal': return <AlertCircle className="w-4 h-4 text-orange-500" />;
@@ -264,7 +288,8 @@ const ManagerLeads = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    const normalizedStatus = normalizeStatus(status);
+    switch(normalizedStatus) {
       case 'closed_won': return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'not_interested': return 'bg-red-500/20 text-red-400 border-red-500/30';
       case 'proposal': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
@@ -317,10 +342,11 @@ const ManagerLeads = () => {
     );
   }
 
+  // Count leads by status (handling both old and new status values)
   const newLeads = leads.filter(l => l.status === 'new');
   const qualifiedLeads = leads.filter(l => l.status === 'qualified');
-  const proposalLeads = leads.filter(l => l.status === 'proposal');
-  const closedWonLeads = leads.filter(l => l.status === 'closed_won');
+  const proposalLeads = leads.filter(l => l.status === 'proposal' || l.status === 'negotiation');
+  const closedWonLeads = leads.filter(l => l.status === 'closed_won' || l.status === 'won');
   const totalValue = leads.reduce((sum, l) => sum + (l.value || 0), 0);
 
   // Debug logging
