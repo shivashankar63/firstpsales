@@ -187,10 +187,10 @@ const ManagerProjectDetails = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar role="manager" />
         <main className="flex-1 p-6 flex items-center justify-center">
-          <div className="text-slate-300">Loading project…</div>
+          <div className="text-slate-600">Loading project…</div>
         </main>
       </div>
     );
@@ -198,27 +198,27 @@ const ManagerProjectDetails = () => {
 
   if (!project) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar role="manager" />
         <main className="flex-1 p-6">
           <Button variant="outline" onClick={() => navigate(-1)} className="mb-4"><ArrowLeft className="w-4 h-4 mr-2"/>Back</Button>
-          <Card className="p-6 bg-white/5 border-white/10 text-slate-300">Project not found.</Card>
+          <Card className="p-6 bg-white/5 border-white/10 text-slate-600">Project not found.</Card>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center flex-shrink-0"><CalendarDays className="w-5 h-5"/></div>
+              <div className="w-11 h-11 rounded-xl bg-purple-600 text-slate-900 flex items-center justify-center flex-shrink-0"><CalendarDays className="w-5 h-5"/></div>
               <div className="min-w-0">
-                <h1 className="text-2xl md:text-3xl font-bold text-white truncate">{project.name}</h1>
-                <div className="text-slate-400 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{project.status || 'planned'} • Budget: {currency(project.budget || 0)}</div>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900 truncate">{project.name}</h1>
+                <div className="text-slate-500 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{project.status || 'planned'} • Budget: {currency(project.budget || 0)}</div>
                 <div className="text-slate-500 text-xs whitespace-nowrap overflow-hidden text-ellipsis">{project.start_date || '-'} → {project.end_date || '-'}</div>
               </div>
             </div>
@@ -228,7 +228,7 @@ const ManagerProjectDetails = () => {
 
         {/* Project Link Section */}
         {project?.link && (
-          <Card className="mb-6 p-4 bg-slate-800/60 border-slate-700">
+          <Card className="mb-6 p-4 bg-white border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <ExternalLink className="w-5 h-5 text-blue-400 flex-shrink-0" />
@@ -246,7 +246,7 @@ const ManagerProjectDetails = () => {
                 variant="ghost" 
                 size="sm"
                 onClick={openEditDialog}
-                className="ml-4 flex-shrink-0 text-slate-300 hover:text-white"
+                className="ml-4 flex-shrink-0 text-slate-600 hover:text-slate-900"
               >
                 <Edit2 className="w-4 h-4" />
               </Button>
@@ -255,14 +255,14 @@ const ManagerProjectDetails = () => {
         )}
         
         {!project?.link && (
-          <Card className="mb-6 p-4 bg-slate-800/40 border-slate-700 border-dashed">
+          <Card className="mb-6 p-4 bg-white border-slate-200 border-dashed">
             <div className="flex items-center justify-between">
-              <div className="text-slate-400 text-sm">No project link added yet</div>
+              <div className="text-slate-500 text-sm">No project link added yet</div>
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={openEditDialog}
-                className="text-blue-400 hover:text-blue-300 hover:bg-slate-700/50"
+                className="text-blue-400 hover:text-blue-300 hover:bg-slate-100/50"
               >
                 <Edit2 className="w-4 h-4 mr-2" /> Add Link
               </Button>
@@ -275,8 +275,8 @@ const ManagerProjectDetails = () => {
           <Card className="p-5 bg-gradient-to-br from-blue-900/40 to-slate-800/40 border-blue-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-slate-300 text-sm">Total Pipeline</div>
-                <div className="text-3xl font-bold text-white">{currency(totals.value)}</div>
+                <div className="text-slate-600 text-sm">Total Pipeline</div>
+                <div className="text-3xl font-bold text-slate-900">{currency(totals.value)}</div>
               </div>
               <DollarSign className="w-7 h-7 text-blue-300"/>
             </div>
@@ -284,8 +284,8 @@ const ManagerProjectDetails = () => {
           <Card className="p-5 bg-gradient-to-br from-emerald-900/40 to-slate-800/40 border-emerald-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-slate-300 text-sm">Won Value</div>
-                <div className="text-3xl font-bold text-white">{currency(totals.wonValue)}</div>
+                <div className="text-slate-600 text-sm">Won Value</div>
+                <div className="text-3xl font-bold text-slate-900">{currency(totals.wonValue)}</div>
               </div>
               <TrendingUp className="w-7 h-7 text-emerald-300"/>
             </div>
@@ -293,8 +293,8 @@ const ManagerProjectDetails = () => {
           <Card className="p-5 bg-gradient-to-br from-purple-900/40 to-slate-800/40 border-purple-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-slate-300 text-sm">Win Rate</div>
-                <div className="text-3xl font-bold text-white">{totals.rate}%</div>
+                <div className="text-slate-600 text-sm">Win Rate</div>
+                <div className="text-3xl font-bold text-slate-900">{totals.rate}%</div>
               </div>
               <Target className="w-7 h-7 text-purple-300"/>
             </div>
@@ -302,29 +302,29 @@ const ManagerProjectDetails = () => {
         </div>
 
         {/* Leads */}
-        <Card className="p-4 md:p-5 bg-slate-800/60 border-slate-700">
+        <Card className="p-4 md:p-5 bg-white border-slate-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Leads ({leads.length})</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Leads ({leads.length})</h2>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={() => setShowBulkImport(true)}
-              className="text-blue-400 hover:text-blue-300 hover:bg-slate-700/50"
+              className="text-blue-400 hover:text-blue-300 hover:bg-slate-100/50"
             >
               <Upload className="w-4 h-4 mr-2" /> Bulk Import
             </Button>
           </div>
           <div className="divide-y divide-slate-700">
             {leads.length === 0 && (
-              <div className="text-slate-400 p-4">No leads linked to this project yet.</div>
+              <div className="text-slate-500 p-4">No leads linked to this project yet.</div>
             )}
             {leads.map((l) => (
               <div key={l.id} className="flex items-center gap-4 p-3">
                 <div className="flex-1 min-w-0">
-                  <div className="text-white font-medium truncate">{l.company_name}</div>
-                  <div className="text-xs text-slate-400 truncate">{l.contact_name} • {l.email || '—'} • {l.phone || '—'}</div>
+                  <div className="text-slate-900 font-medium truncate">{l.company_name}</div>
+                  <div className="text-xs text-slate-500 truncate">{l.contact_name} • {l.email || '—'} • {l.phone || '—'}</div>
                 </div>
-                <div className="hidden md:block w-40 text-right text-slate-300 font-semibold">{currency(l.value || 0)}</div>
+                <div className="hidden md:block w-40 text-right text-slate-600 font-semibold">{currency(l.value || 0)}</div>
                 <div className="w-28 text-right">
                   <Badge className="justify-end capitalize">{l.status}</Badge>
                 </div>
@@ -335,12 +335,12 @@ const ManagerProjectDetails = () => {
 
         {/* Activity */}
         <div className="mt-6">
-          <Card className="p-4 md:p-5 bg-slate-800/60 border-slate-700">
+          <Card className="p-4 md:p-5 bg-white border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
             </div>
             {activities.length === 0 ? (
-              <div className="text-slate-400">No recent activity for this project.</div>
+              <div className="text-slate-500">No recent activity for this project.</div>
             ) : (
               <div className="space-y-3">
                 {activities.slice(0, 20).map((a) => {
@@ -351,7 +351,7 @@ const ManagerProjectDetails = () => {
                     <button
                       key={a.id}
                       type="button"
-                      className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-colors ${lead ? 'hover:bg-slate-800/60 focus:bg-slate-800/60 focus:outline-none' : ''}`}
+                      className={`w-full text-left flex items-start gap-3 p-2 rounded-lg transition-colors ${lead ? 'hover:bg-white focus:bg-white focus:outline-none' : ''}`}
                       onClick={() => {
                         if (!lead) return;
                         navigate(`/manager/leads?leadId=${lead.id}`);
@@ -362,9 +362,9 @@ const ManagerProjectDetails = () => {
                         <Icon className="w-4 h-4 text-slate-200" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium truncate">{a.title || type.toUpperCase()}</div>
-                        <div className="text-xs text-slate-400 truncate">{lead?.company_name || 'Lead'} • {new Date(a.created_at).toLocaleString()}</div>
-                        {a.description && <div className="text-sm text-slate-300 mt-1 line-clamp-2">{a.description}</div>}
+                        <div className="text-slate-900 font-medium truncate">{a.title || type.toUpperCase()}</div>
+                        <div className="text-xs text-slate-500 truncate">{lead?.company_name || 'Lead'} • {new Date(a.created_at).toLocaleString()}</div>
+                        {a.description && <div className="text-sm text-slate-600 mt-1 line-clamp-2">{a.description}</div>}
                       </div>
                     </button>
                   );
@@ -376,22 +376,22 @@ const ManagerProjectDetails = () => {
 
         {/* Edit Link Dialog */}
         <Dialog open={editingLink} onOpenChange={setEditingLink}>
-          <DialogContent className="bg-slate-800 border-slate-700">
+          <DialogContent className="bg-slate-800 border-slate-200">
             <DialogHeader>
-              <DialogTitle className="text-white">Edit Project Link</DialogTitle>
+              <DialogTitle className="text-slate-900">Edit Project Link</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="project-link" className="text-slate-300">Project URL</Label>
+                <Label htmlFor="project-link" className="text-slate-600">Project URL</Label>
                 <Input 
                   id="project-link"
                   placeholder="https://example.com"
                   value={linkInput}
                   onChange={(e) => setLinkInput(e.target.value)}
-                  className="mt-2 bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500"
+                  className="mt-2 bg-slate-900/50 border-slate-300 text-slate-900 placeholder:text-slate-500"
                   disabled={savingLink}
                 />
-                <div className="text-xs text-slate-400 mt-1">Enter the full URL or domain for this project</div>
+                <div className="text-xs text-slate-500 mt-1">Enter the full URL or domain for this project</div>
               </div>
               {linkStatus === "error" && (
                 <div className="flex items-center gap-2 p-2 bg-rose-900/30 border border-rose-800 rounded text-rose-300 text-sm">
@@ -411,14 +411,14 @@ const ManagerProjectDetails = () => {
                 variant="outline" 
                 onClick={() => setEditingLink(false)}
                 disabled={savingLink}
-                className="border-slate-600 text-slate-300 hover:text-white"
+                className="border-slate-300 text-slate-600 hover:text-slate-900"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleSaveLink}
                 disabled={savingLink || !linkInput.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-slate-900"
               >
                 {savingLink ? "Saving…" : "Save"}
               </Button>
@@ -428,24 +428,24 @@ const ManagerProjectDetails = () => {
 
         {/* Bulk Import Dialog */}
         <Dialog open={showBulkImport} onOpenChange={setShowBulkImport}>
-          <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+          <DialogContent className="bg-slate-800 border-slate-200 max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-white">Bulk Import Leads</DialogTitle>
+              <DialogTitle className="text-slate-900">Bulk Import Leads</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="bulk-data" className="text-slate-300">Paste Lead Data (Tab-separated)</Label>
-                <p className="text-xs text-slate-400 mb-2">Format: Company Name [TAB] Contact Name [TAB] Email [TAB] Phone [TAB] Value [TAB] Description [TAB] Link</p>
+                <Label htmlFor="bulk-data" className="text-slate-600">Paste Lead Data (Tab-separated)</Label>
+                <p className="text-xs text-slate-500 mb-2">Format: Company Name [TAB] Contact Name [TAB] Email [TAB] Phone [TAB] Value [TAB] Description [TAB] Link</p>
                 <Textarea 
                   id="bulk-data"
                   placeholder="ABC Corp	John Doe	john@abc.com	555-1234	50000	New prospect	https://abc.com&#10;XYZ Inc	Jane Smith	jane@xyz.com	555-5678	75000	Hot lead	https://xyz.com"
                   value={bulkData}
                   onChange={(e) => setBulkData(e.target.value)}
-                  className="mt-2 bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500 font-mono text-sm"
+                  className="mt-2 bg-slate-900/50 border-slate-300 text-slate-900 placeholder:text-slate-500 font-mono text-sm"
                   rows={8}
                   disabled={importingBulk}
                 />
-                <div className="text-xs text-slate-400 mt-1">Each row = one lead. Minimum: Company name, Contact name, Email</div>
+                <div className="text-xs text-slate-500 mt-1">Each row = one lead. Minimum: Company name, Contact name, Email</div>
               </div>
               {importStatus.type === "error" && (
                 <div className="flex items-start gap-2 p-3 bg-rose-900/30 border border-rose-800 rounded text-rose-300 text-sm">
@@ -465,14 +465,14 @@ const ManagerProjectDetails = () => {
                 variant="outline" 
                 onClick={() => setShowBulkImport(false)}
                 disabled={importingBulk}
-                className="border-slate-600 text-slate-300 hover:text-white"
+                className="border-slate-300 text-slate-600 hover:text-slate-900"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleBulkImport}
                 disabled={importingBulk || !bulkData.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-slate-900"
               >
                 {importingBulk ? "Importing…" : "Import"}
               </Button>
@@ -485,5 +485,7 @@ const ManagerProjectDetails = () => {
 };
 
 export default ManagerProjectDetails;
+
+
 
 

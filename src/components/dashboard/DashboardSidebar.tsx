@@ -86,8 +86,14 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
 
   const roleColors = {
     owner: "bg-blue-600",
-    manager: "bg-purple-600",
+    manager: "bg-slate-900",
     salesman: "bg-orange-600",
+  };
+
+  const roleAccentColors = {
+    owner: "bg-blue-50 text-blue-700",
+    manager: "bg-slate-100 text-slate-900",
+    salesman: "bg-orange-50 text-orange-700",
   };
 
   const handleLogout = async () => {
@@ -107,15 +113,15 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className="p-4 flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between border-b border-slate-200">
         <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
           <div className={`w-10 h-10 rounded-xl ${roleColors[role]} flex items-center justify-center flex-shrink-0`}>
             <TrendingUp className="w-6 h-6 text-white" />
           </div>
           {!isCollapsed && (
             <div>
-              <span className="text-xl font-bold text-sidebar-foreground block">SalesFlow</span>
-              <span className="text-xs text-sidebar-foreground/60">{roleLabels[role]}</span>
+              <span className="text-xl font-bold text-slate-900 block">SalesFlow</span>
+              <span className="text-xs text-slate-600">{roleLabels[role]}</span>
             </div>
           )}
         </div>
@@ -123,7 +129,7 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent"
+          className="hidden lg:flex text-slate-600 hover:bg-slate-100"
         >
           <Menu className="w-5 h-5" />
         </Button>
@@ -142,15 +148,15 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
                     setIsMobileOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-sm",
                     isActive
-                      ? `${roleColors[role]} text-white`
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                      ? `${roleColors[role]} text-white shadow-sm`
+                      : "text-slate-700 hover:text-slate-900 hover:bg-slate-100",
                     isCollapsed && "justify-center"
                   )}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  {!isCollapsed && <span>{item.label}</span>}
                 </button>
               </li>
             );
@@ -159,12 +165,12 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
       </nav>
 
       {/* User Profile */}
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-slate-200">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                "w-full flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors",
+                "w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-colors",
                 isCollapsed && "justify-center"
               )}
             >
@@ -176,19 +182,23 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
               {!isCollapsed && (
                 <>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-sidebar-foreground">{userEmail}</p>
-                    <p className="text-xs text-sidebar-foreground/60">{roleLabels[role]}</p>
+                    <p className="text-sm font-medium text-slate-900">{userEmail}</p>
+                    <p className="text-xs text-slate-600">{roleLabels[role]}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-sidebar-foreground/60" />
+                  <ChevronDown className="w-4 h-4 text-slate-600" />
                 </>
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => navigate("/settings")}>Profile Settings</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings")}>Preferences</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+          <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200">
+            <DropdownMenuItem onClick={() => navigate("/settings")} className="text-slate-700 hover:bg-slate-100">
+              Profile Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")} className="text-slate-700 hover:bg-slate-100">
+              Preferences
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-slate-200" />
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 hover:bg-red-50">
               <LogOut className="w-4 h-4 mr-2" />
               Log out
             </DropdownMenuItem>
@@ -205,7 +215,7 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
         variant="ghost"
         size="icon"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-card shadow-soft text-foreground hover:bg-card/80"
+        className="fixed top-4 left-4 z-50 lg:hidden bg-white shadow-md text-slate-900 hover:bg-slate-50 border border-slate-200"
       >
         {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </Button>
@@ -221,7 +231,7 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-sidebar h-screen sticky top-0 transition-all duration-300",
+          "hidden lg:flex flex-col bg-white border-r border-slate-200 h-screen sticky top-0 transition-all duration-300",
           isCollapsed ? "w-[72px]" : "w-64"
         )}
       >
@@ -231,15 +241,15 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
       {/* Mobile Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar w-64 shadow-lg transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-white w-64 shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <button
           onClick={() => setIsMobileOpen(false)}
-          className="absolute top-4 right-4 p-2 hover:bg-sidebar-accent rounded-lg lg:hidden"
+          className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg lg:hidden"
         >
-          <X className="w-5 h-5 text-sidebar-foreground" />
+          <X className="w-5 h-5 text-slate-900" />
         </button>
         <div className="mt-12">
           <SidebarContent />

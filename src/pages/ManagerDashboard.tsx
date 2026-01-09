@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,12 +82,12 @@ const ManagerDashboard = () => {
 
 if (loading) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar role="manager" />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Loader className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
-            <p className="text-slate-300">Loading...</p>
+            <Loader className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-slate-600">Loading...</p>
           </div>
         </main>
       </div>
@@ -95,233 +95,303 @@ if (loading) {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       
-      <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Manager Dashboard</h1>
-          <p className="text-slate-300">Complete overview of projects, leads, and team performance</p>
+      <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold text-slate-900 mb-1">Dashboard</h1>
+          <p className="text-slate-600">Welcome back! Here's what's happening today.</p>
         </div>
 
-        {/* Key Metrics Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <Briefcase className="w-5 h-5 text-purple-400" />
+        {/* Key Metrics - Clean Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
+                <p className="text-3xl font-semibold text-slate-900">${(totalRevenue / 1000).toFixed(0)}K</p>
+                <div className="flex items-center gap-1 mt-2">
+                  <ArrowUpRight className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-600">12.5%</span>
+                  <span className="text-sm text-slate-500">vs last month</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
             </div>
-            <p className="text-xs text-slate-300 font-medium">Projects</p>
-            <p className="text-2xl font-bold text-white">{projects.length}</p>
           </Card>
+
+          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 mb-1">Active Leads</p>
+                <p className="text-3xl font-semibold text-slate-900">{totalLeads}</p>
+                <div className="flex items-center gap-1 mt-2">
+                  <ArrowUpRight className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-600">8.2%</span>
+                  <span className="text-sm text-slate-500">vs last month</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Target className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 mb-1">Win Rate</p>
+                <p className="text-3xl font-semibold text-slate-900">{winRate}%</p>
+                <div className="flex items-center gap-1 mt-2">
+                  <ArrowUpRight className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-600">4.3%</span>
+                  <span className="text-sm text-slate-500">vs last month</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 mb-1">Active Projects</p>
+                <p className="text-3xl font-semibold text-slate-900">{projects.length}</p>
+                <div className="flex items-center gap-1 mt-2">
+                  <Activity className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-600">{projects.filter(p => p.status === 'active').length}</span>
+                  <span className="text-sm text-slate-500">in progress</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
+                <Briefcase className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Pipeline Overview - Clean Segmented Design */}
+        <Card className="p-6 bg-white border-slate-200 shadow-sm mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Lead Pipeline</h2>
+              <p className="text-sm text-slate-600 mt-1">Track your deals through each stage</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-slate-600">Total Pipeline Value</p>
+              <p className="text-2xl font-semibold text-slate-900">${(totalPipeline / 1000).toFixed(0)}K</p>
+            </div>
+          </div>
           
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <Target className="w-5 h-5 text-blue-400" />
+          {/* Pipeline Progress Bar */}
+          <div className="mb-6">
+            <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+              <div className="bg-slate-400" style={{ width: `${totalLeads > 0 ? (newLeads / totalLeads) * 100 : 0}%` }}></div>
+              <div className="bg-blue-500" style={{ width: `${totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0}%` }}></div>
+              <div className="bg-orange-500" style={{ width: `${totalLeads > 0 ? (negotiationLeads / totalLeads) * 100 : 0}%` }}></div>
+              <div className="bg-green-500" style={{ width: `${totalLeads > 0 ? (wonLeads / totalLeads) * 100 : 0}%` }}></div>
             </div>
-            <p className="text-xs text-slate-300 font-medium">Total Leads</p>
-            <p className="text-2xl font-bold text-white">{totalLeads}</p>
-          </Card>
+          </div>
 
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <Clock className="w-5 h-5 text-slate-400" />
-            </div>
-            <p className="text-xs text-slate-300 font-medium">New</p>
-            <p className="text-2xl font-bold text-white">{newLeads}</p>
-          </Card>
-
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-            </div>
-            <p className="text-xs text-slate-300 font-medium">Won</p>
-            <p className="text-2xl font-bold text-green-400">{wonLeads}</p>
-          </Card>
-
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-5 h-5 text-green-400" />
-            </div>
-            <p className="text-xs text-slate-300 font-medium">Revenue</p>
-            <p className="text-2xl font-bold text-white">${(totalRevenue / 1000).toFixed(0)}K</p>
-          </Card>
-
-          <Card className="p-4 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="w-5 h-5 text-blue-400" />
-            </div>
-            <p className="text-xs text-slate-300 font-medium">Win Rate</p>
-            <p className="text-2xl font-bold text-white">{winRate}%</p>
-          </Card>
-        </div>
-
-        {/* Pipeline Overview */}
-        <Card className="p-6 bg-slate-800/60 border-slate-700 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5 text-purple-400" />
-            Lead Pipeline
-          </h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-slate-400 mb-1">New</p>
-              <p className="text-3xl font-bold text-slate-300">{newLeads}</p>
+            <div className="text-center p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="w-3 h-3 rounded-full bg-slate-400 mx-auto mb-2"></div>
+              <p className="text-2xl font-semibold text-slate-900">{newLeads}</p>
+              <p className="text-xs font-medium text-slate-600 mt-1">New</p>
               <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => l.status === 'new').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-400 mb-1">Qualified</p>
-              <p className="text-3xl font-bold text-blue-400">{qualifiedLeads}</p>
+            <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="w-3 h-3 rounded-full bg-blue-500 mx-auto mb-2"></div>
+              <p className="text-2xl font-semibold text-slate-900">{qualifiedLeads}</p>
+              <p className="text-xs font-medium text-blue-700 mt-1">Qualified</p>
               <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => l.status === 'qualified').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-400 mb-1">Negotiation</p>
-              <p className="text-3xl font-bold text-orange-400">{negotiationLeads}</p>
+            <div className="text-center p-4 rounded-lg bg-orange-50 border border-orange-200">
+              <div className="w-3 h-3 rounded-full bg-orange-500 mx-auto mb-2"></div>
+              <p className="text-2xl font-semibold text-slate-900">{negotiationLeads}</p>
+              <p className="text-xs font-medium text-orange-700 mt-1">Negotiation</p>
               <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => l.status === 'negotiation').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-400 mb-1">Won</p>
-              <p className="text-3xl font-bold text-green-400">{wonLeads}</p>
+            <div className="text-center p-4 rounded-lg bg-green-50 border border-green-200">
+              <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2"></div>
+              <p className="text-2xl font-semibold text-slate-900">{wonLeads}</p>
+              <p className="text-xs font-medium text-green-700 mt-1">Won</p>
               <p className="text-xs text-slate-500 mt-1">${(totalRevenue / 1000).toFixed(0)}K</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-slate-400 mb-1">Lost</p>
-              <p className="text-3xl font-bold text-red-400">{lostLeads}</p>
+            <div className="text-center p-4 rounded-lg bg-red-50 border border-red-200">
+              <div className="w-3 h-3 rounded-full bg-red-500 mx-auto mb-2"></div>
+              <p className="text-2xl font-semibold text-slate-900">{lostLeads}</p>
+              <p className="text-xs font-medium text-red-700 mt-1">Lost</p>
               <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => l.status === 'lost').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
             </div>
           </div>
         </Card>
 
         {/* Projects & Team Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Projects */}
-          <Card className="p-6 bg-slate-800/60 border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-purple-400" />
-                Projects
-              </h2>
-              <Button onClick={() => setShowProjectModal(true)} className="bg-purple-600 hover:bg-purple-700 text-sm">
+          <Card className="p-6 bg-white border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Projects</h2>
+                <p className="text-sm text-slate-600 mt-1">{projects.length} active projects</p>
+              </div>
+              <Button 
+                onClick={() => setShowProjectModal(true)} 
+                size="sm"
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
                 <Plus className="w-4 h-4 mr-1" />
-                New
+                New Project
               </Button>
             </div>
             {projects.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {projects.map((project) => (
-                  <Card
+                  <div
                     key={project.id}
-                    className="p-4 bg-slate-700/40 border-slate-600 hover:bg-slate-700/60 transition-colors cursor-pointer"
+                    className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer group"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-white text-sm mb-1">{project.name}</h3>
-                        <p className="text-xs text-slate-400 mb-2">
+                        <h3 className="font-medium text-slate-900 group-hover:text-slate-700 mb-1">
+                          {project.name}
+                        </h3>
+                        <p className="text-sm text-slate-600 line-clamp-1">
                           {project.description || "No description"}
                         </p>
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-purple-600/30 text-purple-200 border-purple-500/60 text-xs">
-                            {project.status || 'Active'}
-                          </Badge>
-                          {project.budget && (
-                            <span className="text-xs text-slate-400">
-                              ${Number(project.budget).toLocaleString()}
-                            </span>
-                          )}
-                        </div>
                       </div>
                     </div>
-                  </Card>
+                    <div className="flex items-center gap-3 mt-3">
+                      <Badge className="bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100 text-xs font-medium">
+                        {project.status || 'Active'}
+                      </Badge>
+                      {project.budget && (
+                        <span className="text-sm font-medium text-slate-900">
+                          ${Number(project.budget).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Briefcase className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400 text-sm mb-3">No projects yet</p>
-                <Button onClick={() => setShowProjectModal(true)} className="bg-purple-600 hover:bg-purple-700 text-sm">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <Briefcase className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-900 font-medium mb-1">No projects yet</p>
+                <p className="text-sm text-slate-600 mb-4">Get started by creating your first project</p>
+                <Button 
+                  onClick={() => setShowProjectModal(true)}
+                  size="sm"
+                  className="bg-slate-900 hover:bg-slate-800 text-white"
+                >
                   <Plus className="w-4 h-4 mr-1" />
-                  Create First Project
+                  Create Project
                 </Button>
               </div>
             )}
           </Card>
 
           {/* Sales Team */}
-          <Card className="p-6 bg-slate-800/60 border-slate-700">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-400" />
-              Sales Team
-            </h2>
+          <Card className="p-6 bg-white border-slate-200 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">Sales Team</h2>
+              <p className="text-sm text-slate-600 mt-1">{salesTeam.length} team members</p>
+            </div>
             {salesTeam.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {salesTeam.map((member: any) => {
                   const memberLeads = leads.filter(l => l.assigned_to === member.id);
                   const memberRevenue = memberLeads.filter(l => l.status === 'won').reduce((sum, l) => sum + (l.value || 0), 0);
                   const memberWon = memberLeads.filter(l => l.status === 'won').length;
                   
                   return (
-                    <Card
+                    <div
                       key={member.id}
-                      className="p-4 bg-slate-700/40 border-slate-600"
+                      className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                            {(member.full_name || member.email || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-white text-sm">
-                              {member.full_name || member.email?.split('@')[0] || 'Unknown'}
-                            </h3>
-                            <p className="text-xs text-slate-400">{member.email}</p>
-                          </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                          {(member.full_name || member.email || 'U').charAt(0).toUpperCase()}
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Leads: {memberLeads.length}</p>
-                          <p className="text-xs text-green-400">Won: {memberWon}</p>
-                          <p className="text-xs text-slate-300">${(memberRevenue / 1000).toFixed(0)}K</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-slate-900 truncate">
+                            {member.full_name || member.email?.split('@')[0] || 'Unknown'}
+                          </h3>
+                          <p className="text-sm text-slate-600 truncate">{member.email}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-lg font-semibold text-slate-900">${(memberRevenue / 1000).toFixed(0)}K</p>
+                          <p className="text-xs text-slate-600">{memberWon} won • {memberLeads.length} total</p>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400 text-sm">No sales team members yet</p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-900 font-medium mb-1">No team members yet</p>
+                <p className="text-sm text-slate-600">Add sales team members to get started</p>
               </div>
             )}
           </Card>
         </div>
 
         {/* Recent Leads */}
-        <Card className="p-6 bg-slate-800/60 border-slate-700">
-          <h2 className="text-xl font-bold text-white mb-4">Recent Leads</h2>
+        <Card className="p-6 bg-white border-slate-200 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900">Recent Leads</h2>
+            <p className="text-sm text-slate-600 mt-1">Latest updates from your pipeline</p>
+          </div>
           {leads.length > 0 ? (
             <div className="space-y-2">
               {leads.slice(0, 5).map((lead) => (
-                <div key={lead.id} className="flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600 rounded-lg">
+                <div 
+                  key={lead.id} 
+                  className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer group"
+                >
                   <div className="flex-1">
-                    <h3 className="font-semibold text-white text-sm">{lead.company_name}</h3>
-                    <p className="text-xs text-slate-400">{lead.contact_name}</p>
+                    <h3 className="font-medium text-slate-900 group-hover:text-slate-700 mb-1">
+                      {lead.company_name}
+                    </h3>
+                    <p className="text-sm text-slate-600">{lead.contact_name}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Badge className={
-                      lead.status === 'won' ? 'bg-green-600/30 text-green-200 border-green-500/60' :
-                      lead.status === 'lost' ? 'bg-red-600/30 text-red-200 border-red-500/60' :
-                      lead.status === 'negotiation' ? 'bg-orange-600/30 text-orange-200 border-orange-500/60' :
-                      'bg-blue-600/30 text-blue-200 border-blue-500/60'
+                      lead.status === 'won' ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-50' :
+                      lead.status === 'lost' ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-50' :
+                      lead.status === 'negotiation' ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-50' :
+                      lead.status === 'qualified' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50' :
+                      'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-50'
                     }>
                       {lead.status}
                     </Badge>
-                    <span className="text-sm font-semibold text-white">${((lead.value || 0) / 1000).toFixed(0)}K</span>
+                    <span className="text-base font-semibold text-slate-900 min-w-[80px] text-right">
+                      ${((lead.value || 0) / 1000).toFixed(0)}K
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Target className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">No leads yet</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-slate-400" />
+              </div>
+              <p className="text-slate-900 font-medium mb-1">No leads yet</p>
+              <p className="text-sm text-slate-600">Start adding leads to track your pipeline</p>
             </div>
           )}
         </Card>
@@ -329,43 +399,57 @@ if (loading) {
 
 
         <Dialog open={showProjectModal} onOpenChange={setShowProjectModal}>
-          <DialogContent>
+          <DialogContent className="bg-white border-slate-200">
             <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
+              <DialogTitle className="text-slate-900">Create New Project</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="proj_name">Project Name</Label>
+                <Label htmlFor="proj_name" className="text-slate-700">Project Name</Label>
                 <Input
                   id="proj_name"
                   value={projectForm.name}
                   onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
                   placeholder="Q1 Sales Campaign"
+                  className="mt-1.5 border-slate-300 focus:border-slate-400"
                 />
               </div>
               <div>
-                <Label htmlFor="proj_desc">Description</Label>
+                <Label htmlFor="proj_desc" className="text-slate-700">Description</Label>
                 <Input
                   id="proj_desc"
                   value={projectForm.description}
                   onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
                   placeholder="Project description"
+                  className="mt-1.5 border-slate-300 focus:border-slate-400"
                 />
               </div>
               <div>
-                <Label htmlFor="proj_budget">Budget (USD)</Label>
+                <Label htmlFor="proj_budget" className="text-slate-700">Budget (USD)</Label>
                 <Input
                   id="proj_budget"
                   type="number"
                   value={projectForm.budget}
                   onChange={(e) => setProjectForm({ ...projectForm, budget: e.target.value })}
                   placeholder="150000"
+                  className="mt-1.5 border-slate-300 focus:border-slate-400"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowProjectModal(false)} disabled={creatingProject}>Cancel</Button>
-              <Button onClick={handleCreateProject} disabled={creatingProject}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowProjectModal(false)} 
+                disabled={creatingProject}
+                className="border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateProject} 
+                disabled={creatingProject}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
                 {creatingProject ? "Creating..." : "Create Project"}
               </Button>
             </DialogFooter>

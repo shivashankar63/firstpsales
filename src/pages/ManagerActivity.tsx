@@ -121,27 +121,27 @@ const ManagerActivity = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Activity Log</h1>
-            <p className="text-slate-400">Team-wide calls, emails, notes and deals</p>
+            <h1 className="text-3xl font-bold text-slate-900">Activity Log</h1>
+            <p className="text-slate-500">Team-wide calls, emails, notes and deals</p>
           </div>
-          <div className="text-slate-400 flex items-center gap-2"><Clock className="w-4 h-4" /> Live</div>
+          <div className="text-slate-500 flex items-center gap-2"><Clock className="w-4 h-4" /> Live</div>
         </div>
 
         <Card className="p-4 bg-white/5 border-white/10">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader className="w-6 h-6 animate-spin text-purple-500 mr-2" />
-              <span className="text-slate-300">Loading activities...</span>
+              <span className="text-slate-600">Loading activities...</span>
             </div>
           ) : activities.length === 0 ? (
             <div className="text-center py-8">
               <Clock className="w-12 h-12 text-slate-600 mx-auto mb-2" />
-              <p className="text-slate-400">No activities yet.</p>
+              <p className="text-slate-500">No activities yet.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -154,13 +154,13 @@ const ManagerActivity = () => {
                         <Icon className="w-4 h-4" />
                       </Badge>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium truncate">{item.title || "Activity"}</div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-slate-900 font-medium truncate">{item.title || "Activity"}</div>
+                        <div className="text-xs text-slate-500">
                           {item.owner} {item.description ? `• ${item.description.substring(0, 40)}...` : ""}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-400 ml-2 whitespace-nowrap">{formatTime(item.created_at)}</div>
+                    <div className="text-xs text-slate-500 ml-2 whitespace-nowrap">{formatTime(item.created_at)}</div>
                   </div>
                 );
               })}
@@ -173,5 +173,7 @@ const ManagerActivity = () => {
 };
 
 export default ManagerActivity;
+
+
 
 

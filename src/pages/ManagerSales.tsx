@@ -139,18 +139,18 @@ const ManagerSales = () => {
       case 'lost': return 'bg-red-500/20 text-red-400 border-red-500/30';
       case 'negotiation': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
       case 'qualified': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+      default: return 'bg-slate-500/20 text-slate-500 border-slate-500/30';
     }
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar role="manager" />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Loader className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
-            <p className="text-slate-300">Loading sales team...</p>
+            <p className="text-slate-600">Loading sales team...</p>
           </div>
         </main>
       </div>
@@ -176,14 +176,14 @@ const ManagerSales = () => {
   const assignmentRate = totalLeads > 0 ? ((totalAssigned / totalLeads) * 100).toFixed(0) : 0;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Sales Team Management</h1>
-            <p className="text-slate-400">Monitor performance and manage sales assignments</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Sales Team Management</h1>
+            <p className="text-slate-500">Monitor performance and manage sales assignments</p>
           </div>
           <Button onClick={() => setShowSalesModal(true)} className="bg-purple-600 hover:bg-purple-700">
             <UserPlus className="w-4 h-4 mr-2" />
@@ -194,12 +194,12 @@ const ManagerSales = () => {
         {/* Project Selector */}
         {projects.length > 0 && (
           <div className="mb-6">
-            <Label className="text-slate-300 mb-2 block">Active Project</Label>
+            <Label className="text-slate-600 mb-2 block">Active Project</Label>
             <Select value={selectedProject?.id} onValueChange={(value) => {
               const project = projects.find(p => p.id === value);
               setSelectedProject(project || null);
             }}>
-              <SelectTrigger className="w-full sm:w-80 bg-slate-900/60 border-slate-700 text-white">
+              <SelectTrigger className="w-full sm:w-80 bg-white border-slate-200 text-slate-900">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -222,34 +222,34 @@ const ManagerSales = () => {
                   <Users className="w-5 h-5 text-purple-400" />
                   <Badge className="bg-purple-500/20 text-purple-300">Active</Badge>
                 </div>
-                <p className="text-2xl font-bold text-white">{salesUsers.length}</p>
-                <p className="text-xs text-slate-400">Sales Team Members</p>
+                <p className="text-2xl font-bold text-slate-900">{salesUsers.length}</p>
+                <p className="text-xs text-slate-500">Sales Team Members</p>
               </Card>
               <Card className="p-4 bg-white/5 border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <Target className="w-5 h-5 text-blue-400" />
-                  <span className="text-xs text-slate-400">{assignmentRate}%</span>
+                  <span className="text-xs text-slate-500">{assignmentRate}%</span>
                 </div>
-                <p className="text-2xl font-bold text-white">{totalAssigned}/{totalLeads}</p>
-                <p className="text-xs text-slate-400">Leads Assigned</p>
+                <p className="text-2xl font-bold text-slate-900">{totalAssigned}/{totalLeads}</p>
+                <p className="text-xs text-slate-500">Leads Assigned</p>
               </Card>
               <Card className="p-4 bg-white/5 border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <TrendingUp className="w-5 h-5 text-green-400" />
                   <Badge className="bg-green-500/20 text-green-300">Won</Badge>
                 </div>
-                <p className="text-2xl font-bold text-white">{leads.filter(l => l.status === 'won').length}</p>
-                <p className="text-xs text-slate-400">Closed Deals</p>
+                <p className="text-2xl font-bold text-slate-900">{leads.filter(l => l.status === 'won').length}</p>
+                <p className="text-xs text-slate-500">Closed Deals</p>
               </Card>
               <Card className="p-4 bg-white/5 border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <Award className="w-5 h-5 text-orange-400" />
-                  <span className="text-xs text-slate-400">Avg</span>
+                  <span className="text-xs text-slate-500">Avg</span>
                 </div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-slate-900">
                   {salesUsers.length > 0 ? Math.floor(totalLeads / salesUsers.length) : 0}
                 </p>
-                <p className="text-xs text-slate-400">Leads per Person</p>
+                <p className="text-xs text-slate-500">Leads per Person</p>
               </Card>
             </div>
 
@@ -258,8 +258,8 @@ const ManagerSales = () => {
               <Card className="p-6 bg-white/5 border-white/10 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Unassigned Leads</h3>
-                    <p className="text-sm text-slate-400">{unassignedLeads.length} leads waiting for assignment</p>
+                    <h3 className="text-lg font-semibold text-slate-900">Unassigned Leads</h3>
+                    <p className="text-sm text-slate-500">{unassignedLeads.length} leads waiting for assignment</p>
                   </div>
                   <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
                     {unassignedLeads.length} Pending
@@ -270,10 +270,10 @@ const ManagerSales = () => {
                     <div key={lead.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">{lead.company_name}</span>
+                          <span className="text-slate-900 font-medium">{lead.company_name}</span>
                           <Badge className={getStatusColor(lead.status)}>{lead.status}</Badge>
                         </div>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <p className="text-sm text-slate-500 mt-1">
                           {lead.contact_name} • ${((lead.value || 0) / 1000).toFixed(1)}K
                         </p>
                       </div>
@@ -283,7 +283,7 @@ const ManagerSales = () => {
                           onValueChange={(value) => handleAssignLead(lead.id, value)}
                           disabled={assigningLead === lead.id}
                         >
-                          <SelectTrigger className="bg-slate-900/60 border-slate-700 text-white text-sm">
+                          <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-sm">
                             <SelectValue placeholder="Assign to..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -308,7 +308,7 @@ const ManagerSales = () => {
 
             {/* Sales Team Performance */}
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-white">Team Performance</h3>
+              <h3 className="text-xl font-semibold text-slate-900">Team Performance</h3>
               {salesAssignments.map(({ user, userLeads, statusCounts, totalValue, wonValue, conversionRate }) => {
                 const name = user.full_name || user.email?.split("@")[0] || user.id;
                 const loadPercentage = totalLeads > 0 ? (userLeads.length / totalLeads * 100).toFixed(0) : 0;
@@ -317,20 +317,20 @@ const ManagerSales = () => {
                   <Card key={user.id} className="p-6 bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                        <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-slate-900 font-bold text-lg">
                           {name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="text-lg font-semibold text-white">{name}</h4>
+                          <h4 className="text-lg font-semibold text-slate-900">{name}</h4>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {user.email && (
-                              <span className="text-sm text-slate-400 flex items-center gap-1">
+                              <span className="text-sm text-slate-500 flex items-center gap-1">
                                 <Mail className="w-3 h-3" />
                                 {user.email}
                               </span>
                             )}
                             {user.phone && (
-                              <span className="text-sm text-slate-400 flex items-center gap-1">
+                              <span className="text-sm text-slate-500 flex items-center gap-1">
                                 <PhoneIcon className="w-3 h-3" />
                                 {user.phone}
                               </span>
@@ -351,24 +351,24 @@ const ManagerSales = () => {
                     {/* Performance Metrics */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-xs text-slate-400">Total Value</p>
-                        <p className="text-xl font-bold text-white">${(totalValue / 1000).toFixed(0)}K</p>
+                        <p className="text-xs text-slate-500">Total Value</p>
+                        <p className="text-xl font-bold text-slate-900">${(totalValue / 1000).toFixed(0)}K</p>
                       </div>
                       <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-xs text-slate-400">Won Value</p>
+                        <p className="text-xs text-slate-500">Won Value</p>
                         <p className="text-xl font-bold text-green-400">${(wonValue / 1000).toFixed(0)}K</p>
                       </div>
                       <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-xs text-slate-400">Active Leads</p>
+                        <p className="text-xs text-slate-500">Active Leads</p>
                         <p className="text-xl font-bold text-blue-400">
                           {userLeads.filter(l => !['won', 'lost'].includes(l.status)).length}
                         </p>
                       </div>
                       <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-xs text-slate-400">Workload</p>
+                        <p className="text-xs text-slate-500">Workload</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Progress value={Number(loadPercentage)} className="flex-1" />
-                          <span className="text-sm font-medium text-white">{loadPercentage}%</span>
+                          <span className="text-sm font-medium text-slate-900">{loadPercentage}%</span>
                         </div>
                       </div>
                     </div>
@@ -393,7 +393,7 @@ const ManagerSales = () => {
                           {userLeads.map((lead: any) => (
                             <div key={lead.id} className="flex items-center justify-between p-2 rounded bg-white/5">
                               <div>
-                                <span className="text-white font-medium">{lead.company_name}</span>
+                                <span className="text-slate-900 font-medium">{lead.company_name}</span>
                                 <Badge className={`${getStatusColor(lead.status)} ml-2`}>{lead.status}</Badge>
                               </div>
                               <span className="text-sm text-purple-400">${((lead.value || 0) / 1000).toFixed(1)}K</span>
@@ -461,5 +461,7 @@ const ManagerSales = () => {
 };
 
 export default ManagerSales;
+
+
 
 

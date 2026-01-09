@@ -13,15 +13,15 @@ const teamPerformance = [
 
 const ManagerPerformance = () => {
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Team Performance</h1>
-            <p className="text-slate-400">Win rates, sales cycles, and quota attainment</p>
+            <h1 className="text-3xl font-bold text-slate-900">Team Performance</h1>
+            <p className="text-slate-500">Win rates, sales cycles, and quota attainment</p>
           </div>
-          <Badge className="bg-purple-600 text-white">This Quarter</Badge>
+          <Badge className="bg-purple-600 text-slate-900">This Quarter</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -30,19 +30,19 @@ const ManagerPerformance = () => {
             return (
               <Card key={rep.name} className="bg-white/5 border-white/10 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-white font-semibold flex items-center gap-2">
+                  <div className="text-slate-900 font-semibold flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-amber-300" /> {rep.name}
                   </div>
                   <Badge className={quotaPct >= 100 ? 'bg-green-500/20 text-green-200' : 'bg-amber-500/20 text-amber-200'}>
                     {quotaPct}% quota
                   </Badge>
                 </div>
-                <div className="text-sm text-slate-400">Win Rate</div>
-                <div className="text-xl font-bold text-white mb-2">{rep.winRate}%</div>
-                <div className="text-sm text-slate-400">Sales Cycle</div>
-                <div className="text-xl font-bold text-white mb-2">{rep.cycle} days</div>
+                <div className="text-sm text-slate-500">Win Rate</div>
+                <div className="text-xl font-bold text-slate-900 mb-2">{rep.winRate}%</div>
+                <div className="text-sm text-slate-500">Sales Cycle</div>
+                <div className="text-xl font-bold text-slate-900 mb-2">{rep.cycle} days</div>
                 <div className="mt-2">
-                  <div className="text-xs text-slate-400 mb-1">Quota Attainment</div>
+                  <div className="text-xs text-slate-500 mb-1">Quota Attainment</div>
                   <Progress value={quotaPct} className="h-2" />
                 </div>
               </Card>
@@ -55,5 +55,6 @@ const ManagerPerformance = () => {
 };
 
 export default ManagerPerformance;
+
 
 

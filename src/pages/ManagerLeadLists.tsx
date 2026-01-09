@@ -42,15 +42,15 @@ const ManagerLeadLists = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Lead Lists</h1>
-            <p className="text-slate-400">Create and manage saved filters</p>
+            <h1 className="text-3xl font-bold text-slate-900">Lead Lists</h1>
+            <p className="text-slate-500">Create and manage saved filters</p>
           </div>
-          <Button className="bg-purple-600 text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-purple-600 text-slate-900" onClick={() => setShowModal(true)}>
             <Plus className="w-4 h-4 mr-2" /> New List
           </Button>
         </div>
@@ -59,12 +59,12 @@ const ManagerLeadLists = () => {
           {lists.map((l: any) => (
             <Card key={l.id} className="p-4 bg-white/5 border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-purple-600 text-slate-900 flex items-center justify-center">
                   <Filter className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-white font-semibold">{l.name}</div>
-                  <div className="text-xs text-slate-400">{JSON.stringify(l.filters)}</div>
+                  <div className="text-slate-900 font-semibold">{l.name}</div>
+                  <div className="text-xs text-slate-500">{JSON.stringify(l.filters)}</div>
                 </div>
               </div>
             </Card>
@@ -106,5 +106,6 @@ const ManagerLeadLists = () => {
 };
 
 export default ManagerLeadLists;
+
 
 

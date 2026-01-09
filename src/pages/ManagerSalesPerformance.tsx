@@ -98,17 +98,17 @@ const ManagerSalesPerformance = () => {
   }, []);
 
   const getAchievementColor = (achievement: number) => {
-    if (achievement >= 100) return "text-green-400";
-    if (achievement >= 75) return "text-blue-400";
-    if (achievement >= 50) return "text-orange-400";
-    return "text-red-400";
+    if (achievement >= 100) return "text-green-600";
+    if (achievement >= 75) return "text-blue-600";
+    if (achievement >= 50) return "text-orange-600";
+    return "text-red-600";
   };
 
   const getAchievementBg = (achievement: number) => {
-    if (achievement >= 100) return "bg-green-500/20 border-green-500/30";
-    if (achievement >= 75) return "bg-blue-500/20 border-blue-500/30";
-    if (achievement >= 50) return "bg-orange-500/20 border-orange-500/30";
-    return "bg-red-500/20 border-red-500/30";
+    if (achievement >= 100) return "bg-green-50 border-green-200 text-green-700";
+    if (achievement >= 75) return "bg-blue-50 border-blue-200 text-blue-700";
+    if (achievement >= 50) return "bg-orange-50 border-orange-200 text-orange-700";
+    return "bg-red-50 border-red-200 text-red-700";
   };
 
   const totalRevenue = salesTeam.reduce((sum, s) => sum + s.revenue, 0);
@@ -119,12 +119,12 @@ const ManagerSalesPerformance = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar role="manager" />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Loader className="w-12 h-12 animate-spin text-purple-400 mx-auto mb-4" />
-            <p className="text-slate-300">Loading sales performance...</p>
+            <Loader className="w-12 h-12 animate-spin text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-600">Loading sales performance...</p>
           </div>
         </main>
       </div>
@@ -132,126 +132,134 @@ const ManagerSalesPerformance = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
 
       <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2 drop-shadow-lg">Sales Performance Dashboard</h1>
-          <p className="text-sm sm:text-base text-white/90 drop-shadow">Monitor team performance, quotas, and pipeline metrics</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 mb-1 sm:mb-2">Sales Performance Dashboard</h1>
+          <p className="text-sm sm:text-base text-slate-600">Monitor team performance, quotas, and pipeline metrics</p>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
-          <Card className="p-3 sm:p-6 bg-slate-800/60 border-slate-700">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="p-4 sm:p-6 bg-white border-slate-200 hover:shadow-md transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-slate-300 text-xs sm:text-sm mb-1 font-bold">Total Revenue</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-400">${(totalRevenue / 1000000).toFixed(2)}M</p>
+                <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Total Revenue</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">${(totalRevenue / 1000000).toFixed(2)}M</p>
               </div>
-              <DollarSign className="w-6 sm:w-8 h-6 sm:h-8 text-green-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-green-50 rounded-xl flex items-center justify-center">
+                <DollarSign className="w-5 sm:w-6 h-5 sm:h-6 text-green-600" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-3 sm:p-6 bg-slate-800/60 border-slate-700">
+          <Card className="p-4 sm:p-6 bg-white border-slate-200 hover:shadow-md transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-slate-300 text-xs sm:text-sm mb-1 font-bold">Total Quota</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-100">${(totalQuota / 1000000).toFixed(2)}M</p>
+                <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Total Quota</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-900">${(totalQuota / 1000000).toFixed(2)}M</p>
               </div>
-              <Target className="w-6 sm:w-8 h-6 sm:h-8 text-blue-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                <Target className="w-5 sm:w-6 h-5 sm:h-6 text-blue-600" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-3 sm:p-6 bg-slate-800/60 border-slate-700">
+          <Card className="p-4 sm:p-6 bg-white border-slate-200 hover:shadow-md transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-slate-300 text-xs sm:text-sm mb-1 font-bold">Team Size</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-100">{salesTeam.length}</p>
+                <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Team Size</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-900">{salesTeam.length}</p>
               </div>
-              <Users className="w-6 sm:w-8 h-6 sm:h-8 text-blue-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+                <Users className="w-5 sm:w-6 h-5 sm:h-6 text-purple-600" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-3 sm:p-6 bg-slate-800/60 border-slate-700">
+          <Card className="p-4 sm:p-6 bg-white border-slate-200 hover:shadow-md transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <p className="text-slate-300 text-xs sm:text-sm mb-1 font-bold">Avg Win Rate</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-100">{avgWinRate}%</p>
+                <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Avg Win Rate</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-900">{avgWinRate}%</p>
               </div>
-              <Award className="w-6 sm:w-8 h-6 sm:h-8 text-orange-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                <Award className="w-5 sm:w-6 h-5 sm:h-6 text-orange-600" />
+              </div>
             </div>
           </Card>
         </div>
 
         {/* Team Performance Table */}
-        <Card className="p-3 sm:p-6 bg-slate-800/60 border-slate-700">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-100 mb-4 sm:mb-6">Sales Team Performance</h2>
+        <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-900 mb-4 sm:mb-6">Sales Team Performance</h2>
 
           {salesTeam.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <AlertCircle className="w-10 sm:w-12 h-10 sm:h-12 text-[#8697C4] mx-auto mb-4" />
-              <p className="text-sm sm:text-base text-[#3D52A0] font-medium">No salespeople assigned yet.</p>
+            <div className="text-center py-12">
+              <AlertCircle className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+              <p className="text-slate-600 font-medium">No salespeople assigned yet.</p>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-4">
               {salesTeam.map((salesman) => (
                 <div
                   key={salesman.id}
-                  className="bg-slate-900/60 p-3 sm:p-5 rounded-lg border border-slate-700 hover:border-slate-600 hover:bg-slate-900/80 transition-all cursor-pointer"
+                  className="bg-white p-5 rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
                   onClick={() => {
                     setSelectedSalesman(salesman);
                     setShowDetailsModal(true);
                   }}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-6 mb-3 sm:mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-sm sm:text-base">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                           {salesman.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className="text-white font-bold text-sm sm:text-lg">{salesman.name}</h3>
-                          <p className="text-xs text-slate-400 truncate font-medium">{salesman.email}</p>
+                          <h3 className="text-slate-900 font-semibold text-lg">{salesman.name}</h3>
+                          <p className="text-xs text-slate-500 truncate">{salesman.email}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-right sm:self-start">
-                      <div className={`text-xl sm:text-2xl font-bold ${getAchievementColor(salesman.achievement)}`}>
+                      <div className={`text-2xl font-bold ${getAchievementColor(salesman.achievement)}`}>
                         {salesman.achievement}%
                       </div>
-                      <p className="text-xs text-[#3D52A0] font-bold">of quota</p>
+                      <p className="text-xs text-slate-500 font-medium">of quota</p>
                     </div>
                   </div>
 
                   {/* Performance Metrics */}
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
-                    <div className="bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700">
-                      <p className="text-xs text-slate-300 mb-1 font-bold">Revenue</p>
-                      <p className="font-bold text-green-600 text-xs sm:text-sm">${(salesman.revenue / 1000).toFixed(0)}K</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Revenue</p>
+                      <p className="font-bold text-green-600 text-sm">${(salesman.revenue / 1000).toFixed(0)}K</p>
                     </div>
-                    <div className="bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700">
-                      <p className="text-xs text-slate-300 mb-1 font-bold">Quota</p>
-                      <p className="font-bold text-slate-100 text-xs sm:text-sm">${(salesman.quota / 1000).toFixed(0)}K</p>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Quota</p>
+                      <p className="font-bold text-slate-900 text-sm">${(salesman.quota / 1000).toFixed(0)}K</p>
                     </div>
-                    <div className="bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700">
-                      <p className="text-xs text-slate-300 mb-1 font-bold">Won</p>
-                      <p className="font-bold text-slate-100 text-xs sm:text-sm">{salesman.leads.won}</p>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Won</p>
+                      <p className="font-bold text-slate-900 text-sm">{salesman.leads.won}</p>
                     </div>
-                    <div className="bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700 hidden sm:block">
-                      <p className="text-xs text-slate-300 mb-1 font-bold">Win Rate</p>
-                      <p className="font-bold text-orange-500 text-sm">{salesman.winRate}%</p>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 hidden sm:block">
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Win Rate</p>
+                      <p className="font-bold text-orange-600 text-sm">{salesman.winRate}%</p>
                     </div>
-                    <div className="bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700 hidden sm:block">
-                      <p className="text-xs text-slate-300 mb-1 font-bold">Avg Deal</p>
-                      <p className="font-bold text-slate-100 text-sm">${(salesman.avgDealValue / 1000).toFixed(0)}K</p>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 hidden sm:block">
+                      <p className="text-xs text-slate-600 mb-1 font-medium">Avg Deal</p>
+                      <p className="font-bold text-slate-900 text-sm">${(salesman.avgDealValue / 1000).toFixed(0)}K</p>
                     </div>
                   </div>
 
                   {/* Progress Bar */}
                   <div className="mt-4">
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
                           salesman.achievement >= 100
@@ -270,18 +278,18 @@ const ManagerSalesPerformance = () => {
                   {/* Lead Pipeline */}
                   <div className="mt-4 flex gap-2 flex-wrap">
                     {salesman.leads.new > 0 && (
-                      <Badge className="bg-slate-600 text-slate-200">New: {salesman.leads.new}</Badge>
+                      <Badge className="bg-slate-100 text-slate-700 border-slate-200">New: {salesman.leads.new}</Badge>
                     )}
                     {salesman.leads.negotiation > 0 && (
-                      <Badge className="bg-orange-600/30 text-orange-200 border-orange-600/50">
+                      <Badge className="bg-orange-50 text-orange-700 border-orange-200">
                         Negotiation: {salesman.leads.negotiation}
                       </Badge>
                     )}
                     {salesman.leads.won > 0 && (
-                      <Badge className="bg-green-600/30 text-green-200 border-green-600/50">Won: {salesman.leads.won}</Badge>
+                      <Badge className="bg-green-50 text-green-700 border-green-200">Won: {salesman.leads.won}</Badge>
                     )}
                     {salesman.leads.lost > 0 && (
-                      <Badge className="bg-red-600/30 text-red-200 border-red-600/50">Lost: {salesman.leads.lost}</Badge>
+                      <Badge className="bg-red-50 text-red-700 border-red-200">Lost: {salesman.leads.lost}</Badge>
                     )}
                   </div>
                 </div>
@@ -292,20 +300,20 @@ const ManagerSalesPerformance = () => {
 
         {/* Details Modal */}
         <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-          <DialogContent className="sm:max-w-2xl bg-slate-950 max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="border-b border-slate-800 pb-4">
-              <DialogTitle className="text-xl text-white">Performance Details</DialogTitle>
+          <DialogContent className="sm:max-w-2xl bg-white max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b border-slate-200 pb-4">
+              <DialogTitle className="text-xl text-slate-900">Performance Details</DialogTitle>
             </DialogHeader>
             {selectedSalesman && (
               <div className="space-y-6 pb-4">
                 {/* Header */}
-                <div className="pb-4 border-b border-slate-800 bg-gradient-to-r from-purple-950/30 to-blue-950/30 p-4 rounded-lg">
+                <div className="pb-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-2xl font-bold text-white">{selectedSalesman.name}</h3>
-                      <p className="text-gray-300 text-sm mt-2">📧 {selectedSalesman.email}</p>
+                      <h3 className="text-2xl font-bold text-slate-900">{selectedSalesman.name}</h3>
+                      <p className="text-slate-600 text-sm mt-2">📧 {selectedSalesman.email}</p>
                     </div>
-                    <Badge className={`${getAchievementBg(selectedSalesman.achievement)} text-sm px-3 py-1`}>
+                    <Badge className={`${getAchievementBg(selectedSalesman.achievement)} text-sm px-3 py-1 border`}>
                       {selectedSalesman.achievement}% Achievement
                     </Badge>
                   </div>
@@ -313,77 +321,77 @@ const ManagerSalesPerformance = () => {
 
                 {/* Revenue Info */}
                 <div>
-                  <h4 className="text-base font-bold text-white mb-3 flex items-center gap-2">
-                    <span className="w-1 h-1 bg-green-400 rounded-full"></span>
+                  <h4 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                     Revenue Overview
                   </h4>
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700">
-                      <span className="text-xs font-semibold text-green-300 block mb-2 uppercase tracking-wide">💰 Total Revenue</span>
-                      <span className="text-xl font-bold text-green-400">${(selectedSalesman.revenue / 1000).toFixed(0)}K</span>
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                      <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">💰 Total Revenue</span>
+                      <span className="text-xl font-bold text-green-600">${(selectedSalesman.revenue / 1000).toFixed(0)}K</span>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700">
-                      <span className="text-xs font-semibold text-blue-300 block mb-2 uppercase tracking-wide">📊 Quota</span>
-                      <span className="text-xl font-bold text-blue-400">${(selectedSalesman.quota / 1000).toFixed(0)}K</span>
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-lg border border-blue-200">
+                      <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">📊 Quota</span>
+                      <span className="text-xl font-bold text-blue-600">${(selectedSalesman.quota / 1000).toFixed(0)}K</span>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700">
-                      <span className="text-xs font-semibold text-pink-300 block mb-2 uppercase tracking-wide">💎 Avg Deal Value</span>
-                      <span className="text-xl font-bold text-pink-400">${(selectedSalesman.avgDealValue / 1000).toFixed(0)}K</span>
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                      <span className="text-xs font-semibold text-purple-700 block mb-2 uppercase tracking-wide">💎 Avg Deal Value</span>
+                      <span className="text-xl font-bold text-purple-600">${(selectedSalesman.avgDealValue / 1000).toFixed(0)}K</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Deal Stats */}
                 <div>
-                  <h4 className="text-base font-bold text-white mb-3 flex items-center gap-2">
-                    <span className="w-1 h-1 bg-purple-400 rounded-full"></span>
+                  <h4 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
                     Deal Pipeline
                   </h4>
                   <div className="grid grid-cols-5 gap-3">
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700 text-center">
-                      <p className="text-2xl font-bold text-white">{selectedSalesman.leads.total}</p>
-                      <p className="text-xs text-slate-400 mt-1">Total Leads</p>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                      <p className="text-2xl font-bold text-slate-900">{selectedSalesman.leads.total}</p>
+                      <p className="text-xs text-slate-600 mt-1">Total Leads</p>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700 text-center">
-                      <p className="text-2xl font-bold text-slate-300">{selectedSalesman.leads.new}</p>
-                      <p className="text-xs text-slate-400 mt-1">New</p>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                      <p className="text-2xl font-bold text-slate-700">{selectedSalesman.leads.new}</p>
+                      <p className="text-xs text-slate-600 mt-1">New</p>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700 text-center">
-                      <p className="text-2xl font-bold text-orange-400">{selectedSalesman.leads.negotiation}</p>
-                      <p className="text-xs text-slate-400 mt-1">Negotiating</p>
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 text-center">
+                      <p className="text-2xl font-bold text-orange-600">{selectedSalesman.leads.negotiation}</p>
+                      <p className="text-xs text-slate-600 mt-1">Negotiating</p>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700 text-center">
-                      <p className="text-2xl font-bold text-green-400">{selectedSalesman.leads.won}</p>
-                      <p className="text-xs text-slate-400 mt-1">Won</p>
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+                      <p className="text-2xl font-bold text-green-600">{selectedSalesman.leads.won}</p>
+                      <p className="text-xs text-slate-600 mt-1">Won</p>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700 text-center">
-                      <p className="text-2xl font-bold text-red-400">{selectedSalesman.leads.lost}</p>
-                      <p className="text-xs text-slate-400 mt-1">Lost</p>
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
+                      <p className="text-2xl font-bold text-red-600">{selectedSalesman.leads.lost}</p>
+                      <p className="text-xs text-slate-600 mt-1">Lost</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Win Rate */}
                 <div>
-                  <h4 className="text-base font-bold text-white mb-3 flex items-center gap-2">
-                    <span className="w-1 h-1 bg-orange-400 rounded-full"></span>
+                  <h4 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                     Performance Metrics
                   </h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700">
-                      <span className="text-xs font-semibold text-orange-300 block mb-2 uppercase tracking-wide">🎯 Win Rate</span>
-                      <p className="text-xl font-bold text-orange-400">{selectedSalesman.winRate}%</p>
-                      <div className="w-full bg-slate-700 h-2 rounded-full mt-3 overflow-hidden">
+                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
+                      <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">🎯 Win Rate</span>
+                      <p className="text-xl font-bold text-orange-600">{selectedSalesman.winRate}%</p>
+                      <div className="w-full bg-orange-100 h-2 rounded-full mt-3 overflow-hidden">
                         <div
                           className="h-full bg-orange-500 rounded-full"
                           style={{ width: `${selectedSalesman.winRate}%` }}
                         />
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-lg border border-slate-700">
-                      <span className="text-xs font-semibold text-green-300 block mb-2 uppercase tracking-wide">📈 Quota Achievement</span>
-                      <p className="text-xl font-bold text-green-400">{selectedSalesman.achievement}%</p>
-                      <div className="w-full bg-slate-700 h-2 rounded-full mt-3 overflow-hidden">
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                      <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">📈 Quota Achievement</span>
+                      <p className="text-xl font-bold text-green-600">{selectedSalesman.achievement}%</p>
+                      <div className="w-full bg-green-100 h-2 rounded-full mt-3 overflow-hidden">
                         <div
                           className="h-full bg-green-500 rounded-full"
                           style={{ width: `${Math.min(selectedSalesman.achievement, 100)}%` }}

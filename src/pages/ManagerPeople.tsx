@@ -36,15 +36,15 @@ const ManagerPeople = () => {
   const salesUsers = users.filter((u: any) => String(u.role || "").toLowerCase().includes("sales"));
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Team Members</h1>
-            <p className="text-slate-400">Add and manage your salespeople</p>
+            <h1 className="text-3xl font-bold text-slate-900">Team Members</h1>
+            <p className="text-slate-500">Add and manage your salespeople</p>
           </div>
-          <Button className="bg-purple-600 text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-purple-600 text-slate-900" onClick={() => setShowModal(true)}>
             <Plus className="w-4 h-4 mr-2" /> Add Sales Person
           </Button>
         </div>
@@ -53,12 +53,12 @@ const ManagerPeople = () => {
           {salesUsers.map((u: any) => (
             <Card key={u.id} className="p-4 bg-white/5 border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-purple-600 text-slate-900 flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-white font-semibold">{u.full_name || u.email}</div>
-                  <div className="text-xs text-slate-400">{u.email}</div>
+                  <div className="text-slate-900 font-semibold">{u.full_name || u.email}</div>
+                  <div className="text-xs text-slate-500">{u.email}</div>
                 </div>
               </div>
             </Card>
@@ -92,5 +92,6 @@ const ManagerPeople = () => {
 };
 
 export default ManagerPeople;
+
 
 
