@@ -34,6 +34,7 @@ const ManagerProjectDetails = () => {
       setShowEditProjectModal(true);
     };
 
+
     // Handle Edit Project form submission
     const handleEditProject = async () => {
       setEditProjectMessage(null);
@@ -83,6 +84,7 @@ const ManagerProjectDetails = () => {
   const [importingBulk, setImportingBulk] = useState(false);
   const [importStatus, setImportStatus] = useState<{ type: "idle" | "success" | "error"; message: string }>({ type: "idle", message: "" });
 
+
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -119,25 +121,27 @@ const ManagerProjectDetails = () => {
         setActivities(data || []);
       }
     });
-    return () => {
-      try { (sub as any)?.unsubscribe?.(); } catch {}
-      try { (subActs as any)?.unsubscribe?.(); } catch {}
-    };
-  }, [id]);
-
-  const totals = useMemo(() => {
-    const value = leads.reduce((s, l) => s + (l.value || 0), 0);
-    const closedWon = leads.filter(l => l.status === "closed_won");
-    const closedWonValue = closedWon.reduce((s, l) => s + (l.value || 0), 0);
-    const rate = leads.length ? Math.round((closedWon.length / leads.length) * 100) : 0;
-    return { value, closedWonValue, rate };
-  }, [leads]);
-
-  const handleSaveLink = async () => {
-    if (!id || !linkInput.trim()) return;
-    setSavingLink(true);
-    setLinkStatus("idle");
-    try {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <DashboardSidebar role="manager" />
+        <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-20 lg:pt-8 overflow-auto bg-slate-50">
+          {/* Project Info Section */}
+          <div className="mb-2 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/manager/projects')} className="text-slate-600 hover:text-slate-900">
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
+              <h1 className="text-lg sm:text-3xl font-semibold text-slate-900 truncate">{project?.name || "Project"}</h1>
+              <Badge className="ml-2 text-xs sm:text-sm px-2 py-1 bg-slate-100 text-slate-700 border border-slate-200">{project?.status}</Badge>
+            </div>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto mt-2 sm:mt-0" onClick={openEditProjectModal}>
+              <Edit2 className="w-4 h-4 mr-1" /> Edit
+            </Button>
+          </div>
+          {/* ...existing code... */}
+        </main>
+      </div>
+    );
       const { error } = await updateProject(id, { link: linkInput.trim() });
       if (error) {
         setLinkStatus("error");

@@ -85,20 +85,35 @@ const SalesPipeline = () => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const user = await getCurrentUser();
         if (!user) {
           navigate('/login', { replace: true });
-          return;
-        }
-
-        setCurrentUser(user);
-        const { data: userData } = await getUserById(user.id);
-        if (userData?.role !== 'salesman') {
-          const roleRoutes = { owner: '/owner', manager: '/manager' };
-          navigate(roleRoutes[userData?.role as 'owner' | 'manager'] || '/login', { replace: true });
+          return (
+            <div className="flex min-h-screen bg-slate-50">
+              <DashboardSidebar role="salesman" />
+              <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-20 lg:pt-8 overflow-auto bg-slate-50">
+                {/* Filter Dropdown for Mobile */}
+                <div className="mb-2 sm:mb-6 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
+                  {/* ...existing filter dropdown and controls... */}
+                </div>
+                {/* Lead Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {/* ...existing lead cards... */}
+                </div>
+                {/* Add Lead Modal */}
+                <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                  <DialogContent className="bg-white border border-slate-200 shadow-xl p-3 sm:p-6">
+                    {/* ...existing add lead modal content... */}
+                  </DialogContent>
+                </Dialog>
+                {/* ...other modals and content... */}
+              </main>
+            </div>
+          );
           return;
         }
 

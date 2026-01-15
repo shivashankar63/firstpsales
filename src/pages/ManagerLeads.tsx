@@ -28,12 +28,13 @@ const ManagerLeads = () => {
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [leadActivities, setLeadActivities] = useState<any[]>([]);
-  
+  // ...existing code...
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [showEditLeadModal, setShowEditLeadModal] = useState(false);
   const [editLeadForm, setEditLeadForm] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [editMessage, setEditMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
     // Open Edit Lead modal with selected lead's data
     const openEditLeadModal = () => {
       if (!selectedLead) return;
@@ -98,26 +99,7 @@ const ManagerLeads = () => {
   const [assigningLead, setAssigningLead] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Test Supabase connection first
-        const connectionTest = await testConnection();
-        if (!connectionTest.success) {
-          console.error('Supabase connection failed! Check your API key in .env.local');
-          setLoading(false);
-          return;
-        }
-
-        const user = await getCurrentUser();
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-
-        const [projectsRes, usersRes] = await Promise.all([
-          getProjects(),
-          getUsers(),
-        ]);
+    // ...existing code...
 
         const allProjects = projectsRes.data || [];
         const users = usersRes.data || [];
@@ -239,14 +221,33 @@ const ManagerLeads = () => {
     setCreateMessage(null);
     if (!leadForm.company_name || !leadForm.contact_name || !leadForm.value) {
       setCreateMessage({ type: "error", text: "Company, contact, and value are required." });
-      return;
-    }
-    if (!selectedProject) {
-      setCreateMessage({ type: "error", text: "Please select a project first." });
-      return;
-    }
-    const valueNum = Number(leadForm.value);
-    if (isNaN(valueNum) || valueNum <= 0) {
+      return (
+        <div className="flex min-h-screen bg-slate-50">
+          <DashboardSidebar role="manager" />
+          <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-20 lg:pt-8 overflow-auto bg-slate-50">
+            {/* Filter Bar */}
+            <div className="mb-2 sm:mb-6 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
+              {/* ...existing filter controls... */}
+            </div>
+            {/* Lead Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {/* ...existing lead cards... */}
+            </div>
+            {/* Modals: Add/Edit Lead */}
+            <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
+              <DialogContent className="bg-white border border-slate-200 shadow-xl p-3 sm:p-6">
+                {/* ...existing add lead modal content... */}
+              </DialogContent>
+            </Dialog>
+            <Dialog open={showEditLeadModal} onOpenChange={setShowEditLeadModal}>
+              <DialogContent className="bg-white border border-slate-200 shadow-xl p-3 sm:p-6">
+                {/* ...existing edit lead modal content... */}
+              </DialogContent>
+            </Dialog>
+            {/* ...other modals and content... */}
+          </main>
+        </div>
+      );
       setCreateMessage({ type: "error", text: "Value must be a positive number." });
       return;
     }
