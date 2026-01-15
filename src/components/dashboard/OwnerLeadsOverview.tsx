@@ -156,47 +156,58 @@ const OwnerLeadsOverview = () => {
     <div className="bg-card rounded-xl shadow-soft p-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-xl font-semibold text-foreground">Pipeline Overview</h2>
-        
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full sm:w-64"
+              className="pl-9 w-full"
             />
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Filter className="w-4 h-4" />
-                {statusFilter === "all" ? "All Status" : statusFilter}
-                <ChevronDown className="w-4 h-4" />
+          {/* Mobile: Dropdown for status filter */}
+          <div className="block sm:hidden w-full">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 w-full">
+                  <Filter className="w-4 h-4" />
+                  {statusFilter === "all" ? "All Status" : statusFilter}
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-full min-w-[10rem]">
+                <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Qualified</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>Negotiation</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("won")}>Won</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("lost")}>Lost</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {/* Desktop: Horizontal status filter (optional, if you want tabs/buttons) */}
+          {/*
+          <div className="hidden sm:flex gap-2 items-center">
+            {[
+              { key: "all", label: "All Status" },
+              { key: "new", label: "New" },
+              { key: "qualified", label: "Qualified" },
+              { key: "negotiation", label: "Negotiation" },
+              { key: "won", label: "Won" },
+              { key: "lost", label: "Lost" },
+            ].map((s) => (
+              <Button
+                key={s.key}
+                variant={statusFilter === s.key ? "default" : "outline"}
+                className="text-xs px-3 py-1 rounded-full"
+                onClick={() => setStatusFilter(s.key)}
+              >
+                {s.label}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => setStatusFilter("all")}>
-                All Status
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("new")}>
-                New
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>
-                Qualified
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>
-                Negotiation
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("won")}>
-                Won
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("lost")}>
-                Lost
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            ))}
+          </div>
+          */}
         </div>
       </div>
 
