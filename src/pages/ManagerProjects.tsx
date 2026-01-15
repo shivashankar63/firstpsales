@@ -60,21 +60,25 @@ const ManagerProjects = () => {
           {projects.map((p: any) => (
             <Card
               key={p.id}
-              className="p-3 sm:p-4 bg-white border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-300"
-              onClick={() => navigate(`/manager/projects/${p.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/manager/projects/${p.id}`); }}
+              className="p-3 sm:p-4 bg-white border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-slate-300"
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0 mb-2 sm:mb-0">
                   <CalendarDays className="w-5 h-5" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="text-slate-900 font-semibold truncate break-words text-base sm:text-lg">{p.name}</div>
-                  <div className="text-xs sm:text-sm text-slate-600 overflow-hidden text-ellipsis whitespace-nowrap">{p.status}  Budget: ${p.budget || 0}</div>
-                  <div className="text-xs sm:text-sm text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap">{p.start_date || "-"}  {p.end_date || "-"}</div>
+                  <div className="text-xs sm:text-sm text-slate-600 overflow-hidden text-ellipsis whitespace-nowrap">{p.status}  Budget: ${p.budget || 0}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap">{p.start_date || "-"}  {p.end_date || "-"}</div>
                 </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                <Button className="bg-green-500 hover:bg-green-600 text-white w-full sm:w-auto text-base py-2" onClick={() => navigate(`/manager/projects/${p.id}?edit=true`)}>
+                  Edit
+                </Button>
+                <Button className="bg-red-500 hover:bg-red-600 text-white w-full sm:w-auto text-base py-2" onClick={() => {/* TODO: implement delete logic */}}>
+                  Delete
+                </Button>
               </div>
             </Card>
           ))}

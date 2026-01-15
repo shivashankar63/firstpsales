@@ -311,39 +311,39 @@ const ManagerProjectDetails = () => {
                 </div>
               )}
               {editProjectForm && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-project-name">Project Name *</Label>
-                    <Input
-                      id="edit-project-name"
-                      value={editProjectForm.name}
-                      onChange={(e) => setEditProjectForm({ ...editProjectForm, name: e.target.value })}
-                      placeholder="Project Name"
-                    />
+                <div className="flex flex-col gap-4 px-2 md:px-0">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0 mb-4">
+                    <h2 className="text-xl font-bold">Project Details</h2>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0">
+                      <button
+                        className="bg-green-500 text-white px-4 py-2 rounded text-base hover:bg-green-600 transition w-full sm:w-auto"
+                        onClick={() => setShowEditModal(true)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="bg-red-500 text-white px-4 py-2 rounded text-base hover:bg-red-600 transition w-full sm:w-auto"
+                        onClick={handleDelete}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-project-status">Status</Label>
-                    <Input
-                      id="edit-project-status"
-                      value={editProjectForm.status}
-                      onChange={(e) => setEditProjectForm({ ...editProjectForm, status: e.target.value })}
-                      placeholder="planned / in_progress / completed"
-                    />
+                  <div className="bg-white rounded shadow p-4 flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-lg break-words">{project?.name}</span>
+                      <span className="text-gray-500 text-sm break-words">{project?.description}</span>
+                    </div>
+                    {/* ...other details... */}
                   </div>
-                  <div>
-                    <Label htmlFor="edit-project-budget">Budget (USD)</Label>
-                    <Input
-                      id="edit-project-budget"
-                      type="number"
-                      value={editProjectForm.budget}
-                      onChange={(e) => setEditProjectForm({ ...editProjectForm, budget: e.target.value })}
-                      placeholder="50000"
+                  {showEditModal && project && (
+                    <EditProjectModal
+                      project={project}
+                      onClose={() => setShowEditModal(false)}
+                      onEdit={fetchProject}
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-project-start">Start Date</Label>
-                    <Input
-                      id="edit-project-start"
+                  )}
+                </div>
                       type="date"
                       value={editProjectForm.start_date}
                       onChange={(e) => setEditProjectForm({ ...editProjectForm, start_date: e.target.value })}
