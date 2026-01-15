@@ -189,12 +189,6 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200">
-            <DropdownMenuItem onClick={() => navigate("/settings")} className="text-slate-700 hover:bg-slate-100">
-              Profile Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings")} className="text-slate-700 hover:bg-slate-100">
-              Preferences
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-slate-200" />
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 hover:bg-red-50">
               <LogOut className="w-4 h-4 mr-2" />

@@ -31,7 +31,6 @@ import Teams from "./pages/Teams";
 import Analytics from "./pages/Analytics";
 import Regions from "./pages/Regions";
 import RevenueReports from "./pages/RevenueReports";
-import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,7 +70,6 @@ const App = () => (
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/regions" element={<Regions />} />
           <Route path="/revenue" element={<RevenueReports />} />
-          <Route path="/settings" element={<Settings />} />
           <Route path="/owner-dashboard" element={<OwnerDashboard />} />
           <Route path="/manager-dashboard" element={<ManagerDashboard />} />
           <Route path="/salesman-dashboard" element={<SalesmanDashboard />} />

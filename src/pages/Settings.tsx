@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import { Building2, Users, Bell, CreditCard, Shield, Globe, Save } from "lucide-react";
+import { Users, Bell, Shield, Globe, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,11 +15,6 @@ import { getCurrentUser, getUserById } from "@/lib/supabase";
 const Settings = () => {
   const [sidebarRole, setSidebarRole] = useState<"owner" | "manager" | "salesman">("owner");
   const [formData, setFormData] = useState({
-    companyName: "SalesFlow Corp",
-    industry: "SaaS",
-    timezone: "America/New_York",
-    currency: "USD",
-    fiscalYearStart: "January",
     emailNotifications: true,
     smsNotifications: false,
     slackIntegration: true,
@@ -56,94 +50,6 @@ const Settings = () => {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">Organization Settings</h1>
             <p className="text-sm text-slate-600">Configure your workspace and preferences</p>
-          </div>
-
-          {/* Company Profile */}
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mb-4">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Company Profile</h2>
-                <p className="text-sm text-slate-600">Basic organization information</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-700 mb-2">Company Name</Label>
-                  <Input
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="bg-white border-slate-200"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-700 mb-2">Industry</Label>
-                  <Select value={formData.industry} onValueChange={(value) => setFormData({ ...formData, industry: value })}>
-                    <SelectTrigger className="bg-white border-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SaaS">SaaS</SelectItem>
-                      <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="Consulting">Consulting</SelectItem>
-                      <SelectItem value="Retail">Retail</SelectItem>
-                      <SelectItem value="Healthcare">Healthcare</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-700 mb-2">Timezone</Label>
-                  <Select value={formData.timezone} onValueChange={(value) => setFormData({ ...formData, timezone: value })}>
-                    <SelectTrigger className="bg-white border-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                      <SelectItem value="Europe/London">London (GMT)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-slate-700 mb-2">Currency</Label>
-                  <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
-                    <SelectTrigger className="bg-white border-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                      <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-slate-700 mb-2">Fiscal Year Start</Label>
-                <Select value={formData.fiscalYearStart} onValueChange={(value) => setFormData({ ...formData, fiscalYearStart: value })}>
-                  <SelectTrigger className="bg-white border-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="January">January</SelectItem>
-                    <SelectItem value="April">April</SelectItem>
-                    <SelectItem value="July">July</SelectItem>
-                    <SelectItem value="October">October</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
 
           {/* Notifications */}

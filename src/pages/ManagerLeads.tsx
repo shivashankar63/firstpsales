@@ -204,7 +204,7 @@ const ManagerLeads = () => {
           const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject.id);
           setLeads(projectLeads);
         } else {
-          setLeads([]);
+          setLeads(allLeads); // Show all leads when no project is selected
         }
       } catch (error) {
         console.error("Error fetching leads:", error);
@@ -223,7 +223,7 @@ const ManagerLeads = () => {
           const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject.id);
           setLeads(projectLeads);
         } else {
-          setLeads([]);
+          setLeads(allLeads); // Show all leads when no project is selected
         }
       } catch (e) {
         console.error("Failed to refresh leads after realtime event", e);
@@ -347,26 +347,14 @@ const ManagerLeads = () => {
     return normalizedLeadStatus === normalizedFilterStatus || leadStatus === filterStatus;
   };
 
+  // Fix: filteredLeads should show all leads when selectedProject is null
   const filteredLeads = leads.filter((lead) => {
-    // Always use normalized status for filtering to match dashboard logic
-    const normalizedLeadStatus = normalizeStatus(lead.status);
-    const normalizedStatusFilter = normalizeStatus(statusFilter);
-    // If a status filter is set (from dashboard), ignore project filter (show all projects for that status)
-    if (statusFilter !== 'all') {
-      if (normalizedLeadStatus !== normalizedStatusFilter) return false;
-    } else {
-      // If no status filter, filter by selected project
-      if (selectedProject && lead.project_id !== selectedProject.id) return false;
-    }
-    const matchesAssignee =
-      assigneeFilter === "all" ||
-      (assigneeFilter === "unassigned" ? !lead.assigned_to : lead.assigned_to === assigneeFilter);
-    const term = searchTerm.trim().toLowerCase();
-    const matchesSearch = term === "" ||
-      (lead.company_name || "").toLowerCase().includes(term) ||
-      (lead.contact_name || "").toLowerCase().includes(term) ||
-      (lead.email || "").toLowerCase().includes(term);
-    return matchesAssignee && matchesSearch;
+    const matchesStatus = statusFilter === 'all' || normalizeStatus(lead.status) === statusFilter;
+    const matchesAssignee = assigneeFilter === 'all' || lead.assigned_to === assigneeFilter;
+    const matchesSearch = !searchTerm || lead.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+    // If selectedProject is null, show all leads
+    const matchesProject = selectedProject ? lead.project_id === selectedProject.id : true;
+    return matchesStatus && matchesAssignee && matchesSearch && matchesProject;
   });
 
   const getStatusIcon = (status: string) => {
@@ -420,6 +408,13 @@ const ManagerLeads = () => {
 
     return () => { cleanup?.(); };
   }, [selectedLead, showDetailsModal]);
+
+  // Always set selectedProject to null on mount and after projects load
+  useEffect(() => {
+    if (projects.length > 0) {
+      setSelectedProject(null);
+    }
+  }, [projects]);
 
   if (loading) {
     return (

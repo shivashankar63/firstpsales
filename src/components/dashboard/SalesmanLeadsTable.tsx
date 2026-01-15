@@ -111,7 +111,10 @@ const SalesmanLeadsTable = () => {
     const matchesSearch = lead.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.contact_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    const matchesProject = projectFilter === "all" || lead.projects?.name === projectFilter;
+    let matchesProject = true;
+    if (projectFilter !== "all") {
+      matchesProject = lead.projects?.name === projectFilter;
+    }
     return matchesSearch && matchesStatus && matchesProject;
   });
 

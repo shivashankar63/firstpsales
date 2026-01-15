@@ -19,9 +19,11 @@ interface Lead {
   id: string;
   company_name: string;
   contact_name: string;
-  status: "new" | "qualified" | "proposal" | "closed_won" | "not_interested";
+  status: string;
   value: number;
   assigned_to?: string;
+  project_id?: string;
+  projects?: { name: string };
 }
 
 interface User {
@@ -32,6 +34,9 @@ interface User {
 }
 
 const ManagerLeadsTable = () => {
+  // Set default project filter to 'all' only on first mount
+  const [projectFilter, setProjectFilter] = useState<string>(() => 'all');
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,19 +50,23 @@ const ManagerLeadsTable = () => {
   const [updateMessage, setUpdateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchLeads = async () => {
+    const fetchLeadsAndProjects = async () => {
       try {
-        const { data: leadsData } = await getLeads();
+        const leadFilters: any = {};
+        if (projectFilter !== 'all') leadFilters.projectId = projectFilter;
+        const { data: leadsData } = await getLeads(leadFilters);
         const { data: usersData } = await getUsers();
+        const { data: projectsData } = await supabase.from('projects').select('id, name');
         setLeads(leadsData || []);
         setUsers(usersData || []);
+        setProjects(projectsData || []);
       } catch (error) {
-        console.error("Error fetching leads:", error);
+        console.error("Error fetching leads/projects:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchLeads();
+    fetchLeadsAndProjects();
 
     // Subscribe to realtime lead changes
     const channel = subscribeToLeads((payload: any) => {
@@ -84,12 +93,13 @@ const ManagerLeadsTable = () => {
         supabase.removeChannel(channel);
       } catch {}
     };
-  }, []);
+  }, [projectFilter]);
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch = lead.company_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesProject = projectFilter === "all" || (lead.project_id && lead.project_id === projectFilter);
+    return matchesSearch && matchesStatus && matchesProject;
   });
 
   const getStatusBadge = (status: Lead["status"]) => {
@@ -170,7 +180,6 @@ const ManagerLeadsTable = () => {
     <div className="bg-card rounded-xl shadow-soft p-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-xl font-semibold text-foreground">Team Leads</h2>
-        
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -181,7 +190,27 @@ const ManagerLeadsTable = () => {
               className="pl-9 w-full sm:w-64"
             />
           </div>
-          
+          {/* Project Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="w-4 h-4" />
+                {projectFilter === "all"
+                  ? "All Projects"
+                  : (projects.find(p => p.id === projectFilter)?.name || "Unknown Project")}
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => setProjectFilter("all")}>All Projects</DropdownMenuItem>
+              {projects.map((project) => (
+                <DropdownMenuItem key={project.id} onClick={() => setProjectFilter(project.id)}>
+                  {project.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Status Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -191,24 +220,12 @@ const ManagerLeadsTable = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => setStatusFilter("all")}>
-                All Status
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("new")}>
-                New
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>
-                Qualified
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>
-                Negotiation
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("won")}>
-                Won
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("lost")}>
-                Lost
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Qualified</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>Negotiation</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("won")}>Won</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("lost")}>Lost</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -225,6 +242,7 @@ const ManagerLeadsTable = () => {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Company</th>
+                <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Project</th>
                 <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Contact</th>
                 <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Status</th>
                 <th className="text-right py-3 px-4 font-medium text-sm text-muted-foreground">Value</th>
@@ -236,14 +254,7 @@ const ManagerLeadsTable = () => {
                 filteredLeads.map((lead) => (
                   <tr key={lead.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-primary/20 text-primary text-xs font-medium">
-                            {lead.company_name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium text-foreground">{lead.company_name}</span>
-                      </div>
+                      <span className="text-sm font-medium text-foreground">{lead.projects?.name || "Unknown"}</span>
                     </td>
                     <td className="py-3 px-4 text-sm text-foreground">{lead.contact_name}</td>
                     <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
