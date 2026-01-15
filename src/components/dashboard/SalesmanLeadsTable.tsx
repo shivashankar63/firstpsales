@@ -31,7 +31,23 @@ interface Lead {
 }
 
 const SalesmanLeadsTable = () => {
-  // ...existing state and hooks...
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [groupByProject, setGroupByProject] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingStatus, setEditingStatus] = useState<string>("new");
+  const [updateMessage, setUpdateMessage] = useState<{ type: string; text: string } | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [updateLoadingId, setUpdateLoadingId] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState<any[]>([]);
+  const [uniqueProjects, setUniqueProjects] = useState<string[]>([]);
 
   // ...existing useEffect and logic...
 
