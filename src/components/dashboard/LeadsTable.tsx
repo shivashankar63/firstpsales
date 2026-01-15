@@ -76,36 +76,38 @@ const LeadsTable = () => {
 
   return (
     <div className="bg-card rounded-xl shadow-soft p-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6 w-full">
         <h2 className="text-xl font-semibold text-foreground">Lead Distribution</h2>
-        
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full sm:w-64"
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-full"
+              />
+            </div>
+            <div className="w-full sm:w-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                    <Filter className="w-4 h-4" />
+                    {statusFilter === "all" ? "All Status" : statusFilter}
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter("proposal")}>In Proposal</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter("closed_won")}>Closed Won</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter("not_interested")}>Not Interested</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Filter className="w-4 h-4" />
-                {statusFilter === "all" ? "All Status" : statusFilter}
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("proposal")}>In Proposal</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("closed_won")}>Closed Won</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("not_interested")}>Not Interested</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

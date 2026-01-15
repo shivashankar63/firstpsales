@@ -172,43 +172,47 @@ const Leads = () => {
 
         {/* Filters and Actions */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 justify-between">
-            <div className="flex gap-3 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search leads..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-500"
-                />
+          <div className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col lg:flex-row gap-3 w-full justify-between">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search leads..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-500 w-full"
+                  />
+                </div>
+                <div className="w-full sm:w-auto">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10 w-full sm:w-auto">
+                        <Filter className="w-4 h-4" />
+                        {statusFilter === "all" ? "All Status" : statusFilter}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Qualified</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>Negotiation</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatusFilter("won")}>Won</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatusFilter("lost")}>Lost</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10">
-                    <Filter className="w-4 h-4" />
-                    {statusFilter === "all" ? "All Status" : statusFilter}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Qualified</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("negotiation")}>Negotiation</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("won")}>Won</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatusFilter("lost")}>Lost</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={handleExport} variant="outline" className="gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10">
-                <Download className="w-4 h-4" />
-                Export
-              </Button>
-              <Button onClick={() => setShowAddModal(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="w-4 h-4" />
-                Add Lead
-              </Button>
+              <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                <Button onClick={handleExport} variant="outline" className="gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10 w-full sm:w-auto">
+                  <Download className="w-4 h-4" />
+                  Export
+                </Button>
+                <Button onClick={() => setShowAddModal(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
+                  <Plus className="w-4 h-4" />
+                  Add Lead
+                </Button>
+              </div>
             </div>
           </div>
         </div>
