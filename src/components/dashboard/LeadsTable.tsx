@@ -112,7 +112,64 @@ const LeadsTable = () => {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full">
+        {/* Mobile Card View */}
+        <div className="flex flex-col gap-4 sm:hidden">
+          {filteredLeads.map((lead, index) => (
+            <div
+              key={lead.id}
+              className="bg-white rounded-2xl shadow-md p-4 flex flex-col gap-3 animate-fade-in"
+              style={{ animationDelay: `${0.1 * index}s` }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Avatar className="w-12 h-12">
+                  <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                    {lead.avatar}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold text-lg text-foreground">{lead.name}</div>
+                  <div className="text-sm text-muted-foreground">{lead.project}</div>
+                </div>
+                <div className="ml-auto">{getStatusBadge(lead.status)}</div>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs text-muted-foreground">Assigned:</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 h-8 rounded-full px-3">
+                      {lead.assignedTo || <span className="text-destructive">Unassigned</span>}
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {salesmen.map((salesman) => (
+                      <DropdownMenuItem
+                        key={salesman}
+                        onClick={() => handleAssign(lead.id, salesman)}
+                      >
+                        {salesman}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <span className="ml-auto font-semibold text-foreground text-base">${lead.value.toLocaleString()}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button variant="ghost" size="sm" className="gap-2 flex-1 rounded-full">
+                  <Eye className="w-4 h-4" />
+                  View
+                </Button>
+              </div>
+            </div>
+          ))}
+          {filteredLeads.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No leads found matching your criteria.</p>
+            </div>
+          )}
+        </div>
+        {/* Desktop Table View */}
+        <table className="w-full hidden sm:table">
           <thead>
             <tr className="border-b border-border">
               <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Lead Name</th>

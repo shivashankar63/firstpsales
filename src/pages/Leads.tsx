@@ -219,7 +219,75 @@ const Leads = () => {
 
         {/* Leads Table */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="flex flex-col gap-4 sm:hidden p-2">
+            {filteredLeads.map((lead) => (
+              <div key={lead.id} className="bg-white/10 rounded-2xl shadow-md p-4 flex flex-col gap-3 animate-fade-in">
+                <div className="flex items-center gap-3 mb-2">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="bg-blue-500/20 text-blue-400 text-xs font-medium">
+                      {lead.company.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-base font-semibold text-white">{lead.company}</div>
+                    <div className="text-xs text-slate-400">{lead.lastActivity}</div>
+                  </div>
+                  <div className="ml-auto">
+                    <select
+                      className={`bg-transparent border-none text-inherit ${getStatusColor(lead.status)} rounded px-2 py-1 text-xs`}
+                      value={lead.status}
+                      onChange={e => handleStatusChange(lead, e.target.value)}
+                    >
+                      <option value="new">New</option>
+                      <option value="qualified">Qualified</option>
+                      <option value="negotiation">Negotiation</option>
+                      <option value="won">Won</option>
+                      <option value="lost">Lost</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm text-white">{lead.contact}</div>
+                  <div className="text-xs text-slate-400">{lead.email}</div>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center mt-2">
+                  <span className="text-xs text-slate-400">Assignee:</span>
+                  <span className="text-xs text-slate-300">{lead.assignee}</span>
+                  <span className="ml-auto font-semibold text-white text-base">${(lead.value / 1000).toFixed(0)}K</span>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center mt-2">
+                  <span className="text-xs text-slate-400">Source:</span>
+                  <span className="text-xs text-slate-300">{lead.source}</span>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button onClick={() => handleViewLead(lead)} variant="ghost" size="sm" className="gap-2 flex-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10">
+                    <Eye className="w-4 h-4" />
+                    View
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="flex-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleViewLead(lead)}>View Details</DropdownMenuItem>
+                      <DropdownMenuItem>Reassign</DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            ))}
+            {filteredLeads.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No leads found matching your criteria.</p>
+              </div>
+            )}
+          </div>
+          {/* Desktop Table View */}
+          <div className="overflow-x-auto hidden sm:block">
             <table className="w-full">
               <thead className="border-b border-white/10">
                 <tr>
