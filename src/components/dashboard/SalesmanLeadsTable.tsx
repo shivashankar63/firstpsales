@@ -31,6 +31,62 @@ interface Lead {
 }
 
 const SalesmanLeadsTable = () => {
+
+      // Helper to render a badge for each status
+      function getStatusBadge(status: string) {
+        const statusMap: Record<string, { label: string; color: string }> = {
+          new: { label: 'New', color: 'bg-blue-100 text-blue-800' },
+          qualified: { label: 'Qualified', color: 'bg-purple-100 text-purple-800' },
+          proposal: { label: 'Proposal', color: 'bg-amber-100 text-amber-800' },
+          closed_won: { label: 'Closed', color: 'bg-emerald-100 text-emerald-800' },
+          not_interested: { label: 'Archived', color: 'bg-slate-100 text-slate-800' },
+        };
+        const s = statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
+        return <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>{s.label}</span>;
+      }
+    useEffect(() => {
+      let isMounted = true;
+      const fetchLeads = async () => {
+        setLoading(true);
+        try {
+          const user = await getCurrentUser();
+          if (!user) {
+            setLeads([]);
+            setLoading(false);
+            return;
+          }
+          const { data, error } = await getLeads({ assignedTo: user.id });
+          if (error) {
+            setLeads([]);
+          } else if (isMounted) {
+            setLeads(data || []);
+            // Calculate project stats and unique projects for filters
+            const stats: any[] = [];
+            const projectsSet = new Set<string>();
+            (data || []).forEach((lead: any) => {
+              if (lead.projects?.name) projectsSet.add(lead.projects.name);
+            });
+            setUniqueProjects(Array.from(projectsSet));
+            // Example: group by project name for stats
+            const grouped: Record<string, { name: string; count: number; value: number; needsAttention: number }> = {};
+            (data || []).forEach((lead: any) => {
+              const name = lead.projects?.name || 'No Project';
+              if (!grouped[name]) grouped[name] = { name, count: 0, value: 0, needsAttention: 0 };
+              grouped[name].count++;
+              grouped[name].value += lead.value || 0;
+              if (lead.status === 'new' || lead.status === 'proposal') grouped[name].needsAttention++;
+            });
+            setProjectStats(Object.values(grouped));
+          }
+        } catch (err) {
+          setLeads([]);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      };
+      fetchLeads();
+      return () => { isMounted = false; };
+    }, []);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const [leads, setLeads] = useState<Lead[]>([]);
