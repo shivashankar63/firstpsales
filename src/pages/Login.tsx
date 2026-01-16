@@ -55,7 +55,7 @@ const Login = () => {
     try {
       if (isSignUp) {
         // Sign up logic
-        const { data, error: signUpError } = await signUpWithEmail(email, password);
+        const { data, error: signUpError } = await signUpWithEmail(email, password, fullName, selectedRole);
         
         if (signUpError) {
           setError(signUpError.message);
