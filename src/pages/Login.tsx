@@ -4,10 +4,18 @@ import { Eye, EyeOff, TrendingUp, Mail, AlertCircle, Loader } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInWithEmail, signUpWithEmail, supabase } from "@/lib/supabase";
+import { signInWithEmail, signUpWithEmail, supabase, updateUser } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type UserRole = "owner" | "manager" | "salesman";
+
+const normalizeRole = (value: unknown): UserRole | null => {
+  const role = String(value ?? "").toLowerCase().trim();
+  if (role === "owner" || role === "manager" || role === "salesman") {
+    return role;
+  }
+  return null;
+};
 
 const Login = () => {
   const navigate = useNavigate();
@@ -23,6 +31,9 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
+      // Always clear any existing session before logging in
+      await supabase.auth.signOut();
+
       // Authenticate user
       const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
       if (loginError) {
@@ -31,6 +42,13 @@ const Login = () => {
         return;
       }
       if (data.user) {
+        const loggedInEmail = data.user.email?.toLowerCase();
+        if (loggedInEmail && loggedInEmail !== email.toLowerCase()) {
+          await supabase.auth.signOut();
+          setError("Login mismatch. Please try again.");
+          setLoading(false);
+          return;
+        }
         // Get user role from DB
         const { data: userData, error: userError } = await supabase
           .from("users")
@@ -42,13 +60,29 @@ const Login = () => {
           setLoading(false);
           return;
         }
-        const role = String(userData.role || "").toLowerCase().trim();
-        if (role === "salesman") {
+        // Normalize role from DB and auth metadata
+        const dbRole = normalizeRole(userData.role);
+        const metaRole = normalizeRole(
+          data.user.user_metadata?.role ?? data.user.app_metadata?.role
+        );
+        // Prefer DB role as source of truth, fall back to metadata only if DB missing
+        const resolvedRole = dbRole ?? metaRole;
+
+        // If DB role is missing but metadata exists, sync it to DB
+        if (!dbRole && metaRole) {
+          await updateUser(data.user.id, { role: metaRole });
+        }
+
+        // Navigate based on resolved role
+        if (resolvedRole === "salesman") {
           navigate("/salesman", { replace: true });
-        } else if (role === "manager") {
+          return;
+        } else if (resolvedRole === "manager") {
           navigate("/manager", { replace: true });
-        } else if (role === "owner") {
+          return;
+        } else if (resolvedRole === "owner") {
           navigate("/owner", { replace: true });
+          return;
         } else {
           setError("Access denied. Invalid user role.");
           setLoading(false);

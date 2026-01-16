@@ -3,9 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
+type UserRole = 'owner' | 'manager' | 'salesman';
+
+const normalizeRole = (value: unknown): UserRole | null => {
+  const role = String(value ?? '').toLowerCase().trim();
+  if (role === 'owner' || role === 'manager' || role === 'salesman') {
+    return role;
+  }
+  return null;
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<'owner' | 'manager' | 'salesman' | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -34,8 +44,14 @@ export const useAuth = () => {
           if (dbError) {
             console.error('Error fetching user role:', dbError);
           } else if (data) {
-            const role = String(data.role || '').toLowerCase() as 'owner' | 'manager' | 'salesman';
-            setUserRole(role);
+            const dbRole = normalizeRole(data.role);
+            const metaRole = normalizeRole(
+              user.user_metadata?.role ?? user.app_metadata?.role
+            );
+            const resolvedRole = dbRole ?? metaRole;
+            if (resolvedRole) {
+              setUserRole(resolvedRole);
+            }
           }
         } else {
           setUser(null);
@@ -64,8 +80,14 @@ export const useAuth = () => {
             .single();
           
           if (data) {
-            const role = String(data.role || '').toLowerCase() as 'owner' | 'manager' | 'salesman';
-            setUserRole(role);
+            const dbRole = normalizeRole(data.role);
+            const metaRole = normalizeRole(
+              session.user.user_metadata?.role ?? session.user.app_metadata?.role
+            );
+            const resolvedRole = dbRole ?? metaRole;
+            if (resolvedRole) {
+              setUserRole(resolvedRole);
+            }
           }
         } else {
           setUserRole(null);
@@ -102,8 +124,14 @@ export const useAuth = () => {
           .single();
 
         if (userData) {
-          const role = String(userData.role || '').toLowerCase() as 'owner' | 'manager' | 'salesman';
-          setUserRole(role);
+          const dbRole = normalizeRole(userData.role);
+          const metaRole = normalizeRole(
+            data.user.user_metadata?.role ?? data.user.app_metadata?.role
+          );
+          const resolvedRole = dbRole ?? metaRole;
+          if (resolvedRole) {
+            setUserRole(resolvedRole);
+          }
 
           // Redirect to appropriate dashboard
           const dashboardRoute = {
@@ -111,7 +139,7 @@ export const useAuth = () => {
             manager: '/manager',
             salesman: '/salesman',
           };
-          navigate(dashboardRoute[role] || '/login');
+          navigate(dashboardRoute[resolvedRole as UserRole] || '/login');
         }
       }
 
@@ -152,8 +180,10 @@ export const useAuth = () => {
         }
 
         setUser(data.user);
-        const normalized = String(role || '').toLowerCase() as 'owner' | 'manager' | 'salesman';
-        setUserRole(normalized);
+        const normalized = normalizeRole(role);
+        if (normalized) {
+          setUserRole(normalized);
+        }
         
         // Redirect to appropriate dashboard
         const dashboardRoute = {
@@ -161,7 +191,7 @@ export const useAuth = () => {
           manager: '/manager',
           salesman: '/salesman',
         };
-        navigate(dashboardRoute[normalized] || '/login');
+        navigate(dashboardRoute[normalized as UserRole] || '/login');
       }
 
       return true;
