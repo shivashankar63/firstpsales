@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ManagerLeads = () => {
   const navigate = useNavigate();
@@ -97,6 +98,12 @@ const ManagerLeads = () => {
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [assigningLead, setAssigningLead] = useState<string | null>(null);
+  
+  // Bulk assign states
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssignSalesman, setBulkAssignSalesman] = useState<string>("");
   
   // Bulk import states
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
@@ -302,6 +309,57 @@ const ManagerLeads = () => {
     }
   };
 
+  // Handle bulk assign
+  const handleBulkAssign = async () => {
+    if (!bulkAssignSalesman || selectedLeadIds.size === 0) {
+      alert("Please select a salesman and at least one lead");
+      return;
+    }
+    setBulkAssigning(true);
+    try {
+      const leadIdsArray = Array.from(selectedLeadIds);
+      const assignPromises = leadIdsArray.map(leadId => 
+        updateLead(leadId, { assigned_to: bulkAssignSalesman })
+      );
+      await Promise.all(assignPromises);
+      
+      // Refresh leads
+      const leadsRes = await getLeads();
+      setLeads(leadsRes.data || []);
+      
+      // Clear selection
+      setSelectedLeadIds(new Set());
+      setShowBulkAssignModal(false);
+      setBulkAssignSalesman("");
+      alert(`Successfully assigned ${leadIdsArray.length} lead(s) to salesman`);
+    } catch (error: any) {
+      alert(`Failed to assign leads: ${error.message || 'Unknown error'}`);
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
+
+  // Toggle select all filtered leads
+  const handleSelectAll = (checked: boolean | "indeterminate") => {
+    if (checked === true) {
+      const allFilteredIds = new Set(filteredLeads.map(lead => lead.id));
+      setSelectedLeadIds(allFilteredIds);
+    } else {
+      setSelectedLeadIds(new Set());
+    }
+  };
+
+  // Toggle individual lead selection
+  const handleToggleLead = (leadId: string, checked: boolean | "indeterminate") => {
+    const newSelection = new Set(selectedLeadIds);
+    if (checked === true) {
+      newSelection.add(leadId);
+    } else {
+      newSelection.delete(leadId);
+    }
+    setSelectedLeadIds(newSelection);
+  };
+
   // Handle Excel file upload and parsing
   const handleExcelFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -479,6 +537,10 @@ const ManagerLeads = () => {
     const matchesProject = selectedProject ? lead.project_id === selectedProject.id : true;
     return matchesStatus && matchesAssignee && matchesSearch && matchesProject;
   });
+
+  // Check if all filtered leads are selected
+  const allFilteredSelected = filteredLeads.length > 0 && filteredLeads.every(lead => selectedLeadIds.has(lead.id));
+  const someFilteredSelected = filteredLeads.some(lead => selectedLeadIds.has(lead.id));
 
   const getStatusIcon = (status: string) => {
     const normalizedStatus = normalizeStatus(status);
@@ -753,7 +815,48 @@ const ManagerLeads = () => {
                 <span className="text-xs text-slate-500 font-medium">Showing all leads across all projects</span>
               </div>
             </Card>
+            {/* Bulk Assign Toolbar */}
+            {selectedLeadIds.size > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-blue-900">
+                      {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedLeadIds(new Set())}
+                      className="text-xs"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={() => setShowBulkAssignModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Assign to Salesman
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             <Card className="p-3 sm:p-6 bg-white border-slate-200">
+              {/* Select All Header */}
+              {filteredLeads.length > 0 && (
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-200">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={handleSelectAll}
+                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                  />
+                  <span className="text-sm font-medium text-slate-700">
+                    Select All ({filteredLeads.length} leads)
+                  </span>
+                </div>
+              )}
               <div className="space-y-2 sm:space-y-3">
                 {filteredLeads.length === 0 && (
                   <div className="text-center text-slate-500 py-8">No leads found for any project.</div>
@@ -764,23 +867,37 @@ const ManagerLeads = () => {
                   const lastTouched = lead.updated_at || lead.created_at;
                   const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
                   const isStale = daysStale > 7;
+                  const isSelected = selectedLeadIds.has(lead.id);
                   return (
-                    <Card key={lead.id} className="p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
-                      setSelectedLead(lead);
-                      setShowDetailsModal(true);
-                    }}>
-                      <div className="flex flex-col gap-3 sm:gap-4">
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            {getStatusIcon(lead.status)}
-                            <h3 className="font-bold text-slate-900 text-sm sm:text-base">{lead.company_name}</h3>
-                            <Badge className={getStatusColor(lead.status) + " text-xs sm:text-sm font-semibold"}>{lead.status}</Badge>
-                            {isStale && (
-                              <span className="ml-2 text-xs text-orange-500">Stale</span>
-                            )}
+                    <Card key={lead.id} className={`p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        />
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => {
+                            setSelectedLead(lead);
+                            setShowDetailsModal(true);
+                          }}
+                        >
+                          <div className="flex flex-col gap-3 sm:gap-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                {getStatusIcon(lead.status)}
+                                <h3 className="font-bold text-slate-900 text-sm sm:text-base">{lead.company_name}</h3>
+                                <Badge className={getStatusColor(lead.status) + " text-xs sm:text-sm font-semibold"}>{lead.status}</Badge>
+                                {isStale && (
+                                  <span className="ml-2 text-xs text-orange-500">Stale</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500">Project: {projects.find(p => p.id === lead.project_id)?.name || 'Unknown'}</div>
+                              <div className="text-xs text-slate-500">Contact: {lead.contact_name} | Value: ${((lead.value || 0) / 1000).toFixed(0)}K | Assigned: {assignedName}</div>
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500">Project: {projects.find(p => p.id === lead.project_id)?.name || 'Unknown'}</div>
-                          <div className="text-xs text-slate-500">Contact: {lead.contact_name} | Value: ${((lead.value || 0) / 1000).toFixed(0)}K | Assigned: {assignedName}</div>
                         </div>
                       </div>
                     </Card>
@@ -838,8 +955,49 @@ const ManagerLeads = () => {
             </Card>
 
 
+            {/* Bulk Assign Toolbar */}
+            {selectedLeadIds.size > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-blue-900">
+                      {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedLeadIds(new Set())}
+                      className="text-xs"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={() => setShowBulkAssignModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Assign to Salesman
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Leads List */}
             <Card className="p-3 sm:p-6 bg-white border-slate-200">
+              {/* Select All Header */}
+              {filteredLeads.length > 0 && (
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-200">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={handleSelectAll}
+                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                  />
+                  <span className="text-sm font-medium text-slate-700">
+                    Select All ({filteredLeads.length} leads)
+                  </span>
+                </div>
+              )}
               <div className="space-y-2 sm:space-y-3">
                 {filteredLeads.map((lead) => {
                   const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
@@ -847,12 +1005,24 @@ const ManagerLeads = () => {
                   const lastTouched = lead.updated_at || lead.created_at;
                   const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
                   const isStale = daysStale > 7;
+                  const isSelected = selectedLeadIds.has(lead.id);
                   
                   return (
-                    <Card key={lead.id} className="p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
-                      setSelectedLead(lead);
-                      setShowDetailsModal(true);
-                    }}>
+                    <Card key={lead.id} className={`p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        />
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => {
+                            setSelectedLead(lead);
+                            setShowDetailsModal(true);
+                          }}
+                        >
                       <div className="flex flex-col gap-3 sm:gap-4">
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -924,6 +1094,8 @@ const ManagerLeads = () => {
                               <SelectItem value="not_interested">Not Interested</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                      </div>
                         </div>
                       </div>
                     </Card>
@@ -1497,6 +1669,69 @@ const ManagerLeads = () => {
                   <>
                     <Upload className="w-4 h-4 mr-2" />
                     Import {excelData.length} Lead(s)
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Assign Modal */}
+        <Dialog open={showBulkAssignModal} onOpenChange={setShowBulkAssignModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Bulk Assign Leads</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Alert>
+                <AlertDescription>
+                  Assign {selectedLeadIds.size} selected lead{selectedLeadIds.size !== 1 ? 's' : ''} to a salesman.
+                </AlertDescription>
+              </Alert>
+              <div>
+                <Label htmlFor="bulk-assign-salesman">Select Salesman</Label>
+                <Select 
+                  value={bulkAssignSalesman} 
+                  onValueChange={setBulkAssignSalesman}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a salesman" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesUsers.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.full_name || u.email?.split("@")[0] || u.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowBulkAssignModal(false);
+                  setBulkAssignSalesman("");
+                }} 
+                disabled={bulkAssigning}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBulkAssign} 
+                disabled={bulkAssigning || !bulkAssignSalesman}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {bulkAssigning ? (
+                  <>
+                    <Loader className="w-4 h-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Assign {selectedLeadIds.size} Lead{selectedLeadIds.size !== 1 ? 's' : ''}
                   </>
                 )}
               </Button>
