@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, Phone, Mail, FileText, CheckCircle2, Loader, Plus, Users } from "lucide-react";
-import { getCurrentUser, getUsers, getLeads, getActivities, subscribeToActivities, getUsersByRole, getTeams, createTeam, supabase, createSalesmanAccount } from "@/lib/supabase";
+import { Clock, Phone, Mail, FileText, CheckCircle2, Loader, Plus, Users, Edit, Trash2 } from "lucide-react";
+import { getCurrentUser, getUsers, getLeads, getActivities, subscribeToActivities, getUsersByRole, getTeams, createTeam, supabase, createSalesmanAccount, updateUser, deleteUser } from "@/lib/supabase";
 import { useCallback } from "react";
 
 const iconMap: Record<string, any> = {
@@ -80,6 +80,11 @@ const ManagerActivity = () => {
   const [creatingSalesman, setCreatingSalesman] = useState(false);
   const [createdSalesman, setCreatedSalesman] = useState<{ email: string; password: string; fullName: string } | null>(null);
   const [currentManagerId, setCurrentManagerId] = useState<string | null>(null);
+  // Edit/Delete Salesman states
+  const [editingSalesman, setEditingSalesman] = useState<Salesman | null>(null);
+  const [editSalesmanForm, setEditSalesmanForm] = useState({ fullName: "", email: "" });
+  const [updatingSalesman, setUpdatingSalesman] = useState(false);
+  const [deletingSalesmanId, setDeletingSalesmanId] = useState<string | null>(null);
   // Fetch leads for a team (by member ids)
   const fetchLeadsForTeam = useCallback(async (team: Team) => {
     setTeamLeadsLoading(prev => ({ ...prev, [team.id]: true }));
@@ -233,6 +238,53 @@ const ManagerActivity = () => {
     }
   };
 
+  const handleUpdateSalesman = async () => {
+    if (!editingSalesman) return;
+    if (!editSalesmanForm.fullName || !editSalesmanForm.email) {
+      alert("Please fill in all fields");
+      return;
+    }
+    setUpdatingSalesman(true);
+    try {
+      const { error } = await updateUser(editingSalesman.id, {
+        full_name: editSalesmanForm.fullName,
+        email: editSalesmanForm.email,
+      });
+      if (error) {
+        alert(`Failed to update salesman: ${error.message || 'Unknown error'}`);
+      } else {
+        // Refresh salesmen list
+        const { data: salesmenData } = await getUsersByRole('salesman');
+        setSalesmen(salesmenData || []);
+        setEditingSalesman(null);
+        setEditSalesmanForm({ fullName: "", email: "" });
+        alert("Salesman updated successfully");
+      }
+    } catch (error: any) {
+      alert(`Failed to update salesman: ${error.message || 'Unknown error'}`);
+    } finally {
+      setUpdatingSalesman(false);
+    }
+  };
+
+  const handleDeleteSalesman = async () => {
+    if (!deletingSalesmanId) return;
+    try {
+      const { error } = await deleteUser(deletingSalesmanId);
+      if (error) {
+        alert(`Failed to delete salesman: ${error.message || 'Unknown error'}`);
+      } else {
+        // Refresh salesmen list
+        const { data: salesmenData } = await getUsersByRole('salesman');
+        setSalesmen(salesmenData || []);
+        setDeletingSalesmanId(null);
+        alert("Salesman deleted successfully");
+      }
+    } catch (error: any) {
+      alert(`Failed to delete salesman: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
@@ -281,6 +333,27 @@ const ManagerActivity = () => {
                         {salesman.full_name || 'Unknown'}
                       </h3>
                       <p className="text-sm text-slate-600 truncate">{salesman.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSalesman(salesman);
+                          setEditSalesmanForm({ fullName: salesman.full_name || "", email: salesman.email || "" });
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-blue-50"
+                      >
+                        <Edit className="w-4 h-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingSalesmanId(salesman.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -641,6 +714,88 @@ const ManagerActivity = () => {
                 </DialogFooter>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Salesman Modal */}
+        <Dialog open={!!editingSalesman} onOpenChange={(open) => { if (!open) setEditingSalesman(null); }}>
+          <DialogContent className="bg-white border-slate-200 sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-slate-900">Edit Salesman</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit_salesman_name" className="text-slate-700">Full Name</Label>
+                <Input
+                  id="edit_salesman_name"
+                  value={editSalesmanForm.fullName}
+                  onChange={(e) => setEditSalesmanForm({ ...editSalesmanForm, fullName: e.target.value })}
+                  placeholder="John Doe"
+                  className="mt-1.5 border-slate-300 focus:border-slate-400"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_salesman_email" className="text-slate-700">Email</Label>
+                <Input
+                  id="edit_salesman_email"
+                  type="email"
+                  value={editSalesmanForm.email}
+                  onChange={(e) => setEditSalesmanForm({ ...editSalesmanForm, email: e.target.value })}
+                  placeholder="john@example.com"
+                  className="mt-1.5 border-slate-300 focus:border-slate-400"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setEditingSalesman(null);
+                  setEditSalesmanForm({ fullName: "", email: "" });
+                }}
+                disabled={updatingSalesman}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateSalesman}
+                disabled={updatingSalesman || !editSalesmanForm.email || !editSalesmanForm.fullName}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {updatingSalesman ? "Updating..." : "Update"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Salesman Confirmation Modal */}
+        <Dialog open={!!deletingSalesmanId} onOpenChange={(open) => { if (!open) setDeletingSalesmanId(null); }}>
+          <DialogContent className="bg-white border-slate-200 sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-slate-900">Delete Salesman</DialogTitle>
+              <DialogDescription className="text-slate-600">
+                Are you sure you want to delete this salesman? This action cannot be undone.
+                {deletingSalesmanId && (
+                  <span className="block mt-2 font-medium">
+                    Salesman: {salesmen.find(s => s.id === deletingSalesmanId)?.full_name || 'Unknown'}
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button 
+                variant="outline"
+                onClick={() => setDeletingSalesmanId(null)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleDeleteSalesman}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </main>

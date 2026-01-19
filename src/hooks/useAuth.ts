@@ -139,7 +139,7 @@ export const useAuth = () => {
             manager: '/manager',
             salesman: '/salesman',
           };
-          navigate(dashboardRoute[resolvedRole as UserRole] || '/login');
+          navigate(dashboardRoute[resolvedRole as UserRole] || '/');
         }
       }
 

@@ -5,17 +5,9 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import SalesmanLeadsTable from "@/components/dashboard/SalesmanLeadsTable";
 // import ActivityTimeline from "@/components/dashboard/ActivityTimeline";
 // import QuotaProgress from "@/components/dashboard/QuotaProgress";
-import { getCurrentUser, getUserById, updateUser } from "@/lib/supabase";
+import { getCurrentUser, getUserById, getUserRole } from "@/lib/supabase";
 
 type UserRole = "owner" | "manager" | "salesman";
-
-const normalizeRole = (value: unknown): UserRole | null => {
-  const role = String(value ?? "").toLowerCase().trim();
-  if (role === "owner" || role === "manager" || role === "salesman") {
-    return role;
-  }
-  return null;
-};
 
 const SalesmanDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -26,41 +18,25 @@ const SalesmanDashboard = () => {
       try {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
-          navigate('/login', { replace: true });
+          navigate('/', { replace: true });
           return;
         }
 
-        const { data: userData } = await getUserById(currentUser.id);
-        if (!userData) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        // Normalize role from DB and auth metadata
-        const dbRole = normalizeRole(userData.role);
-        const metaRole = normalizeRole(
-          currentUser.user_metadata?.role ?? currentUser.app_metadata?.role
-        );
-        // Prefer DB role, fall back to metadata only if DB missing
-        const resolvedRole = dbRole ?? metaRole;
-
-        // If DB role is missing but metadata exists, sync it
-        if (!dbRole && metaRole) {
-          await updateUser(currentUser.id, { role: metaRole });
-        }
-
-        // Only allow salesman role to access this dashboard
-        if (resolvedRole !== 'salesman') {
+        // Use centralized role check - always gets fresh data from DB
+        const userRole = await getUserRole(currentUser.id);
+        
+        if (!userRole || userRole !== 'salesman') {
           const roleRoutes: Record<string, string> = { 
             owner: '/owner',
             manager: '/manager',
             salesman: '/salesman'
           };
-          navigate(roleRoutes[resolvedRole as UserRole] || '/login', { replace: true });
+          navigate(roleRoutes[userRole as UserRole] || '/', { replace: true });
           return;
         }
       } catch (error) {
         console.error("Error loading user:", error);
-        navigate('/login', { replace: true });
+        navigate('/', { replace: true });
       } finally {
         setLoading(false);
       }

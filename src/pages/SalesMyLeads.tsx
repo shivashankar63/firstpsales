@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Phone, Mail, ArrowUpRight, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X } from "lucide-react";
-import { getLeads, getCurrentUser, updateLead, getUserById } from "@/lib/supabase";
+import { getLeads, getCurrentUser, updateLead, getUserRole } from "@/lib/supabase";
+
+type UserRole = "owner" | "manager" | "salesman";
 import LeadTimeline from "@/components/dashboard/LeadTimeline";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -48,19 +50,16 @@ const SalesMyLeads = () => {
       try {
         const user = await getCurrentUser();
         if (!user) {
-          navigate('/login', { replace: true });
+          navigate('/', { replace: true });
           return;
         }
 
-        const { data: userData } = await getUserById(user.id);
-        if (!userData) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        const role = String(userData.role || '').toLowerCase().trim();
-        if (role !== 'salesman') {
+        // Use centralized role check - always gets fresh data from DB
+        const userRole = await getUserRole(user.id);
+        
+        if (!userRole || userRole !== 'salesman') {
           const roleRoutes: Record<string, string> = { owner: '/owner', manager: '/manager' };
-          navigate(roleRoutes[role] || '/login', { replace: true });
+          navigate(roleRoutes[userRole as UserRole] || '/', { replace: true });
           return;
         }
 

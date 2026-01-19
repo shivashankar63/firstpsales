@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities, createBulkLeads } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -857,53 +864,202 @@ const ManagerLeads = () => {
                   </span>
                 </div>
               )}
-              <div className="space-y-2 sm:space-y-3">
-                {filteredLeads.length === 0 && (
-                  <div className="text-center text-slate-500 py-8">No leads found for any project.</div>
-                )}
-                {filteredLeads.map((lead) => {
-                  const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
-                  const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
-                  const lastTouched = lead.updated_at || lead.created_at;
-                  const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                  const isStale = daysStale > 7;
-                  const isSelected = selectedLeadIds.has(lead.id);
-                  return (
-                    <Card key={lead.id} className={`p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}>
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                        />
-                        <div 
-                          className="flex-1 cursor-pointer"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                          <div className="flex flex-col gap-3 sm:gap-4">
-                            <div className="flex-1">
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                {getStatusIcon(lead.status)}
-                                <h3 className="font-bold text-slate-900 text-sm sm:text-base">{lead.company_name}</h3>
-                                <Badge className={getStatusColor(lead.status) + " text-xs sm:text-sm font-semibold"}>{lead.status}</Badge>
-                                {isStale && (
-                                  <span className="ml-2 text-xs text-orange-500">Stale</span>
+              {filteredLeads.length === 0 && (
+                <div className="text-center py-12">
+                  <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-500">No leads found for any project.</p>
+                </div>
+              )}
+
+              {filteredLeads.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700 w-10">
+                          <Checkbox
+                            checked={allFilteredSelected}
+                            onCheckedChange={handleSelectAll}
+                            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
+                        </th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Lead</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Project</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Contact</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Status</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Assigned To</th>
+                        <th className="text-right py-2 px-3 font-medium text-xs text-slate-700">Value</th>
+                        <th className="text-center py-2 px-3 font-medium text-xs text-slate-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeads.map((lead) => {
+                        const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
+                        const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
+                        const lastTouched = lead.updated_at || lead.created_at;
+                        const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                        const isStale = daysStale > 7;
+                        const isSelected = selectedLeadIds.has(lead.id);
+                        const projectName = projects.find(p => p.id === lead.project_id)?.name || 'No Project';
+                        
+                        return (
+                          <tr 
+                            key={lead.id} 
+                            className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setShowDetailsModal(true);
+                            }}
+                          >
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
+                                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="w-7 h-7">
+                                  <AvatarFallback className="bg-slate-100 text-slate-900 text-xs font-medium">
+                                    {lead.company_name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
+                                  {isStale && (
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 mt-0.5">
+                                      Stale ({daysStale}d)
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3">
+                              {projectName !== 'No Project' ? (
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs px-2 py-0.5">
+                                  {projectName}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-slate-400">No project</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex flex-col gap-0.5">
+                                <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
+                                {lead.email && (
+                                  <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
+                                )}
+                                {lead.phone && (
+                                  <div className="text-xs text-slate-500">{lead.phone}</div>
                                 )}
                               </div>
-                              <div className="text-xs text-slate-500">Project: {projects.find(p => p.id === lead.project_id)?.name || 'Unknown'}</div>
-                              <div className="text-xs text-slate-500">Contact: {lead.contact_name} | Value: ${((lead.value || 0) / 1000).toFixed(0)}K | Assigned: {assignedName}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={normalizeStatus(lead.status) || lead.status}
+                                onValueChange={(value) => {
+                                  handleStatusChange(lead.id, value);
+                                }}
+                                disabled={updatingLeadId === lead.id}
+                              >
+                                <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs h-7 w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="qualified">Qualified</SelectItem>
+                                  <SelectItem value="proposal">In Proposal</SelectItem>
+                                  <SelectItem value="closed_won">Closed Won</SelectItem>
+                                  <SelectItem value="not_interested">Not Interested</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={lead.assigned_to || "unassigned"}
+                                onValueChange={(value) => {
+                                  handleAssignLead(lead.id, value === "unassigned" ? "" : value);
+                                }}
+                                disabled={assigningLead === lead.id}
+                              >
+                                <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs h-7 w-32">
+                                  <SelectValue placeholder="Assign..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                                  {salesUsers.map((u: any) => (
+                                    <SelectItem key={u.id} value={u.id}>
+                                      {u.full_name || u.email?.split("@")[0] || u.id}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
+                              ${((lead.value || 0) / 1000).toFixed(0)}K
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Edit"
+                                  onClick={() => {
+                                    setSelectedLead(lead);
+                                    openEditLeadModal();
+                                  }}
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                      <MoreHorizontal className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => {
+                                      setSelectedLead(lead);
+                                      setShowDetailsModal(true);
+                                    }}>
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                      setSelectedLead(lead);
+                                      openEditLeadModal();
+                                    }}>
+                                      Edit Lead
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={async () => {
+                                        if (confirm(`Are you sure you want to delete ${lead.company_name}?`)) {
+                                          try {
+                                            await deleteLead(lead.id);
+                                            const leadsRes = await getLeads();
+                                            setLeads(leadsRes.data || []);
+                                            alert("Lead deleted successfully");
+                                          } catch (error: any) {
+                                            alert(`Failed to delete lead: ${error.message || 'Unknown error'}`);
+                                          }
+                                        }
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      Delete Lead
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
           </>
         )}
@@ -983,7 +1139,7 @@ const ManagerLeads = () => {
               </Card>
             )}
 
-            {/* Leads List */}
+            {/* Leads Table */}
             <Card className="p-3 sm:p-6 bg-white border-slate-200">
               {/* Select All Header */}
               {filteredLeads.length > 0 && (
@@ -998,134 +1154,222 @@ const ManagerLeads = () => {
                   </span>
                 </div>
               )}
-              <div className="space-y-2 sm:space-y-3">
-                {filteredLeads.map((lead) => {
-                  const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
-                  const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
-                  const lastTouched = lead.updated_at || lead.created_at;
-                  const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                  const isStale = daysStale > 7;
-                  const isSelected = selectedLeadIds.has(lead.id);
-                  
-                  return (
-                    <Card key={lead.id} className={`p-3 sm:p-4 bg-white border-slate-200 hover:bg-slate-50 transition-colors ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}>
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                        />
-                        <div 
-                          className="flex-1 cursor-pointer"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                      <div className="flex flex-col gap-3 sm:gap-4">
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            {getStatusIcon(lead.status)}
-                            <h3 className="font-bold text-slate-900 text-sm sm:text-base">{lead.company_name}</h3>
-                            <Badge className={getStatusColor(lead.status) + " text-xs sm:text-sm font-semibold"}>{lead.status}</Badge>
-                            {isStale && (
-                              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Stale ({daysStale}d)</Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                            <span>{lead.contact_name}</span>
-                            {lead.email && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {lead.email}
-                              </span>
-                            )}
-                            {lead.phone && (
-                              <span className="flex items-center gap-1">
-                                <PhoneIcon className="w-3 h-3" />
-                                {lead.phone}
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-2 text-sm">
-                            <span className="text-green-600 font-semibold">${((lead.value || 0) / 1000).toFixed(1)}K</span>
-                            <span className="text-slate-400 mx-2">•</span>
-                            <span className="text-slate-600">Assigned to: <span className="font-medium">{assignedName}</span></span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 w-full lg:w-56" onClick={(e) => e.stopPropagation()}>
-                          <Select
-                            value={lead.assigned_to || "unassigned"}
-                            onValueChange={(value) => {
-                              handleAssignLead(lead.id, value === "unassigned" ? "" : value);
+              
+              {filteredLeads.length === 0 && leads.length > 0 && (
+                <div className="text-center py-12">
+                  <Filter className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+                  <p className="text-slate-500 mb-2">No leads match the current filters</p>
+                  <p className="text-sm text-slate-500">Try adjusting your filters or search term</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setAssigneeFilter("all");
+                      setSearchTerm("");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+              
+              {filteredLeads.length === 0 && leads.length === 0 && (
+                <div className="text-center py-12">
+                  <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-500">No leads found for this project. Add your first lead to get started!</p>
+                </div>
+              )}
+
+              {filteredLeads.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700 w-10">
+                          <Checkbox
+                            checked={allFilteredSelected}
+                            onCheckedChange={handleSelectAll}
+                            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
+                        </th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Lead</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Project</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Contact</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Status</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Assigned To</th>
+                        <th className="text-right py-2 px-3 font-medium text-xs text-slate-700">Value</th>
+                        <th className="text-center py-2 px-3 font-medium text-xs text-slate-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeads.map((lead) => {
+                        const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
+                        const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
+                        const lastTouched = lead.updated_at || lead.created_at;
+                        const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                        const isStale = daysStale > 7;
+                        const isSelected = selectedLeadIds.has(lead.id);
+                        const projectName = projects.find(p => p.id === lead.project_id)?.name || 'No Project';
+                        
+                        return (
+                          <tr 
+                            key={lead.id} 
+                            className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setShowDetailsModal(true);
                             }}
-                            disabled={assigningLead === lead.id}
                           >
-                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs">
-                              <SelectValue placeholder="Assign to..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Unassigned</SelectItem>
-                              {salesUsers.map((u: any) => (
-                                <SelectItem key={u.id} value={u.id}>
-                                  {u.full_name || u.email?.split("@")[0] || u.id}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={normalizeStatus(lead.status) || lead.status}
-                            onValueChange={(value) => {
-                              handleStatusChange(lead.id, value);
-                            }}
-                            disabled={updatingLeadId === lead.id}
-                          >
-                            <SelectTrigger 
-                              className="bg-white border-slate-200 text-slate-900 text-xs"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="new">New</SelectItem>
-                              <SelectItem value="qualified">Qualified</SelectItem>
-                              <SelectItem value="proposal">In Proposal</SelectItem>
-                              <SelectItem value="closed_won">Closed Won</SelectItem>
-                              <SelectItem value="not_interested">Not Interested</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-                {filteredLeads.length === 0 && leads.length > 0 && (
-                  <div className="text-center py-12">
-                    <Filter className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-                    <p className="text-slate-500 mb-2">No leads match the current filters</p>
-                    <p className="text-sm text-slate-500">Try adjusting your filters or search term</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => {
-                        setStatusFilter("all");
-                        setAssigneeFilter("all");
-                        setSearchTerm("");
-                      }}
-                    >
-                      Clear Filters
-                    </Button>
-                  </div>
-                )}
-                {filteredLeads.length === 0 && leads.length === 0 && (
-                  <div className="text-center py-12">
-                    <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-500">No leads found for this project. Add your first lead to get started!</p>
-                  </div>
-                )}
-              </div>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleToggleLead(lead.id, checked)}
+                                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="w-7 h-7">
+                                  <AvatarFallback className="bg-slate-100 text-slate-900 text-xs font-medium">
+                                    {lead.company_name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
+                                  {isStale && (
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 mt-0.5">
+                                      Stale ({daysStale}d)
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3">
+                              {projectName !== 'No Project' ? (
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs px-2 py-0.5">
+                                  {projectName}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-slate-400">No project</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex flex-col gap-0.5">
+                                <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
+                                {lead.email && (
+                                  <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
+                                )}
+                                {lead.phone && (
+                                  <div className="text-xs text-slate-500">{lead.phone}</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={normalizeStatus(lead.status) || lead.status}
+                                onValueChange={(value) => {
+                                  handleStatusChange(lead.id, value);
+                                }}
+                                disabled={updatingLeadId === lead.id}
+                              >
+                                <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs h-7 w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="qualified">Qualified</SelectItem>
+                                  <SelectItem value="proposal">In Proposal</SelectItem>
+                                  <SelectItem value="closed_won">Closed Won</SelectItem>
+                                  <SelectItem value="not_interested">Not Interested</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={lead.assigned_to || "unassigned"}
+                                onValueChange={(value) => {
+                                  handleAssignLead(lead.id, value === "unassigned" ? "" : value);
+                                }}
+                                disabled={assigningLead === lead.id}
+                              >
+                                <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs h-7 w-32">
+                                  <SelectValue placeholder="Assign..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                                  {salesUsers.map((u: any) => (
+                                    <SelectItem key={u.id} value={u.id}>
+                                      {u.full_name || u.email?.split("@")[0] || u.id}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
+                              ${((lead.value || 0) / 1000).toFixed(0)}K
+                            </td>
+                            <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Edit"
+                                  onClick={() => {
+                                    setSelectedLead(lead);
+                                    openEditLeadModal();
+                                  }}
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                      <MoreHorizontal className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => {
+                                      setSelectedLead(lead);
+                                      setShowDetailsModal(true);
+                                    }}>
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                      setSelectedLead(lead);
+                                      openEditLeadModal();
+                                    }}>
+                                      Edit Lead
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={async () => {
+                                        if (confirm(`Are you sure you want to delete ${lead.company_name}?`)) {
+                                          try {
+                                            await deleteLead(lead.id);
+                                            const leadsRes = await getLeads();
+                                            setLeads(leadsRes.data || []);
+                                            alert("Lead deleted successfully");
+                                          } catch (error: any) {
+                                            alert(`Failed to delete lead: ${error.message || 'Unknown error'}`);
+                                          }
+                                        }
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      Delete Lead
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
           </>
         )}

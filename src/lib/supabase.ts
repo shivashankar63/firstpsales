@@ -164,13 +164,20 @@ export const getUsers = async () => {
   }
 };
 
-export const getUserById = async (id: string) => {
+export const getUserById = async (id: string, forceRefresh: boolean = true) => {
   try {
+    // Force fresh session if requested
+    if (forceRefresh) {
+      await supabase.auth.getSession();
+    }
+    
+    // Always fetch fresh data from database
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', id)
       .single();
+    
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
@@ -227,6 +234,23 @@ export const updateUser = async (id: string, updates: any) => {
   } catch (error) {
     logSupabaseError('updateUser', error);
     return { data: null, error: error as any };
+  }
+};
+
+export const deleteUser = async (id: string) => {
+  try {
+    // First delete from auth (if possible)
+    // Note: Admin API is required for this, so we'll just delete from users table
+    // The auth user will remain but won't have access
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteUser', error);
+    return { error: error as any };
   }
 };
 
@@ -854,5 +878,74 @@ export const getProjectStats = async (projectId: string) => {
   } catch (error) {
     logSupabaseError('getProjectStats', error);
     return { data: null, error: error as any };
+  }
+};
+
+// ============================================================================
+// ROLE UTILITIES - Single source of truth for role checking
+// ============================================================================
+
+type UserRole = "owner" | "manager" | "salesman";
+
+/**
+ * Normalizes role value to valid UserRole or null
+ * This is the ONLY function that should normalize roles
+ */
+export const normalizeRole = (value: unknown): UserRole | null => {
+  const role = String(value ?? "").toLowerCase().trim();
+  if (role === "owner" || role === "manager" || role === "salesman") {
+    return role;
+  }
+  return null;
+};
+
+/**
+ * Gets user role from database - ALWAYS the source of truth
+ * Forces fresh session and data fetch to prevent stale data
+ */
+export const getUserRole = async (userId: string): Promise<UserRole | null> => {
+  try {
+    // Force fresh session
+    await supabase.auth.getSession();
+    
+    // Force fresh user data fetch
+    const { data: userData, error } = await getUserById(userId, true);
+    
+    if (error || !userData) {
+      console.error('Failed to fetch user data for role check:', error);
+      return null;
+    }
+    
+    // Database role is ALWAYS the source of truth
+    const dbRole = normalizeRole(userData.role);
+    
+    // If DB role exists, return it
+    if (dbRole) {
+      return dbRole;
+    }
+    
+    // If DB role is missing, try to get from auth metadata and sync to DB
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const metaRole = normalizeRole(
+        user.user_metadata?.role ?? user.app_metadata?.role
+      );
+      
+      if (metaRole) {
+        // Sync metadata role to DB
+        await updateUser(userId, { role: metaRole });
+        // Re-fetch to get the synced role
+        const { data: updatedUserData } = await getUserById(userId, true);
+        if (updatedUserData) {
+          return normalizeRole(updatedUserData.role);
+        }
+        return metaRole;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting user role:', error);
+    return null;
   }
 };

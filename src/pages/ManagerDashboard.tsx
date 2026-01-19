@@ -4,17 +4,10 @@ import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, 
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, updateUser, createSalesmanAccount } from "@/lib/supabase";
+import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount } from "@/lib/supabase";
 
 type UserRole = "owner" | "manager" | "salesman";
 
-const normalizeRole = (value: unknown): UserRole | null => {
-  const role = String(value ?? "").toLowerCase().trim();
-  if (role === "owner" || role === "manager" || role === "salesman") {
-    return role;
-  }
-  return null;
-};
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,36 +34,27 @@ const ManagerDashboard = () => {
       try {
         const user = await getCurrentUser();
         if (!user) {
-          navigate('/login', { replace: true });
+          navigate('/', { replace: true });
           return;
         }
 
-        const { data: userData } = await getUserById(user.id);
-        if (!userData) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        // Normalize role from DB and auth metadata
-        const dbRole = normalizeRole(userData.role);
-        const metaRole = normalizeRole(
-          user.user_metadata?.role ?? user.app_metadata?.role
-        );
-        // Prefer DB role, fall back to metadata only if DB missing
-        const resolvedRole = dbRole ?? metaRole;
-
-        // If DB role is missing but metadata exists, sync it
-        if (!dbRole && metaRole) {
-          await updateUser(user.id, { role: metaRole });
-        }
-
-        // Only allow manager role to access this dashboard
-        if (resolvedRole !== 'manager') {
+        // Use centralized role check - always gets fresh data from DB
+        const userRole = await getUserRole(user.id);
+        
+        if (!userRole || userRole !== 'manager') {
           const roleRoutes: Record<string, string> = { 
             owner: '/owner',
             salesman: '/salesman',
             manager: '/manager'
           };
-          navigate(roleRoutes[resolvedRole as UserRole] || '/login', { replace: true });
+          navigate(roleRoutes[userRole as UserRole] || '/', { replace: true });
+          return;
+        }
+        
+        // Get user data for dashboard (already fetched in getUserRole, but we need full data)
+        const { data: userData } = await getUserById(user.id, true);
+        if (!userData) {
+          navigate('/', { replace: true });
           return;
         }
 

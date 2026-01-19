@@ -7,7 +7,9 @@ import OwnerLeadsOverview from "@/components/dashboard/OwnerLeadsOverview";
 import TeamPerformance from "@/components/dashboard/TeamPerformance";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import { Card } from "@/components/ui/card";
-import { getLeads, getUsers, getCurrentUser, getUserById } from "@/lib/supabase";
+import { getLeads, getUsers, getCurrentUser, getUserRole } from "@/lib/supabase";
+
+type UserRole = "owner" | "manager" | "salesman";
 
 const OwnerDashboard = () => {
   const [stats, setStats] = useState([
@@ -56,22 +58,18 @@ const OwnerDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Check user role first
         const currentUser = await getCurrentUser();
         if (!currentUser) {
-          navigate('/login', { replace: true });
+          navigate('/', { replace: true });
           return;
         }
         
-        const { data: userData } = await getUserById(currentUser.id);
-        if (!userData) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        const role = String(userData.role || '').toLowerCase().trim();
-        if (role !== 'owner') {
+        // Use centralized role check - always gets fresh data from DB
+        const userRole = await getUserRole(currentUser.id);
+        
+        if (!userRole || userRole !== 'owner') {
           const roleRoutes: Record<string, string> = { manager: '/manager', salesman: '/salesman' };
-          navigate(roleRoutes[role] || '/login', { replace: true });
+          navigate(roleRoutes[userRole as UserRole] || '/', { replace: true });
           return;
         }
 

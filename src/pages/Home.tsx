@@ -69,7 +69,7 @@ const Home = () => {
               manager: '/manager',
               salesman: '/salesman',
             };
-            navigate(dashboardRoute[role] || '/login', { replace: true });
+            navigate(dashboardRoute[role] || '/', { replace: true });
           }, 1500);
         }
       } else {
@@ -97,7 +97,7 @@ const Home = () => {
               manager: '/manager',
               salesman: '/salesman',
             };
-            navigate(dashboardRoute[role] || '/login', { replace: true });
+            navigate(dashboardRoute[role] || '/', { replace: true });
           }
         }
       }
