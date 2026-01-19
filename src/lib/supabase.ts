@@ -63,6 +63,46 @@ export const signUpWithEmail = async (email: string, password: string, fullName:
   }
 };
 
+// Create salesman account - for managers to create salesman accounts
+export const createSalesmanAccount = async (email: string, password: string, fullName: string, managerId?: string) => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: 'salesman'
+        }
+      }
+    });
+    
+    if (error) throw error;
+    
+    // Create user profile in database
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('users')
+        .upsert({
+          id: data.user.id,
+          email,
+          full_name: fullName,
+          role: 'salesman',
+          manager_id: managerId || null,
+        }, { onConflict: 'id' });
+      
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        // Still return success as auth user was created
+      }
+    }
+    
+    return { data, error: null, password }; // Return password so manager can share it
+  } catch (error) {
+    return { data: null, error: error as any, password: null };
+  }
+};
+
 export const signInWithEmail = async (email: string, password: string) => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({

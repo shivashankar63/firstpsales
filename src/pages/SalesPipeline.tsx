@@ -205,13 +205,13 @@ const SalesPipeline = () => {
   };
 
   const getStageColor = (color: string) => {
-    // Improved contrast: darker backgrounds, lighter text for colored elements
+    // Consistent with other pages: lighter backgrounds with darker text
     const colors: Record<string, { bg: string; text: string; border: string; badge: string }> = {
-      blue: { bg: "bg-blue-700", text: "text-white", border: "border-blue-800", badge: "bg-blue-900 text-white" },
-      purple: { bg: "bg-purple-700", text: "text-white", border: "border-purple-800", badge: "bg-purple-900 text-white" },
-      amber: { bg: "bg-amber-600", text: "text-white", border: "border-amber-700", badge: "bg-amber-800 text-white" },
-      emerald: { bg: "bg-emerald-700", text: "text-white", border: "border-emerald-800", badge: "bg-emerald-900 text-white" },
-      slate: { bg: "bg-slate-700", text: "text-white", border: "border-slate-800", badge: "bg-slate-900 text-white" },
+      blue: { bg: "bg-blue-50", text: "text-blue-900", border: "border-blue-200", badge: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+      purple: { bg: "bg-indigo-50", text: "text-indigo-900", border: "border-indigo-200", badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      amber: { bg: "bg-orange-50", text: "text-orange-900", border: "border-orange-200", badge: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+      emerald: { bg: "bg-green-50", text: "text-green-900", border: "border-green-200", badge: "bg-green-500/20 text-green-400 border-green-500/30" },
+      slate: { bg: "bg-slate-50", text: "text-slate-900", border: "border-slate-200", badge: "bg-slate-500/20 text-slate-500 border-slate-500/30" },
     };
     return colors[color] || colors.blue;
   };
@@ -219,7 +219,7 @@ const SalesPipeline = () => {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="salesman" />
-      <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
+      <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
         {loading ? (
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center flex flex-col items-center gap-3">
@@ -230,10 +230,13 @@ const SalesPipeline = () => {
         ) : (
           <>
             {/* Header with Stats and Add Lead button */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <h1 className="text-2xl font-bold text-slate-900">Sales Pipeline</h1>
-                <Button className="bg-blue-700 text-white hover:bg-blue-800 w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
+                <div>
+                  <h1 className="text-2xl sm:text-2xl font-bold text-slate-900 mb-1 sm:mb-2">Sales Pipeline</h1>
+                  <p className="text-sm sm:text-base text-slate-600">Manage and track your sales pipeline</p>
+                </div>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
                   Add Lead
                 </Button>
               </div>
@@ -296,58 +299,60 @@ const SalesPipeline = () => {
                                     <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                                   </div>
                                   <div className="flex justify-end pt-2">
-                                    <Button className="bg-blue-700 text-white hover:bg-blue-800" onClick={handleAddLead}>Add Lead</Button>
+                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium" onClick={handleAddLead}>Add Lead</Button>
                                   </div>
                                 </div>
                               </DialogContent>
                             </Dialog>
-                <Card className="border-slate-200 bg-white p-4">
+                <Card className="p-4 bg-white border-slate-200 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-600 mb-1">Total Pipeline</p>
                       <p className="text-2xl font-bold text-slate-900">${totalValue.toLocaleString()}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-200">
                       <DollarSign className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="border-slate-200 bg-white p-4">
+                <Card className="p-4 bg-white border-slate-200 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-600 mb-1">Active Deals</p>
                       <p className="text-2xl font-bold text-slate-900">{activeDeals}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                    <div className="w-12 h-12 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-200">
+                      <TrendingUp className="w-6 h-6 text-indigo-600" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="border-slate-200 bg-white p-4">
+                <Card className="p-4 bg-white border-slate-200 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-600 mb-1">Total Leads</p>
                       <p className="text-2xl font-bold text-slate-900">{totalLeads}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-emerald-600" />
+                    <div className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center border border-green-200">
+                      <Building2 className="w-6 h-6 text-green-600" />
                     </div>
                   </div>
                 </Card>
               </div>
 
               {/* Search */}
-              <div className="relative mb-4 w-full max-w-full flex">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                <Input
-                  placeholder="Search leads by company, contact, or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white border-slate-200 w-full min-w-0 text-base rounded-lg focus:ring-2 focus:ring-blue-200 transition-all"
-                />
-              </div>
+              <Card className="p-4 bg-white border-slate-200 shadow-sm mb-4">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input
+                    placeholder="Search leads by company, contact, or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 pl-9 bg-white border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-500"
+                  />
+                </div>
+              </Card>
             </div>
 
 
@@ -388,11 +393,11 @@ const SalesPipeline = () => {
                     <TabsTrigger
                       key={stage.key}
                       value={stage.key}
-                      className="data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                      className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-slate-700"
                     >
                       <div className="flex items-center gap-2">
                         <span>{stage.name}</span>
-                        <Badge variant="secondary" className="ml-1">
+                        <Badge variant="secondary" className="ml-1 bg-slate-100 text-slate-700 data-[state=active]:bg-white/20 data-[state=active]:text-white">
                           {stage.leads.length}
                         </Badge>
                       </div>
@@ -410,18 +415,18 @@ const SalesPipeline = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <h2 className={`text-lg font-semibold ${colors.text}`}>{stage.name}</h2>
-                          <p className="text-sm text-white/80">{stage.description}</p>
+                          <p className={`text-sm ${colors.text} opacity-70`}>{stage.description}</p>
                         </div>
                         <div className="text-right">
                           <p className={`text-2xl font-bold ${colors.text}`}>${stage.value.toLocaleString()}</p>
-                          <p className="text-sm text-white/80">{stage.leads.length} {stage.leads.length === 1 ? 'deal' : 'deals'}</p>
+                          <p className={`text-sm ${colors.text} opacity-70`}>{stage.leads.length} {stage.leads.length === 1 ? 'deal' : 'deals'}</p>
                         </div>
                       </div>
                     </Card>
 
                     {/* Leads Grid */}
                     {filteredLeads.length === 0 ? (
-                      <Card className="border-slate-200 p-12 text-center">
+                      <Card className="p-12 bg-white border-slate-200 shadow-sm text-center">
                         <p className="text-slate-500">
                           {searchQuery ? "No leads match your search" : "No leads in this stage"}
                         </p>
@@ -429,7 +434,7 @@ const SalesPipeline = () => {
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {filteredLeads.map((lead: any) => (
-                          <Card key={lead.id} className="border-slate-200 bg-white hover:shadow-lg transition-shadow">
+                          <Card key={lead.id} className="p-3 sm:p-4 bg-white border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
                             <div className="p-5">
                               {/* Lead Header */}
                               <div className="flex items-start justify-between mb-4">
@@ -528,7 +533,7 @@ const SalesPipeline = () => {
                               </div>
 
                               {/* Deal Value */}
-                              <div className={`inline-flex items-center gap-2 ${colors.badge} px-3 py-1.5 rounded-lg mb-4`}>
+                              <div className={`inline-flex items-center gap-2 ${colors.badge} border px-3 py-1.5 rounded-lg mb-4`}>
                                 <DollarSign className="w-4 h-4" />
                                 <span className="font-semibold">${(lead.value || 0).toLocaleString()}</span>
                               </div>

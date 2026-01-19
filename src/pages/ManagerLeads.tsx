@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities } from "@/lib/supabase";
+import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities, createBulkLeads } from "@/lib/supabase";
+import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,6 @@ const ManagerLeads = () => {
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [salesUsers, setSalesUsers] = useState<any[]>([]);
-  const [debugInfo, setDebugInfo] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -97,6 +97,14 @@ const ManagerLeads = () => {
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [assigningLead, setAssigningLead] = useState<string | null>(null);
+  
+  // Bulk import states
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [excelData, setExcelData] = useState<any[]>([]);
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [selectedImportProject, setSelectedImportProject] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,7 +134,6 @@ const ManagerLeads = () => {
 
         setProjects(allProjects);
         setSalesUsers(salespeople);
-        setDebugInfo(`leads.length=${leads.length} leads=${JSON.stringify(leads)}`);
 
         // If a status filter is set in the URL, set project filter to 'all' (show all projects)
         if (searchParams.get("status")) {
@@ -295,6 +302,120 @@ const ManagerLeads = () => {
     }
   };
 
+  // Handle Excel file upload and parsing
+  const handleExcelFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+        
+        if (jsonData.length < 2) {
+          setImportMessage({ type: "error", text: "Excel file must have at least a header row and one data row." });
+          return;
+        }
+
+        const headers = jsonData[0].map((h: any) => String(h || "").trim()).filter((h: string) => h);
+        const rows = jsonData.slice(1).filter((row: any[]) => row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ""));
+        
+        // Convert rows to objects
+        const parsedData = rows.map((row: any[]) => {
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = row[index] !== undefined ? String(row[index] || "").trim() : "";
+          });
+          return obj;
+        });
+
+        setExcelHeaders(headers);
+        setExcelData(parsedData);
+        setImportMessage(null);
+      } catch (error) {
+        console.error("Error parsing Excel:", error);
+        setImportMessage({ type: "error", text: "Failed to parse Excel file. Please ensure it's a valid .xlsx or .xls file." });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Handle bulk import
+  const handleBulkImport = async () => {
+    if (!selectedImportProject) {
+      setImportMessage({ type: "error", text: "Please select a project first." });
+      return;
+    }
+
+    if (excelData.length === 0) {
+      setImportMessage({ type: "error", text: "No data to import. Please upload a valid Excel file." });
+      return;
+    }
+
+    // Map Excel columns to lead fields (flexible mapping)
+    const leadsToImport = excelData.map((row: any) => {
+      // Try to find company name in various column names
+      const companyName = row["Company Name"] || row["Company"] || row["company_name"] || row["CompanyName"] || 
+                         row["COMPANY"] || row["company"] || Object.values(row)[0] || "";
+      
+      if (!companyName || companyName.trim() === "") {
+        return null; // Skip rows without company name
+      }
+
+      return {
+        company_name: String(companyName).trim(),
+        contact_name: row["Contact Name"] || row["Contact"] || row["contact_name"] || row["ContactName"] || 
+                     row["CONTACT"] || row["contact"] || row["Name"] || row["name"] || "",
+        email: row["Email"] || row["email"] || row["EMAIL"] || row["E-mail"] || row["e-mail"] || "",
+        phone: row["Phone"] || row["phone"] || row["PHONE"] || row["Phone Number"] || row["phone_number"] || 
+               row["Mobile"] || row["mobile"] || "",
+        project_id: selectedImportProject,
+        description: row["Description"] || row["description"] || row["Notes"] || row["notes"] || row["Note"] || row["note"] || "",
+        link: row["Link"] || row["link"] || row["Website"] || row["website"] || row["URL"] || row["url"] || "",
+        value: (() => {
+          const val = row["Value"] || row["value"] || row["Deal Value"] || row["deal_value"] || row["Amount"] || row["amount"] || 0;
+          const numVal = typeof val === "string" ? parseFloat(val.replace(/[^0-9.-]/g, "")) : Number(val);
+          return isNaN(numVal) ? 0 : numVal;
+        })(),
+      };
+    }).filter((lead: any) => lead !== null);
+
+    if (leadsToImport.length === 0) {
+      setImportMessage({ type: "error", text: "No valid leads found. Please ensure your Excel file has a 'Company Name' or 'Company' column." });
+      return;
+    }
+
+    setImporting(true);
+    setImportMessage(null);
+
+    try {
+      const result = await createBulkLeads(leadsToImport);
+      if (result.error) {
+        setImportMessage({ type: "error", text: result.error.message || "Failed to import leads." });
+      } else {
+        setImportMessage({ type: "success", text: `Successfully imported ${leadsToImport.length} lead(s).` });
+        // Refresh leads
+        const leadsRes = await getLeads();
+        setLeads(leadsRes.data || []);
+        // Reset form after success
+        setTimeout(() => {
+          setShowBulkImportModal(false);
+          setExcelData([]);
+          setExcelHeaders([]);
+          setSelectedImportProject("");
+          setImportMessage(null);
+        }, 2000);
+      }
+    } catch (error: any) {
+      setImportMessage({ type: "error", text: error.message || "Failed to import leads." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleStatusChange = async (leadId: string, status: string) => {
     if (!leadId || !status) {
       console.error('Invalid leadId or status:', { leadId, status });
@@ -459,12 +580,6 @@ const ManagerLeads = () => {
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
-        {/* Debug Info Banner */}
-        {debugInfo && (
-          <div style={{background:'#fffbe6',color:'#333',padding:'1rem',marginBottom:'1rem',border:'2px solid #ffe58f',borderRadius:'8px',fontSize:'1rem'}}>
-            <strong>DEBUG:</strong> {debugInfo}
-          </div>
-        )}
         <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-2xl font-bold text-slate-900 mb-1 sm:mb-2">Leads Management</h1>
           <p className="text-sm sm:text-base text-slate-600">Manage and track all leads across projects</p>
@@ -563,6 +678,23 @@ const ManagerLeads = () => {
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Lead
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowBulkImportModal(true);
+                setExcelData([]);
+                setExcelHeaders([]);
+                setImportMessage(null);
+                if (selectedProject) {
+                  setSelectedImportProject(selectedProject.id);
+                }
+              }}
+              disabled={projects.length === 0}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              title={projects.length === 0 ? "Create a project first to import leads" : "Import leads from Excel file"}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import
             </Button>
           </div>
         </Card>
@@ -1224,6 +1356,149 @@ const ManagerLeads = () => {
               <Button variant="outline" onClick={() => setShowEditLeadModal(false)} disabled={editing}>Cancel</Button>
               <Button onClick={handleEditLead} disabled={editing}>
                 {editing ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Import Modal */}
+        <Dialog open={showBulkImportModal} onOpenChange={setShowBulkImportModal}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5" />
+                Bulk Import Leads from Excel
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {importMessage && (
+                <Alert className={importMessage.type === "success" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
+                  <AlertDescription className={importMessage.type === "success" ? "text-green-700" : "text-red-700"}>
+                    {importMessage.text}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">Excel File Format</h4>
+                <p className="text-sm text-blue-800 mb-2">Your Excel file should have the following columns (column names are case-insensitive):</p>
+                <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
+                  <li><strong>Required:</strong> Company Name (or Company, company_name)</li>
+                  <li><strong>Optional:</strong> Contact Name, Email, Phone, Description, Link/Website, Value/Deal Value</li>
+                </ul>
+                <p className="text-xs text-blue-700 mt-2">The first row should contain column headers. Rows without a company name will be skipped.</p>
+              </div>
+
+              <div>
+                <Label htmlFor="import-project">Select Project *</Label>
+                <Select 
+                  value={selectedImportProject} 
+                  onValueChange={setSelectedImportProject}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="excel-file">Upload Excel File (.xlsx or .xls)</Label>
+                <Input
+                  id="excel-file"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelFile}
+                  className="cursor-pointer"
+                />
+              </div>
+
+              {excelData.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Preview ({excelData.length} rows found)</Label>
+                    <Badge variant="outline">{excelHeaders.length} columns detected</Badge>
+                  </div>
+                  <div className="border border-slate-200 rounded-lg overflow-auto max-h-64">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-100 sticky top-0">
+                        <tr>
+                          {excelHeaders.map((header, idx) => (
+                            <th key={idx} className="px-3 py-2 text-left border-b border-slate-200 font-semibold text-slate-700">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelData.slice(0, 10).map((row, rowIdx) => (
+                          <tr key={rowIdx} className="border-b border-slate-100 hover:bg-slate-50">
+                            {excelHeaders.map((header, colIdx) => (
+                              <td key={colIdx} className="px-3 py-2 text-slate-600">
+                                {row[header] || ""}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {excelData.length > 10 && (
+                      <div className="p-2 text-xs text-slate-500 text-center bg-slate-50">
+                        Showing first 10 of {excelData.length} rows. All rows will be imported.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {excelHeaders.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-slate-900 mb-2">Detected Columns:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {excelHeaders.map((header, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {header}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowBulkImportModal(false);
+                  setExcelData([]);
+                  setExcelHeaders([]);
+                  setImportMessage(null);
+                }} 
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBulkImport} 
+                disabled={importing || excelData.length === 0 || !selectedImportProject}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {importing ? (
+                  <>
+                    <Loader className="w-4 h-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import {excelData.length} Lead(s)
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

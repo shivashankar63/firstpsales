@@ -4,7 +4,7 @@ import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, 
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, updateUser } from "@/lib/supabase";
+import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, updateUser, createSalesmanAccount } from "@/lib/supabase";
 
 type UserRole = "owner" | "manager" | "salesman";
 
@@ -29,6 +29,11 @@ const ManagerDashboard = () => {
   const [projectForm, setProjectForm] = useState({ name: "", description: "", budget: "" });
   const [creatingProject, setCreatingProject] = useState(false);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | null>(null);
+  const [showCreateSalesmanModal, setShowCreateSalesmanModal] = useState(false);
+  const [salesmanForm, setSalesmanForm] = useState({ email: "", fullName: "", password: "" });
+  const [creatingSalesman, setCreatingSalesman] = useState(false);
+  const [createdSalesman, setCreatedSalesman] = useState<{ email: string; password: string; fullName: string } | null>(null);
+  const [currentManagerId, setCurrentManagerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +74,8 @@ const ManagerDashboard = () => {
           return;
         }
 
+        setCurrentManagerId(user.id);
+
         const [projectsRes, leadsRes, usersRes] = await Promise.all([
           getProjects(),
           getLeads(),
@@ -108,6 +115,45 @@ const ManagerDashboard = () => {
       console.error('Failed to create project:', error);
     } finally {
       setCreatingProject(false);
+    }
+  };
+
+  const handleCreateSalesman = async () => {
+    if (!salesmanForm.email || !salesmanForm.fullName || !salesmanForm.password) {
+      alert("Please fill in all fields");
+      return;
+    }
+    if (salesmanForm.password.length < 6) {
+      alert("Password must be at least 6 characters");
+      return;
+    }
+    setCreatingSalesman(true);
+    try {
+      const result = await createSalesmanAccount(
+        salesmanForm.email,
+        salesmanForm.password,
+        salesmanForm.fullName,
+        currentManagerId || undefined
+      );
+      if (result.error) {
+        alert(`Failed to create salesman account: ${result.error.message || 'Unknown error'}`);
+      } else {
+        setCreatedSalesman({
+          email: salesmanForm.email,
+          password: salesmanForm.password,
+          fullName: salesmanForm.fullName,
+        });
+        // Refresh sales team list
+        const usersRes = await getUsers();
+        setSalesTeam((usersRes.data || []).filter((u: any) => 
+          String(u.role || "").toLowerCase().includes("sales")
+        ));
+        setSalesmanForm({ email: "", fullName: "", password: "" });
+      }
+    } catch (error: any) {
+      alert(`Failed to create salesman account: ${error.message || 'Unknown error'}`);
+    } finally {
+      setCreatingSalesman(false);
     }
   };
 
@@ -339,24 +385,94 @@ const ManagerDashboard = () => {
           </div>
         </Card>
 
-        {/* Projects & Team Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
-          {/* Projects */}
-          <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Projects</h2>
-                <p className="text-sm text-slate-600 mt-1">{projects.length} active projects</p>
+        {/* Sales Team Section - Standalone */}
+        <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Sales Team</h2>
+              <p className="text-sm text-slate-600 mt-1">{salesTeam.length} team members</p>
+            </div>
+            <Button 
+              onClick={() => {
+                setShowCreateSalesmanModal(true);
+                setCreatedSalesman(null);
+              }} 
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Salesman
+            </Button>
+          </div>
+          {salesTeam.length > 0 ? (
+            <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 sm:pr-2">
+              {salesTeam.map((member: any) => {
+                const memberLeads = leads.filter(l => l.assigned_to === member.id);
+                const memberRevenue = memberLeads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0);
+                const memberWon = memberLeads.filter(l => normalizeStatus(l.status) === 'closed_won').length;
+                
+                return (
+                  <div
+                    key={member.id}
+                    className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base sm:text-lg flex-shrink-0">
+                        {(member.full_name || member.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-slate-900 truncate">
+                          {member.full_name || member.email?.split('@')[0] || 'Unknown'}
+                        </h3>
+                        <p className="text-sm text-slate-600 truncate">{member.email}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-base sm:text-lg font-semibold text-slate-900">${(memberRevenue / 1000).toFixed(0)}K</p>
+                        <p className="text-xs text-slate-600">{memberWon} won • {memberLeads.length} total</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-slate-400" />
               </div>
+              <p className="text-slate-900 font-medium mb-1">No team members yet</p>
+              <p className="text-sm text-slate-600 mb-4">Add sales team members to get started</p>
               <Button 
-                onClick={() => setShowProjectModal(true)} 
+                onClick={() => {
+                  setShowCreateSalesmanModal(true);
+                  setCreatedSalesman(null);
+                }}
                 size="sm"
-                className="bg-slate-900 hover:bg-slate-800 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                New Project
+                Add Salesman
               </Button>
             </div>
+          )}
+        </Card>
+
+        {/* Projects Section */}
+        <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Projects</h2>
+              <p className="text-sm text-slate-600 mt-1">{projects.length} active projects</p>
+            </div>
+            <Button 
+              onClick={() => setShowProjectModal(true)} 
+              size="sm"
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New Project
+            </Button>
+          </div>
             {projects.length > 0 ? (
               <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 sm:pr-2">
                 {projects.map((project) => (
@@ -405,55 +521,6 @@ const ManagerDashboard = () => {
               </div>
             )}
           </Card>
-
-          {/* Sales Team */}
-          <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-slate-900">Sales Team</h2>
-              <p className="text-sm text-slate-600 mt-1">{salesTeam.length} team members</p>
-            </div>
-            {salesTeam.length > 0 ? (
-              <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 sm:pr-2">
-                {salesTeam.map((member: any) => {
-                  const memberLeads = leads.filter(l => l.assigned_to === member.id);
-                  const memberRevenue = memberLeads.filter(l => l.status === 'won').reduce((sum, l) => sum + (l.value || 0), 0);
-                  const memberWon = memberLeads.filter(l => l.status === 'won').length;
-                  
-                  return (
-                    <div
-                      key={member.id}
-                      className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base sm:text-lg flex-shrink-0">
-                          {(member.full_name || member.email || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-slate-900 truncate">
-                            {member.full_name || member.email?.split('@')[0] || 'Unknown'}
-                          </h3>
-                          <p className="text-sm text-slate-600 truncate">{member.email}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-base sm:text-lg font-semibold text-slate-900">${(memberRevenue / 1000).toFixed(0)}K</p>
-                          <p className="text-xs text-slate-600">{memberWon} won • {memberLeads.length} total</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-slate-400" />
-                </div>
-                <p className="text-slate-900 font-medium mb-1">No team members yet</p>
-                <p className="text-sm text-slate-600">Add sales team members to get started</p>
-              </div>
-            )}
-          </Card>
-        </div>
 
         {/* Recent Leads Table - clearer display */}
         <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm">
@@ -548,6 +615,107 @@ const ManagerDashboard = () => {
                 {creatingProject ? "Creating..." : "Create Project"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Salesman Modal */}
+        <Dialog open={showCreateSalesmanModal} onOpenChange={setShowCreateSalesmanModal}>
+          <DialogContent className="bg-white border-slate-200 sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-slate-900">Create Salesman Account</DialogTitle>
+            </DialogHeader>
+            {createdSalesman ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-green-800 font-semibold mb-2">Account created successfully!</p>
+                  <p className="text-sm text-green-700 mb-4">Share these credentials with the salesman:</p>
+                  <div className="bg-white border border-green-200 rounded p-3 space-y-2">
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1">Full Name:</p>
+                      <p className="text-sm font-semibold text-slate-900">{createdSalesman.fullName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1">Email:</p>
+                      <p className="text-sm font-semibold text-slate-900">{createdSalesman.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1">Password:</p>
+                      <p className="text-sm font-semibold text-slate-900 font-mono bg-slate-50 p-2 rounded border border-slate-200">{createdSalesman.password}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-700 mt-3">⚠️ Save this password - it cannot be retrieved later!</p>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    onClick={() => {
+                      setShowCreateSalesmanModal(false);
+                      setCreatedSalesman(null);
+                      setSalesmanForm({ email: "", fullName: "", password: "" });
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Done
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="salesman_name" className="text-slate-700">Full Name</Label>
+                    <Input
+                      id="salesman_name"
+                      value={salesmanForm.fullName}
+                      onChange={(e) => setSalesmanForm({ ...salesmanForm, fullName: e.target.value })}
+                      placeholder="John Doe"
+                      className="mt-1.5 border-slate-300 focus:border-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="salesman_email" className="text-slate-700">Email</Label>
+                    <Input
+                      id="salesman_email"
+                      type="email"
+                      value={salesmanForm.email}
+                      onChange={(e) => setSalesmanForm({ ...salesmanForm, email: e.target.value })}
+                      placeholder="john@example.com"
+                      className="mt-1.5 border-slate-300 focus:border-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="salesman_password" className="text-slate-700">Password</Label>
+                    <Input
+                      id="salesman_password"
+                      type="password"
+                      value={salesmanForm.password}
+                      onChange={(e) => setSalesmanForm({ ...salesmanForm, password: e.target.value })}
+                      placeholder="Minimum 6 characters"
+                      className="mt-1.5 border-slate-300 focus:border-slate-400"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">This password will be shown to you after creation. Share it with the salesman.</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateSalesmanModal(false);
+                      setSalesmanForm({ email: "", fullName: "", password: "" });
+                    }}
+                    disabled={creatingSalesman}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleCreateSalesman}
+                    disabled={creatingSalesman || !salesmanForm.email || !salesmanForm.fullName || !salesmanForm.password}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {creatingSalesman ? "Creating..." : "Create Account"}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
 

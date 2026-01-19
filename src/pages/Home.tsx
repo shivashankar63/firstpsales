@@ -18,7 +18,7 @@ const Home = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>("salesman");
+  const [selectedRole, setSelectedRole] = useState<UserRole>("manager");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -361,8 +361,8 @@ const Home = () => {
                     <Label className="text-slate-800 font-medium mb-3 block">
                       Select Your Role
                     </Label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {(["owner", "manager", "salesman"] as UserRole[]).map((role) => (
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["owner", "manager"] as UserRole[]).map((role) => (
                         <button
                           key={role}
                           type="button"
