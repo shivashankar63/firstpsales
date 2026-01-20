@@ -293,8 +293,8 @@ export const getLeadById = async (id: string) => {
 export const createLead = async (leadData: {
   company_name: string;
   contact_name: string;
-  email: string;
-  phone: string;
+  email?: string | null;
+  phone?: string | null;
   status: 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested';
   value: number;
   assigned_to?: string | null;
@@ -308,6 +308,9 @@ export const createLead = async (leadData: {
     
     const leadWithCreator = {
       ...leadData,
+      // Explicitly set email and phone to null if empty or undefined
+      email: leadData.email && String(leadData.email).trim() ? String(leadData.email).trim() : null,
+      phone: leadData.phone && String(leadData.phone).trim() ? String(leadData.phone).trim() : null,
       created_by: currentUser.id,
     };
     
@@ -328,7 +331,9 @@ export const createBulkLeads = async (leads: Array<{
   company_name: string;
   contact_name?: string;
   email?: string;
+  contact_email?: string;
   phone?: string;
+  contact_phone?: string;
   project_id: string;
   description?: string;
   link?: string;
@@ -338,12 +343,34 @@ export const createBulkLeads = async (leads: Array<{
     const currentUser = await getCurrentUser();
     if (!currentUser) throw new Error('User must be logged in to create leads');
     
-    const leadsWithCreator = leads.map(lead => ({
-      ...lead,
-      created_by: currentUser.id,
-      status: 'new',
-      value: lead.value || 0,
-    }));
+    const leadsWithCreator = leads.map(lead => {
+      // Extract phone and email values (support both naming conventions)
+      const phoneValue = String(lead.phone || lead.contact_phone || '').trim();
+      const emailValue = String(lead.email || lead.contact_email || '').trim();
+      
+      // Only include fields that exist in the database schema
+      const leadData: any = {
+        company_name: String(lead.company_name || '').trim(),
+        contact_name: String(lead.contact_name || '').trim(),
+        project_id: lead.project_id,
+        created_by: currentUser.id,
+        status: 'new',
+        value: lead.value || 0,
+        // Explicitly set email and phone to null if empty (database allows null)
+        email: emailValue || null,
+        phone: phoneValue || null,
+      };
+      
+      // Add optional fields only if they have values
+      if (lead.description && String(lead.description).trim()) {
+        leadData.description = String(lead.description).trim();
+      }
+      if (lead.link && String(lead.link).trim()) {
+        leadData.link = String(lead.link).trim();
+      }
+      
+      return leadData;
+    });
     
     const { data, error } = await supabase
       .from('leads')

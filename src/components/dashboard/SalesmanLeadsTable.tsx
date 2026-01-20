@@ -1,4 +1,10 @@
 import { Search, Filter, ChevronDown, Phone, MessageSquare, MoreHorizontal, Loader, X, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,12 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { getLeads, getCurrentUser, supabase, subscribeToLeads, createActivity } from "@/lib/supabase";
 
 interface Lead {
@@ -43,6 +43,13 @@ const SalesmanLeadsTable = () => {
         };
         const s = statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
         return <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>{s.label}</span>;
+      }
+
+      // Helper to check if lead needs attention (not contacted in last 7 days)
+      function getNeedsAttention(lead: Lead): boolean {
+        if (!lead.last_contacted_at) return true;
+        const daysSinceContact = Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24));
+        return daysSinceContact > 7;
       }
     useEffect(() => {
       let isMounted = true;
@@ -148,6 +155,49 @@ const SalesmanLeadsTable = () => {
     setNoteText("");
     setUpdateMessage(null);
     setShowNoteModal(true);
+  };
+
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowDetailsModal(true);
+  };
+
+  const handleEditClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setEditingStatus(lead.status);
+    setUpdateMessage(null);
+    setShowEditModal(true);
+  };
+
+  // Helper function to parse phone numbers from string (handles comma, semicolon, pipe separated)
+  const parsePhoneNumbers = (phoneString: string | null | undefined): string[] => {
+    if (!phoneString) return [];
+    const phones = String(phoneString)
+      .split(/[,;|\n\r]+/)
+      .map(p => p.trim())
+      .filter(p => p.length >= 7 && p.length <= 20 && /[\d\+\-\(\)\s]{7,}/.test(p));
+    return [...new Set(phones)]; // Remove duplicates
+  };
+
+  const handleCallLead = (lead: Lead) => {
+    const phoneNumbers = parsePhoneNumbers((lead as any).contact_phone || (lead as any).phone);
+    if (phoneNumbers.length === 0) {
+      alert('No phone number available for this lead');
+    } else if (phoneNumbers.length === 1) {
+      window.location.href = `tel:${phoneNumbers[0]}`;
+    } else {
+      // If multiple numbers, show first one (dropdown will be handled in UI)
+      window.location.href = `tel:${phoneNumbers[0]}`;
+    }
+  };
+
+  const handleMessageLead = (lead: Lead) => {
+    const email = (lead as any).contact_email || (lead as any).email || '';
+    if (email) {
+      window.location.href = `mailto:${email}`;
+    } else {
+      alert('No email address available for this lead');
+    }
   };
 
   const handleUpdateLead = async () => {
@@ -390,6 +440,9 @@ const SalesmanLeadsTable = () => {
                           {(lead as any).contact_email || (lead as any).email ? (
                             <div className="text-xs text-slate-500 mt-0.5 truncate">{(lead as any).contact_email || (lead as any).email}</div>
                           ) : null}
+                          {(lead as any).contact_phone || (lead as any).phone ? (
+                            <div className="text-xs text-slate-500 mt-0.5 truncate">{(lead as any).contact_phone || (lead as any).phone}</div>
+                          ) : null}
                         </div>
                         {lead.last_contacted_at && getNeedsAttention(lead) && (
                           <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 flex-shrink-0">
@@ -449,15 +502,63 @@ const SalesmanLeadsTable = () => {
                     </td>
                     <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 w-7 p-0 hover:bg-slate-100" 
-                          title="Call"
-                          onClick={() => handleCallLead(lead)}
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                        </Button>
+                        {(() => {
+                          const phoneNumbers = parsePhoneNumbers((lead as any).contact_phone || (lead as any).phone);
+                          if (phoneNumbers.length === 0) {
+                            return (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 w-7 p-0 hover:bg-slate-100" 
+                                title="No phone number"
+                                disabled
+                              >
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                              </Button>
+                            );
+                          } else if (phoneNumbers.length === 1) {
+                            return (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 w-7 p-0 hover:bg-slate-100" 
+                                title={`Call ${phoneNumbers[0]}`}
+                                onClick={() => window.location.href = `tel:${phoneNumbers[0]}`}
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </Button>
+                            );
+                          } else {
+                            return (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 w-7 p-0 hover:bg-slate-100" 
+                                    title={`${phoneNumbers.length} phone numbers - Click to see all`}
+                                  >
+                                    <Phone className="w-3.5 h-3.5" />
+                                    <ChevronDown className="w-2 h-2 ml-0.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+                                  <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
+                                    {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
+                                  </div>
+                                  {phoneNumbers.map((phone, idx) => (
+                                    <DropdownMenuItem key={idx} asChild>
+                                      <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
+                                        <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                        <span className="font-medium">{phone}</span>
+                                      </a>
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            );
+                          }
+                        })()}
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -531,10 +632,29 @@ const SalesmanLeadsTable = () => {
                 </p>
               </div>
               <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Phone</Label>
-                <p className="text-sm font-medium text-foreground mt-1">
-                  {selectedLead.contact_phone || selectedLead.phone || "N/A"}
-                </p>
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Phone{(() => {
+                    const phones = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
+                    return phones.length > 1 ? ` (${phones.length})` : '';
+                  })()}
+                </Label>
+                <div className="text-sm font-medium text-foreground mt-1 space-y-1">
+                  {(() => {
+                    const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
+                    if (phoneNumbers.length === 0) {
+                      return <span className="text-slate-400">N/A</span>;
+                    }
+                    return phoneNumbers.map((phone, idx) => (
+                      <a 
+                        key={idx}
+                        href={`tel:${phone}`} 
+                        className="block text-blue-600 hover:text-blue-800"
+                      >
+                        {phone}
+                      </a>
+                    ));
+                  })()}
+                </div>
               </div>
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">Status</Label>

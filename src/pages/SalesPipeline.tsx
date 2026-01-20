@@ -33,9 +33,13 @@ import {
   ChevronDown,
   Edit,
   MoreHorizontal,
+  Upload,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getLeads, getCurrentUser, getUserRole, updateLead } from "@/lib/supabase";
+import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects } from "@/lib/supabase";
+import * as XLSX from "xlsx";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type UserRole = "owner" | "manager" | "salesman";
 import { formatDistanceToNow } from "date-fns";
@@ -89,6 +93,15 @@ const SalesPipeline = () => {
   });
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Bulk import states
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [excelData, setExcelData] = useState<any[]>([]);
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [selectedImportProject, setSelectedImportProject] = useState<string>("");
+  const [projects, setProjects] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -112,6 +125,10 @@ const SalesPipeline = () => {
 
         const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
         setLeads(data || []);
+        
+        // Load projects for bulk import
+        const projectsRes = await getProjects();
+        setProjects(projectsRes.data || []);
       } catch (error) {
         console.error("Error loading pipeline leads", error);
       } finally {
@@ -120,6 +137,260 @@ const SalesPipeline = () => {
     };
     fetchData();
   }, [navigate]);
+  
+  // Handle Excel file upload and parsing
+  const handleExcelFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+        
+        if (jsonData.length < 2) {
+          setImportMessage({ type: "error", text: "Excel file must have at least a header row and one data row." });
+          return;
+        }
+
+        const headers = jsonData[0].map((h: any) => String(h || "").trim()).filter((h: string) => h);
+        const rows = jsonData.slice(1).filter((row: any[]) => row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ""));
+        
+        // Convert rows to objects
+        const parsedData = rows.map((row: any[]) => {
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = row[index] !== undefined ? String(row[index] || "").trim() : "";
+          });
+          return obj;
+        });
+
+        setExcelHeaders(headers);
+        setExcelData(parsedData);
+        setImportMessage(null);
+      } catch (error) {
+        setImportMessage({ type: "error", text: "Failed to parse Excel file. Please ensure it's a valid .xlsx or .xls file." });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Handle bulk import
+  const handleBulkImport = async () => {
+    if (!selectedImportProject) {
+      setImportMessage({ type: "error", text: "Please select a project first." });
+      return;
+    }
+
+    if (!currentUser) {
+      setImportMessage({ type: "error", text: "User not found. Please refresh the page." });
+      return;
+    }
+
+    if (excelData.length === 0) {
+      setImportMessage({ type: "error", text: "No data to import. Please upload a valid Excel file." });
+      return;
+    }
+
+    // Helper function to find ALL phone numbers from row
+    const findAllPhoneNumbers = (row: any): string[] => {
+      const phoneNumbers: string[] = [];
+      const phoneVariations = [
+        "Phone", "phone", "PHONE",
+        "Phone Number", "phone number", "PhoneNumber", "phone_number", "PHONE_NUMBER",
+        "Contact Phone", "contact phone", "ContactPhone", "contact_phone", "CONTACT_PHONE",
+        "Mobile", "mobile", "MOBILE",
+        "Mobile Number", "mobile number", "MobileNumber", "mobile_number", "MOBILE_NUMBER",
+        "Cell", "cell", "CELL",
+        "Cell Phone", "cell phone", "CellPhone", "cell_phone", "CELL_PHONE",
+        "Tel", "tel", "TEL",
+        "Telephone", "telephone", "TELEPHONE",
+        "Contact Number", "contact number", "ContactNumber", "contact_number", "CONTACT_NUMBER",
+        "Phone No", "phone no", "PhoneNo", "phone_no", "PHONE_NO",
+        "Mobile No", "mobile no", "MobileNo", "mobile_no", "MOBILE_NO",
+        "Contact No", "contact no", "ContactNo", "contact_no", "CONTACT_NO",
+        "Ph", "ph", "PH",
+        "Mob", "mob", "MOB",
+        "Phno", "phno", "PHNO", "PhNo", "Ph No", "ph no",
+        "Phone_Number", "phone_number",
+        "Contact_Phone", "contact_phone",
+        "Mobile_Number", "mobile_number",
+        "Tel No", "tel no", "TelNo", "tel_no",
+        "Phone#", "phone#", "PHONE#",
+        "Contact#", "contact#", "CONTACT#",
+        "Number", "number", "NUMBER",
+        "No", "no", "NO",
+        "Phone 1", "phone 1", "Phone1", "phone1",
+        "Phone 2", "phone 2", "Phone2", "phone2",
+        "Mobile 1", "mobile 1", "Mobile1", "mobile1",
+        "Mobile 2", "mobile 2", "Mobile2", "mobile2",
+      ];
+
+      const addPhoneNumber = (value: any) => {
+        if (value === null || value === undefined) return;
+        
+        let phoneValue: string;
+        if (typeof value === 'number') {
+          phoneValue = String(value);
+        } else {
+          phoneValue = String(value).trim();
+        }
+        
+        if (!phoneValue || phoneValue === "null" || phoneValue === "undefined" || phoneValue === "") return;
+        
+        const separators = /[,;|\n\r]+/;
+        if (separators.test(phoneValue)) {
+          const numbers = phoneValue.split(separators).map(n => n.trim()).filter(n => n.length > 0);
+          numbers.forEach(num => {
+            if (num.length >= 6 && num.length <= 25 && /\d/.test(num)) {
+              if (!phoneNumbers.includes(num)) phoneNumbers.push(num);
+            }
+          });
+        } else {
+          if (phoneValue.length >= 6 && phoneValue.length <= 25 && /\d/.test(phoneValue)) {
+            if (!phoneNumbers.includes(phoneValue)) phoneNumbers.push(phoneValue);
+          }
+        }
+      };
+
+      for (const variation of phoneVariations) {
+        if (row[variation] !== undefined && row[variation] !== null) {
+          addPhoneNumber(row[variation]);
+        }
+      }
+
+      const rowKeys = Object.keys(row);
+      for (const key of rowKeys) {
+        const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+        if (lowerKey.includes('phone') || 
+            lowerKey.includes('phno') || 
+            lowerKey.includes('mobile') || 
+            lowerKey.includes('cell') || 
+            lowerKey.includes('tel') || 
+            (lowerKey.includes('contact') && (lowerKey.includes('no') || lowerKey.includes('num'))) ||
+            (lowerKey.includes('number') && (lowerKey.includes('contact') || lowerKey.includes('phone') || lowerKey.includes('mobile'))) ||
+            (lowerKey === 'ph' || lowerKey === 'phno' || lowerKey === 'phonenumber')) {
+          if (row[key] !== undefined && row[key] !== null) {
+            addPhoneNumber(row[key]);
+          }
+        }
+      }
+
+      for (const key of rowKeys) {
+        const rawValue = row[key];
+        if (rawValue !== undefined && rawValue !== null) {
+          const value = String(rawValue).trim();
+          if (value && /[\d\+\-\(\)\s]{7,}/.test(value) && value.length >= 7 && value.length <= 20) {
+            if (!phoneNumbers.includes(value)) {
+              phoneNumbers.push(value);
+            }
+          }
+        }
+      }
+
+      return phoneNumbers;
+    };
+
+    // Helper function to find email from row
+    const findEmail = (row: any): string => {
+      const emailVariations = [
+        "Email", "email", "EMAIL",
+        "E-mail", "e-mail", "E-MAIL",
+        "Contact Email", "contact email", "ContactEmail", "contact_email", "CONTACT_EMAIL",
+        "Email Address", "email address", "EmailAddress", "email_address", "EMAIL_ADDRESS",
+        "Contact Email Address", "contact email address", "ContactEmailAddress", "contact_email_address",
+        "Mail", "mail", "MAIL",
+        "Email Id", "email id", "EmailId", "email_id",
+      ];
+
+      for (const variation of emailVariations) {
+        if (row[variation] !== undefined && row[variation] !== null && String(row[variation]).trim() !== "") {
+          return String(row[variation]).trim();
+        }
+      }
+
+      const rowKeys = Object.keys(row);
+      for (const key of rowKeys) {
+        const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+        if (lowerKey.includes('email') || lowerKey.includes('mail')) {
+          const value = String(row[key] || '').trim();
+          if (value && value.includes('@')) {
+            return value;
+          }
+        }
+      }
+
+      return "";
+    };
+
+    // Map Excel columns to lead fields
+    const leadsToImport = excelData.map((row: any) => {
+      const companyName = row["Company Name"] || row["Company"] || row["company_name"] || row["CompanyName"] || 
+                         row["COMPANY"] || row["company"] || Object.values(row)[0] || "";
+      
+      if (!companyName || companyName.trim() === "") {
+        return null;
+      }
+
+      const phoneNumbers = findAllPhoneNumbers(row);
+      const phoneValue = phoneNumbers.length > 0 ? phoneNumbers.join(', ') : undefined;
+      const emailValue = findEmail(row);
+
+      const leadData = {
+        company_name: String(companyName).trim(),
+        contact_name: (row["Contact Name"] || row["Contact"] || row["contact_name"] || row["ContactName"] || 
+                     row["CONTACT"] || row["contact"] || row["Name"] || row["name"] || "").toString().trim(),
+        email: emailValue || undefined,
+        phone: phoneValue || undefined,
+        project_id: selectedImportProject,
+        assigned_to: currentUser.id, // Automatically assign to current salesman
+        description: (row["Description"] || row["description"] || row["Notes"] || row["notes"] || row["Note"] || row["note"] || "").toString().trim() || undefined,
+        link: (row["Link"] || row["link"] || row["Website"] || row["website"] || row["URL"] || row["url"] || "").toString().trim() || undefined,
+        value: (() => {
+          const val = row["Value"] || row["value"] || row["Deal Value"] || row["deal_value"] || row["Amount"] || row["amount"] || 0;
+          const numVal = typeof val === "string" ? parseFloat(val.replace(/[^0-9.-]/g, "")) : Number(val);
+          return isNaN(numVal) ? 0 : numVal;
+        })(),
+      };
+
+      return leadData;
+    }).filter((lead: any) => lead !== null);
+
+    if (leadsToImport.length === 0) {
+      setImportMessage({ type: "error", text: "No valid leads found. Please ensure your Excel file has a 'Company Name' or 'Company' column." });
+      return;
+    }
+
+    setImporting(true);
+    setImportMessage(null);
+
+    try {
+      const result = await createBulkLeads(leadsToImport);
+      if (result.error) {
+        setImportMessage({ type: "error", text: result.error.message || "Failed to import leads." });
+      } else {
+        setImportMessage({ type: "success", text: `Successfully imported ${leadsToImport.length} lead(s).` });
+        // Refresh leads
+        const { data } = await getLeads(currentUser ? { assignedTo: currentUser.id } : undefined);
+        setLeads(data || []);
+        // Reset form after success
+        setTimeout(() => {
+          setShowBulkImportModal(false);
+          setExcelData([]);
+          setExcelHeaders([]);
+          setSelectedImportProject("");
+          setImportMessage(null);
+        }, 2000);
+      }
+    } catch (error: any) {
+      setImportMessage({ type: "error", text: error.message || "Failed to import leads." });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleAddLead = async () => {
     try {
@@ -239,9 +510,18 @@ const SalesPipeline = () => {
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">Sales Pipeline</h1>
                   <p className="text-sm text-slate-600">Manage and track your sales pipeline</p>
                 </div>
-                <Button className="bg-slate-900 hover:bg-slate-800 text-white font-medium w-full sm:w-auto" onClick={() => setShowAddModal(true)}>
-                  Add Lead
-                </Button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button 
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-medium flex-1 sm:flex-initial gap-2" 
+                    onClick={() => setShowBulkImportModal(true)}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Bulk Import
+                  </Button>
+                  <Button className="bg-slate-900 hover:bg-slate-800 text-white font-medium flex-1 sm:flex-initial" onClick={() => setShowAddModal(true)}>
+                    Add Lead
+                  </Button>
+                </div>
               </div>
               
               {/* Add Lead Modal */}
@@ -611,6 +891,144 @@ const SalesPipeline = () => {
             </div>
           </>
         )}
+        
+        {/* Bulk Import Modal */}
+        <Dialog open={showBulkImportModal} onOpenChange={setShowBulkImportModal}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk Import Leads from Excel</DialogTitle>
+              <DialogDescription>Upload an Excel file to import multiple leads at once</DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* File Upload */}
+              <div>
+                <Label>Upload Excel File (.xlsx, .xls)</Label>
+                <div className="mt-2 border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                  <FileSpreadsheet className="w-12 h-12 mx-auto text-slate-400 mb-2" />
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleExcelFile}
+                    className="hidden"
+                    id="excel-upload"
+                  />
+                  <label
+                    htmlFor="excel-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Choose File
+                  </label>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Supported formats: .xlsx, .xls
+                  </p>
+                </div>
+              </div>
+
+              {/* Project Selection */}
+              {projects.length > 0 && (
+                <div>
+                  <Label>Select Project *</Label>
+                  <Select value={selectedImportProject} onValueChange={setSelectedImportProject}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Import Message */}
+              {importMessage && (
+                <Alert className={importMessage.type === "error" ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
+                  <AlertDescription className={importMessage.type === "error" ? "text-red-600" : "text-green-600"}>
+                    {importMessage.text}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Preview Table */}
+              {excelData.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Preview ({excelData.length} rows found)</Label>
+                    <Badge variant="outline">{excelHeaders.length} columns detected</Badge>
+                  </div>
+                  
+                  <div className="border border-slate-200 rounded-lg overflow-auto max-h-64">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-100 sticky top-0">
+                        <tr>
+                          {excelHeaders.map((header, idx) => (
+                            <th key={idx} className="text-left py-2 px-3 font-medium text-xs text-slate-700 border-b border-slate-200">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelData.slice(0, 10).map((row, rowIdx) => (
+                          <tr key={rowIdx} className="border-b border-slate-100 hover:bg-slate-50">
+                            {excelHeaders.map((header, colIdx) => (
+                              <td key={colIdx} className="py-2 px-3 text-xs text-slate-600">
+                                {row[header] || "-"}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {excelData.length > 10 && (
+                      <div className="text-xs text-slate-500 p-2 text-center">
+                        Showing first 10 of {excelData.length} rows
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkImportModal(false);
+                  setExcelData([]);
+                  setExcelHeaders([]);
+                  setSelectedImportProject("");
+                  setImportMessage(null);
+                }}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkImport}
+                disabled={importing || excelData.length === 0 || !selectedImportProject}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {importing ? (
+                  <>
+                    <Loader className="w-4 h-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import Leads
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

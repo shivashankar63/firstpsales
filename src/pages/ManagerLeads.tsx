@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2, ChevronDown } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+
+// Helper function to parse phone numbers from string (handles comma, semicolon, pipe separated)
+const parsePhoneNumbers = (phoneString: string | null | undefined): string[] => {
+  if (!phoneString) return [];
+  const phones = String(phoneString)
+    .split(/[,;|\n\r]+/)
+    .map(p => p.trim())
+    .filter(p => p.length >= 7 && p.length <= 20 && /[\d\+\-\(\)\s]{7,}/.test(p));
+  return [...new Set(phones)]; // Remove duplicates
+};
 
 const ManagerLeads = () => {
   const navigate = useNavigate();
@@ -68,8 +78,8 @@ const ManagerLeads = () => {
         await updateLead(editLeadForm.id, {
           company_name: editLeadForm.company_name,
           contact_name: editLeadForm.contact_name,
-          email: editLeadForm.email,
-          phone: editLeadForm.phone,
+          email: editLeadForm.email?.trim() || null,
+          phone: editLeadForm.phone?.trim() || null,
           status: editLeadForm.status,
           value: valueNum,
           assigned_to: editLeadForm.assigned_to || null,
@@ -112,6 +122,10 @@ const ManagerLeads = () => {
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkAssignSalesman, setBulkAssignSalesman] = useState<string>("");
   
+  // Bulk delete states
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  
   // Bulk import states
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [excelData, setExcelData] = useState<any[]>([]);
@@ -126,7 +140,6 @@ const ManagerLeads = () => {
         // Test Supabase connection first
         const connectionTest = await testConnection();
         if (!connectionTest.success) {
-          console.error('Supabase connection failed! Check your API key in .env.local');
           setLoading(false);
           return;
         }
@@ -156,7 +169,7 @@ const ManagerLeads = () => {
           setSelectedProject(allProjects[0]);
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        // Error fetching data
       } finally {
         setLoading(false);
       }
@@ -206,7 +219,7 @@ const ManagerLeads = () => {
         const salespeople = users.filter((u: any) => String(u.role || "").toLowerCase().includes("sales"));
         setSalesUsers(salespeople);
       } catch (e) {
-        console.error("Failed to refresh users after realtime event", e);
+        // Failed to refresh users after realtime event
       }
     });
 
@@ -230,7 +243,7 @@ const ManagerLeads = () => {
           setLeads(allLeads); // Show all leads when no project is selected
         }
       } catch (error) {
-        console.error("Error fetching leads:", error);
+        // Error fetching leads
       }
     };
     fetchLeads();
@@ -249,7 +262,7 @@ const ManagerLeads = () => {
           setLeads(allLeads); // Show all leads when no project is selected
         }
       } catch (e) {
-        console.error("Failed to refresh leads after realtime event", e);
+        // Failed to refresh leads after realtime event
       }
     });
 
@@ -278,8 +291,8 @@ const ManagerLeads = () => {
       const newLead = await createLead({
         company_name: leadForm.company_name,
         contact_name: leadForm.contact_name,
-        email: leadForm.email,
-        phone: leadForm.phone,
+        email: leadForm.email?.trim() || null,
+        phone: leadForm.phone?.trim() || null,
         status: leadForm.status,
         value: valueNum,
         assigned_to: leadForm.assigned_to || null,
@@ -310,7 +323,7 @@ const ManagerLeads = () => {
       const leadsRes = await getLeads();
       setLeads(leadsRes.data || []);
     } catch (error) {
-      console.error('Failed to assign lead:', error);
+      // Failed to assign lead
     } finally {
       setAssigningLead(null);
     }
@@ -343,6 +356,41 @@ const ManagerLeads = () => {
       alert(`Failed to assign leads: ${error.message || 'Unknown error'}`);
     } finally {
       setBulkAssigning(false);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.size === 0) {
+      alert("Please select at least one lead to delete");
+      return;
+    }
+    setBulkDeleting(true);
+    try {
+      const leadIdsArray = Array.from(selectedLeadIds);
+      const deletePromises = leadIdsArray.map(leadId => 
+        deleteLead(leadId)
+      );
+      const results = await Promise.all(deletePromises);
+      
+      // Check for errors
+      const errors = results.filter(result => result.error);
+      if (errors.length > 0) {
+        alert(`Failed to delete ${errors.length} lead(s). Some leads may have been deleted.`);
+      }
+      
+      // Refresh leads
+      const leadsRes = await getLeads();
+      setLeads(leadsRes.data || []);
+      
+      // Clear selection
+      setSelectedLeadIds(new Set());
+      setShowBulkDeleteModal(false);
+      alert(`Successfully deleted ${leadIdsArray.length - errors.length} lead(s)`);
+    } catch (error: any) {
+      alert(`Failed to delete leads: ${error.message || 'Unknown error'}`);
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -401,7 +449,6 @@ const ManagerLeads = () => {
         setExcelData(parsedData);
         setImportMessage(null);
       } catch (error) {
-        console.error("Error parsing Excel:", error);
         setImportMessage({ type: "error", text: "Failed to parse Excel file. Please ensure it's a valid .xlsx or .xls file." });
       }
     };
@@ -420,8 +467,160 @@ const ManagerLeads = () => {
       return;
     }
 
+    // Helper function to find ALL phone numbers from row (supports multiple phone numbers)
+    const findAllPhoneNumbers = (row: any): string[] => {
+      const phoneNumbers: string[] = [];
+      const phoneVariations = [
+        "Phone", "phone", "PHONE",
+        "Phone Number", "phone number", "PhoneNumber", "phone_number", "PHONE_NUMBER",
+        "Contact Phone", "contact phone", "ContactPhone", "contact_phone", "CONTACT_PHONE",
+        "Mobile", "mobile", "MOBILE",
+        "Mobile Number", "mobile number", "MobileNumber", "mobile_number", "MOBILE_NUMBER",
+        "Cell", "cell", "CELL",
+        "Cell Phone", "cell phone", "CellPhone", "cell_phone", "CELL_PHONE",
+        "Tel", "tel", "TEL",
+        "Telephone", "telephone", "TELEPHONE",
+        "Contact Number", "contact number", "ContactNumber", "contact_number", "CONTACT_NUMBER",
+        "Phone No", "phone no", "PhoneNo", "phone_no", "PHONE_NO",
+        "Mobile No", "mobile no", "MobileNo", "mobile_no", "MOBILE_NO",
+        "Contact No", "contact no", "ContactNo", "contact_no", "CONTACT_NO",
+        "Ph", "ph", "PH",
+        "Mob", "mob", "MOB",
+        // Common abbreviations including Phno
+        "Phno", "phno", "PHNO", "PhNo", "Ph No", "ph no",
+        "Phone_Number", "phone_number",
+        "Contact_Phone", "contact_phone",
+        "Mobile_Number", "mobile_number",
+        "Tel No", "tel no", "TelNo", "tel_no",
+        "Phone#", "phone#", "PHONE#",
+        "Contact#", "contact#", "CONTACT#",
+        "Number", "number", "NUMBER",
+        "No", "no", "NO",
+        // Multiple phone columns
+        "Phone 1", "phone 1", "Phone1", "phone1",
+        "Phone 2", "phone 2", "Phone2", "phone2",
+        "Mobile 1", "mobile 1", "Mobile1", "mobile1",
+        "Mobile 2", "mobile 2", "Mobile2", "mobile2",
+      ];
+
+      // Helper to parse and add phone number
+      const addPhoneNumber = (value: any) => {
+        if (value === null || value === undefined) return;
+        
+        // Handle Excel number formatting - convert to string first
+        let phoneValue: string;
+        if (typeof value === 'number') {
+          phoneValue = String(value);
+        } else {
+          phoneValue = String(value).trim();
+        }
+        
+        if (!phoneValue || phoneValue === "null" || phoneValue === "undefined" || phoneValue === "") return;
+        
+        // Check if it contains multiple numbers (comma, semicolon, pipe, or newline separated)
+        const separators = /[,;|\n\r]+/;
+        if (separators.test(phoneValue)) {
+          // Split by separators and add each
+          const numbers = phoneValue.split(separators).map(n => n.trim()).filter(n => n.length > 0);
+          numbers.forEach(num => {
+            // More lenient validation - just check if it has digits and reasonable length
+            if (num.length >= 6 && num.length <= 25 && /\d/.test(num)) {
+              if (!phoneNumbers.includes(num)) phoneNumbers.push(num);
+            }
+          });
+        } else {
+          // Single phone number - more lenient validation
+          // Just check if it has digits and reasonable length (6-25 characters)
+          if (phoneValue.length >= 6 && phoneValue.length <= 25 && /\d/.test(phoneValue)) {
+            if (!phoneNumbers.includes(phoneValue)) phoneNumbers.push(phoneValue);
+          }
+        }
+      };
+
+      // First try exact matches from known variations
+      for (const variation of phoneVariations) {
+        if (row[variation] !== undefined && row[variation] !== null) {
+          addPhoneNumber(row[variation]);
+        }
+      }
+
+      // Then try case-insensitive search through all keys
+      const rowKeys = Object.keys(row);
+      for (const key of rowKeys) {
+        const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+        // Check for phone-related keywords including abbreviations like "phno"
+        if (lowerKey.includes('phone') || 
+            lowerKey.includes('phno') ||  // Add Phno detection
+            lowerKey.includes('mobile') || 
+            lowerKey.includes('cell') || 
+            lowerKey.includes('tel') || 
+            (lowerKey.includes('contact') && (lowerKey.includes('no') || lowerKey.includes('num'))) ||
+            (lowerKey.includes('number') && (lowerKey.includes('contact') || lowerKey.includes('phone') || lowerKey.includes('mobile'))) ||
+            (lowerKey === 'ph' || lowerKey === 'phno' || lowerKey === 'phonenumber')) {  // Exact matches for common abbreviations
+          if (row[key] !== undefined && row[key] !== null) {
+            addPhoneNumber(row[key]);
+          }
+        }
+      }
+
+      // Last resort: check all columns for values that look like phone numbers
+      for (const key of rowKeys) {
+        const rawValue = row[key];
+        if (rawValue !== undefined && rawValue !== null) {
+          const value = String(rawValue).trim();
+          if (value && /[\d\+\-\(\)\s]{7,}/.test(value) && value.length >= 7 && value.length <= 20) {
+            if (!phoneNumbers.includes(value)) {
+              phoneNumbers.push(value);
+            }
+          }
+        }
+      }
+
+      return phoneNumbers;
+    };
+
+    // Helper function to find phone number (backward compatibility - returns first or comma-separated)
+    const findPhoneNumber = (row: any): string => {
+      const phoneNumbers = findAllPhoneNumbers(row);
+      return phoneNumbers.length > 0 ? phoneNumbers.join(', ') : '';
+    };
+
+    // Helper function to find email from row with many variations
+    const findEmail = (row: any): string => {
+      const emailVariations = [
+        "Email", "email", "EMAIL",
+        "E-mail", "e-mail", "E-MAIL",
+        "Contact Email", "contact email", "ContactEmail", "contact_email", "CONTACT_EMAIL",
+        "Email Address", "email address", "EmailAddress", "email_address", "EMAIL_ADDRESS",
+        "Contact Email Address", "contact email address", "ContactEmailAddress", "contact_email_address",
+        "Mail", "mail", "MAIL",
+        "Email Id", "email id", "EmailId", "email_id",
+      ];
+
+      // First try exact matches
+      for (const variation of emailVariations) {
+        if (row[variation] !== undefined && row[variation] !== null && String(row[variation]).trim() !== "") {
+          return String(row[variation]).trim();
+        }
+      }
+
+      // Then try case-insensitive search through all keys
+      const rowKeys = Object.keys(row);
+      for (const key of rowKeys) {
+        const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+        if (lowerKey.includes('email') || lowerKey.includes('mail')) {
+          const value = String(row[key] || '').trim();
+          if (value && value.includes('@')) { // Basic email validation
+            return value;
+          }
+        }
+      }
+
+      return "";
+    };
+
     // Map Excel columns to lead fields (flexible mapping)
-    const leadsToImport = excelData.map((row: any) => {
+    const leadsToImport = excelData.map((row: any, index: number) => {
       // Try to find company name in various column names
       const companyName = row["Company Name"] || row["Company"] || row["company_name"] || row["CompanyName"] || 
                          row["COMPANY"] || row["company"] || Object.values(row)[0] || "";
@@ -430,22 +629,30 @@ const ManagerLeads = () => {
         return null; // Skip rows without company name
       }
 
-      return {
+      // Extract ALL phone numbers using comprehensive search
+      const phoneNumbers = findAllPhoneNumbers(row);
+      const phoneValue = phoneNumbers.length > 0 ? phoneNumbers.join(', ') : undefined;
+      
+      // Extract email using comprehensive search
+      const emailValue = findEmail(row);
+
+      const leadData = {
         company_name: String(companyName).trim(),
-        contact_name: row["Contact Name"] || row["Contact"] || row["contact_name"] || row["ContactName"] || 
-                     row["CONTACT"] || row["contact"] || row["Name"] || row["name"] || "",
-        email: row["Email"] || row["email"] || row["EMAIL"] || row["E-mail"] || row["e-mail"] || "",
-        phone: row["Phone"] || row["phone"] || row["PHONE"] || row["Phone Number"] || row["phone_number"] || 
-               row["Mobile"] || row["mobile"] || "",
+        contact_name: (row["Contact Name"] || row["Contact"] || row["contact_name"] || row["ContactName"] || 
+                     row["CONTACT"] || row["contact"] || row["Name"] || row["name"] || "").toString().trim(),
+        email: emailValue || undefined, // Use undefined instead of empty string
+        phone: phoneValue || undefined, // Store multiple phone numbers as comma-separated string
         project_id: selectedImportProject,
-        description: row["Description"] || row["description"] || row["Notes"] || row["notes"] || row["Note"] || row["note"] || "",
-        link: row["Link"] || row["link"] || row["Website"] || row["website"] || row["URL"] || row["url"] || "",
+        description: (row["Description"] || row["description"] || row["Notes"] || row["notes"] || row["Note"] || row["note"] || "").toString().trim() || undefined,
+        link: (row["Link"] || row["link"] || row["Website"] || row["website"] || row["URL"] || row["url"] || "").toString().trim() || undefined,
         value: (() => {
           const val = row["Value"] || row["value"] || row["Deal Value"] || row["deal_value"] || row["Amount"] || row["amount"] || 0;
           const numVal = typeof val === "string" ? parseFloat(val.replace(/[^0-9.-]/g, "")) : Number(val);
           return isNaN(numVal) ? 0 : numVal;
         })(),
       };
+
+      return leadData;
     }).filter((lead: any) => lead !== null);
 
     if (leadsToImport.length === 0) {
@@ -483,14 +690,12 @@ const ManagerLeads = () => {
 
   const handleStatusChange = async (leadId: string, status: string) => {
     if (!leadId || !status) {
-      console.error('Invalid leadId or status:', { leadId, status });
       return;
     }
     // Normalize status to match database enum values
     const normalizedStatus = normalizeStatus(status);
     const allowedStatuses = ['new', 'qualified', 'proposal', 'closed_won', 'not_interested'];
     if (!allowedStatuses.includes(normalizedStatus)) {
-      console.error('Invalid normalized status:', { original: status, normalized: normalizedStatus });
       alert(`Invalid status value: ${status}. Please try again.`);
       return;
     }
@@ -582,7 +787,7 @@ const ManagerLeads = () => {
         const { data } = await getActivitiesForLead(selectedLead.id);
         setLeadActivities(data || []);
       } catch (e) {
-        console.error('Failed to load lead activities', e);
+        // Silently handle error
       }
     };
 
@@ -593,7 +798,7 @@ const ManagerLeads = () => {
         const { data } = await getActivitiesForLead(selectedLead.id);
         setLeadActivities(data || []);
       } catch (e) {
-        console.error('Failed to refresh lead activities', e);
+        // Silently handle error
       }
     });
     cleanup = () => { try { sub.unsubscribe?.(); } catch {} };
@@ -628,22 +833,6 @@ const ManagerLeads = () => {
   const proposalLeads = filteredLeads.filter(l => normalizeStatus(l.status) === 'proposal');
   const closedWonLeads = filteredLeads.filter(l => normalizeStatus(l.status) === 'closed_won');
   const totalValue = filteredLeads.reduce((sum, l) => sum + (l.value || 0), 0);
-
-  // Debug logging
-  console.log('Current state:', {
-    selectedProject: selectedProject?.name,
-    totalLeads: leads.length,
-    filteredLeads: filteredLeads.length,
-    statusFilter,
-    assigneeFilter,
-    searchTerm,
-    leads: leads.map(l => ({
-      company: l.company_name,
-      status: l.status,
-      normalizedStatus: normalizeStatus(l.status),
-      project_id: l.project_id
-    }))
-  });
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -822,7 +1011,7 @@ const ManagerLeads = () => {
                 <span className="text-xs text-slate-500 font-medium">Showing all leads across all projects</span>
               </div>
             </Card>
-            {/* Bulk Assign Toolbar */}
+            {/* Bulk Actions Toolbar */}
             {selectedLeadIds.size > 0 && (
               <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -839,13 +1028,23 @@ const ManagerLeads = () => {
                       Clear Selection
                     </Button>
                   </div>
-                  <Button
-                    onClick={() => setShowBulkAssignModal(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Assign to Salesman
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => setShowBulkAssignModal(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Assign to Salesman
+                    </Button>
+                    <Button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      variant="destructive"
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Selected
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
@@ -864,7 +1063,7 @@ const ManagerLeads = () => {
                   </span>
                 </div>
               )}
-              {filteredLeads.length === 0 && (
+                {filteredLeads.length === 0 && (
                 <div className="text-center py-12">
                   <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-500">No leads found for any project.</p>
@@ -893,22 +1092,22 @@ const ManagerLeads = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.map((lead) => {
-                        const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
-                        const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
-                        const lastTouched = lead.updated_at || lead.created_at;
-                        const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                        const isStale = daysStale > 7;
+                {filteredLeads.map((lead) => {
+                  const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
+                  const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
+                  const lastTouched = lead.updated_at || lead.created_at;
+                  const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                  const isStale = daysStale > 7;
                         const isSelected = selectedLeadIds.has(lead.id);
                         const projectName = projects.find(p => p.id === lead.project_id)?.name || 'No Project';
                         
-                        return (
+                  return (
                           <tr 
                             key={lead.id} 
                             className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
                             onClick={() => {
-                              setSelectedLead(lead);
-                              setShowDetailsModal(true);
+                      setSelectedLead(lead);
+                      setShowDetailsModal(true);
                             }}
                           >
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
@@ -927,13 +1126,13 @@ const ManagerLeads = () => {
                                 </Avatar>
                                 <div>
                                   <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
-                                  {isStale && (
+                            {isStale && (
                                     <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 mt-0.5">
                                       Stale ({daysStale}d)
                                     </Badge>
-                                  )}
-                                </div>
-                              </div>
+                            )}
+                          </div>
+                        </div>
                             </td>
                             <td className="py-2 px-3">
                               {projectName !== 'No Project' ? (
@@ -953,7 +1152,7 @@ const ManagerLeads = () => {
                                 {lead.phone && (
                                   <div className="text-xs text-slate-500">{lead.phone}</div>
                                 )}
-                              </div>
+                      </div>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <Select
@@ -1001,6 +1200,76 @@ const ManagerLeads = () => {
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
+                                {(() => {
+                                  const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone);
+                                  if (phoneNumbers.length === 0) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title="No phone number"
+                                        disabled
+                                      >
+                                        <PhoneIcon className="w-3.5 h-3.5 text-slate-400" />
+                                      </Button>
+                                    );
+                                  } else if (phoneNumbers.length === 1) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title={`Call ${phoneNumbers[0]}`}
+                                        asChild
+                                      >
+                                        <a href={`tel:${phoneNumbers[0]}`}>
+                                          <PhoneIcon className="w-3.5 h-3.5" />
+                                        </a>
+                                      </Button>
+                                    );
+                                  } else {
+                                    return (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-slate-100"
+                                            title={`${phoneNumbers.length} phone numbers - Click to see all`}
+                                          >
+                                            <PhoneIcon className="w-3.5 h-3.5" />
+                                            <ChevronDown className="w-2 h-2 ml-0.5" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+                                          <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
+                                            {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
+                                          </div>
+                                          {phoneNumbers.map((phone, idx) => (
+                                            <DropdownMenuItem key={idx} asChild>
+                                              <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
+                                                <PhoneIcon className="w-3.5 h-3.5 text-blue-600" />
+                                                <span className="font-medium">{phone}</span>
+                                              </a>
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    );
+                                  }
+                                })()}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Email"
+                                  asChild
+                                >
+                                  <a href={`mailto:${lead.contact_email || lead.email || ''}`}>
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </a>
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1054,11 +1323,11 @@ const ManagerLeads = () => {
                               </div>
                             </td>
                           </tr>
-                        );
-                      })}
+                  );
+                })}
                     </tbody>
                   </table>
-                </div>
+              </div>
               )}
             </Card>
           </>
@@ -1111,7 +1380,7 @@ const ManagerLeads = () => {
             </Card>
 
 
-            {/* Bulk Assign Toolbar */}
+            {/* Bulk Actions Toolbar */}
             {selectedLeadIds.size > 0 && (
               <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1128,13 +1397,23 @@ const ManagerLeads = () => {
                       Clear Selection
                     </Button>
                   </div>
-                  <Button
-                    onClick={() => setShowBulkAssignModal(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Assign to Salesman
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => setShowBulkAssignModal(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Assign to Salesman
+                    </Button>
+                    <Button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      variant="destructive"
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Selected
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
@@ -1203,22 +1482,22 @@ const ManagerLeads = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.map((lead) => {
-                        const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
-                        const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
-                        const lastTouched = lead.updated_at || lead.created_at;
-                        const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                        const isStale = daysStale > 7;
+                {filteredLeads.map((lead) => {
+                  const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
+                  const assignedName = assignedUser?.full_name || assignedUser?.email?.split("@")[0] || "Unassigned";
+                  const lastTouched = lead.updated_at || lead.created_at;
+                  const daysStale = lastTouched ? Math.floor((Date.now() - new Date(lastTouched).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                  const isStale = daysStale > 7;
                         const isSelected = selectedLeadIds.has(lead.id);
                         const projectName = projects.find(p => p.id === lead.project_id)?.name || 'No Project';
-                        
-                        return (
+                  
+                  return (
                           <tr 
                             key={lead.id} 
                             className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
                             onClick={() => {
-                              setSelectedLead(lead);
-                              setShowDetailsModal(true);
+                      setSelectedLead(lead);
+                      setShowDetailsModal(true);
                             }}
                           >
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
@@ -1237,12 +1516,12 @@ const ManagerLeads = () => {
                                 </Avatar>
                                 <div>
                                   <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
-                                  {isStale && (
+                            {isStale && (
                                     <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 mt-0.5">
                                       Stale ({daysStale}d)
                                     </Badge>
-                                  )}
-                                </div>
+                            )}
+                          </div>
                               </div>
                             </td>
                             <td className="py-2 px-3">
@@ -1257,13 +1536,13 @@ const ManagerLeads = () => {
                             <td className="py-2 px-3">
                               <div className="flex flex-col gap-0.5">
                                 <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
-                                {lead.email && (
+                            {lead.email && (
                                   <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
-                                )}
-                                {lead.phone && (
+                            )}
+                            {lead.phone && (
                                   <div className="text-xs text-slate-500">{lead.phone}</div>
-                                )}
-                              </div>
+                            )}
+                          </div>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <Select
@@ -1286,43 +1565,113 @@ const ManagerLeads = () => {
                               </Select>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
-                              <Select
-                                value={lead.assigned_to || "unassigned"}
-                                onValueChange={(value) => {
-                                  handleAssignLead(lead.id, value === "unassigned" ? "" : value);
-                                }}
-                                disabled={assigningLead === lead.id}
-                              >
+                          <Select
+                            value={lead.assigned_to || "unassigned"}
+                            onValueChange={(value) => {
+                              handleAssignLead(lead.id, value === "unassigned" ? "" : value);
+                            }}
+                            disabled={assigningLead === lead.id}
+                          >
                                 <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-xs h-7 w-32">
                                   <SelectValue placeholder="Assign..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                                  {salesUsers.map((u: any) => (
-                                    <SelectItem key={u.id} value={u.id}>
-                                      {u.full_name || u.email?.split("@")[0] || u.id}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {salesUsers.map((u: any) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.full_name || u.email?.split("@")[0] || u.id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                             </td>
                             <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
                               ${((lead.value || 0) / 1000).toFixed(0)}K
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
+                                {(() => {
+                                  const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone);
+                                  if (phoneNumbers.length === 0) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title="No phone number"
+                                        disabled
+                                      >
+                                        <PhoneIcon className="w-3.5 h-3.5 text-slate-400" />
+                                      </Button>
+                                    );
+                                  } else if (phoneNumbers.length === 1) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title={`Call ${phoneNumbers[0]}`}
+                                        asChild
+                                      >
+                                        <a href={`tel:${phoneNumbers[0]}`}>
+                                          <PhoneIcon className="w-3.5 h-3.5" />
+                                        </a>
+                                      </Button>
+                                    );
+                                  } else {
+                                    return (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-slate-100"
+                                            title={`${phoneNumbers.length} phone numbers`}
+                                          >
+                                            <PhoneIcon className="w-3.5 h-3.5" />
+                                            <ChevronDown className="w-2 h-2 ml-0.5" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+                                          <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
+                                            {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
+                                          </div>
+                                          {phoneNumbers.map((phone, idx) => (
+                                            <DropdownMenuItem key={idx} asChild>
+                                              <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
+                                                <PhoneIcon className="w-3.5 h-3.5 text-blue-600" />
+                                                <span className="font-medium">{phone}</span>
+                                              </a>
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    );
+                                  }
+                                })()}
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Email"
+                                  asChild
+                                >
+                                  <a href={`mailto:${lead.contact_email || lead.email || ''}`}>
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </a>
+                                </Button>
+                    <Button 
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Edit"
-                                  onClick={() => {
+                      onClick={() => {
                                     setSelectedLead(lead);
                                     openEditLeadModal();
-                                  }}
-                                >
+                      }}
+                    >
                                   <Edit className="w-3.5 h-3.5" />
-                                </Button>
+                    </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -1361,15 +1710,15 @@ const ManagerLeads = () => {
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                              </div>
+                  </div>
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
-                </div>
-              )}
+                  </div>
+                )}
             </Card>
           </>
         )}
@@ -1547,12 +1896,31 @@ const ManagerLeads = () => {
                         <a href={`mailto:${selectedLead.email}`} className="text-blue-600 hover:text-blue-800 break-all text-sm font-medium">{selectedLead.email}</a>
                       </div>
                     )}
-                    {selectedLead.phone && (
-                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100 transition-all">
-                        <span className="text-xs font-semibold text-indigo-700 block mb-2 uppercase tracking-wide">☎️ Phone</span>
-                        <a href={`tel:${selectedLead.phone}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">{selectedLead.phone}</a>
-                      </div>
-                    )}
+                    {(() => {
+                      const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
+                      if (phoneNumbers.length > 0) {
+                        return (
+                          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100 transition-all">
+                            <span className="text-xs font-semibold text-indigo-700 block mb-2 uppercase tracking-wide">
+                              ☎️ Phone Number{phoneNumbers.length > 1 ? `s (${phoneNumbers.length})` : ''}
+                            </span>
+                            <div className="space-y-2">
+                              {phoneNumbers.map((phone, idx) => (
+                                <a 
+                                  key={idx}
+                                  href={`tel:${phone}`} 
+                                  className="flex items-center gap-2 block text-indigo-600 hover:text-indigo-800 text-sm font-medium p-2 bg-white rounded border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                >
+                                  <PhoneIcon className="w-4 h-4" />
+                                  <span>{phone}</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
@@ -1801,8 +2169,9 @@ const ManagerLeads = () => {
                 <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
                   <li><strong>Required:</strong> Company Name (or Company, company_name)</li>
                   <li><strong>Optional:</strong> Contact Name, Email, Phone, Description, Link/Website, Value/Deal Value</li>
+                  <li><strong>Multiple Phone Numbers:</strong> You can have multiple phone columns (Phone, Mobile, Phone 1, Phone 2, etc.) or comma/semicolon-separated values in a single column</li>
                 </ul>
-                <p className="text-xs text-blue-700 mt-2">The first row should contain column headers. Rows without a company name will be skipped.</p>
+                <p className="text-xs text-blue-700 mt-2">The first row should contain column headers. Rows without a company name will be skipped. Multiple phone numbers will be detected automatically.</p>
               </div>
 
               <div>
@@ -1835,43 +2204,118 @@ const ManagerLeads = () => {
                 />
               </div>
 
-              {excelData.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Preview ({excelData.length} rows found)</Label>
-                    <Badge variant="outline">{excelHeaders.length} columns detected</Badge>
-                  </div>
-                  <div className="border border-slate-200 rounded-lg overflow-auto max-h-64">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-100 sticky top-0">
-                        <tr>
-                          {excelHeaders.map((header, idx) => (
-                            <th key={idx} className="px-3 py-2 text-left border-b border-slate-200 font-semibold text-slate-700">
-                              {header}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {excelData.slice(0, 10).map((row, rowIdx) => (
-                          <tr key={rowIdx} className="border-b border-slate-100 hover:bg-slate-50">
-                            {excelHeaders.map((header, colIdx) => (
-                              <td key={colIdx} className="px-3 py-2 text-slate-600">
-                                {row[header] || ""}
-                              </td>
+              {excelData.length > 0 && (() => {
+                // Helper to find phone number (same as in handleBulkImport)
+                const findPhoneNumber = (row: any): string => {
+                  const phoneVariations = [
+                    "Phone", "phone", "PHONE", "Phone Number", "phone number", "PhoneNumber", "phone_number",
+                    "Contact Phone", "contact phone", "ContactPhone", "contact_phone", "Mobile", "mobile",
+                    "Mobile Number", "mobile number", "Cell", "cell", "Tel", "tel", "Telephone", "telephone",
+                    "Contact Number", "contact number", "ContactNumber", "contact_number", "Phone No", "phone no",
+                    "Mobile No", "mobile no", "Contact No", "contact no", "Number", "number", "No", "no",
+                    "Phno", "phno", "PHNO", "PhNo", "Ph No", "ph no",  // Add Phno variations
+                  ];
+                  for (const variation of phoneVariations) {
+                    if (row[variation] !== undefined && row[variation] !== null) {
+                      let value: string;
+                      if (typeof row[variation] === 'number') {
+                        value = String(row[variation]);
+                      } else {
+                        value = String(row[variation]).trim();
+                      }
+                      if (value && value !== "null" && value !== "undefined" && value.length >= 6) {
+                        return value;
+                      }
+                    }
+                  }
+                  const rowKeys = Object.keys(row);
+                  for (const key of rowKeys) {
+                    const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+                    if (lowerKey.includes('phone') || lowerKey.includes('phno') || lowerKey === 'ph' || lowerKey === 'phno' ||
+                        lowerKey.includes('mobile') || lowerKey.includes('cell') || 
+                        lowerKey.includes('tel') || (lowerKey.includes('contact') && (lowerKey.includes('no') || lowerKey.includes('num')))) {
+                      const rawValue = row[key];
+                      if (rawValue !== undefined && rawValue !== null) {
+                        let value: string;
+                        if (typeof rawValue === 'number') {
+                          value = String(rawValue);
+                        } else {
+                          value = String(rawValue).trim();
+                        }
+                        if (value && value.length >= 6 && /\d/.test(value)) {
+                          return value;
+                        }
+                      }
+                    }
+                  }
+                  return "";
+                };
+                
+                const findEmail = (row: any): string => {
+                  const emailVariations = ["Email", "email", "EMAIL", "E-mail", "e-mail", "Contact Email", "contact email"];
+                  for (const variation of emailVariations) {
+                    if (row[variation] !== undefined && row[variation] !== null) {
+                      const value = String(row[variation]).trim();
+                      if (value) return value;
+                    }
+                  }
+                  const rowKeys = Object.keys(row);
+                  for (const key of rowKeys) {
+                    const lowerKey = key.toLowerCase().replace(/[_\s-]/g, '');
+                    if (lowerKey.includes('email') || lowerKey.includes('mail')) {
+                      const value = String(row[key] || '').trim();
+                      if (value && value.includes('@')) return value;
+                    }
+                  }
+                  return "";
+                };
+                
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Preview ({excelData.length} rows found)</Label>
+                      <Badge variant="outline">{excelHeaders.length} columns detected</Badge>
+                    </div>
+                    
+                    <div className="border border-slate-200 rounded-lg overflow-auto max-h-64">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-100 sticky top-0">
+                          <tr>
+                            {excelHeaders.map((header, idx) => (
+                              <th key={idx} className="px-3 py-2 text-left border-b border-slate-200 font-semibold text-slate-700">
+                                {header}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {excelData.length > 10 && (
-                      <div className="p-2 text-xs text-slate-500 text-center bg-slate-50">
-                        Showing first 10 of {excelData.length} rows. All rows will be imported.
-                      </div>
-                    )}
+                        </thead>
+                        <tbody>
+                          {excelData.slice(0, 10).map((row, rowIdx) => (
+                            <tr key={rowIdx} className="border-b border-slate-100 hover:bg-slate-50">
+                              {excelHeaders.map((header, colIdx) => (
+                                <td key={colIdx} className="px-3 py-2 text-slate-600">
+                                  {(() => {
+                                    const val = row[header];
+                                    if (val !== undefined && val !== null) {
+                                      if (typeof val === 'number') return String(val);
+                                      return String(val).substring(0, 50);
+                                    }
+                                    return "";
+                                  })()}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {excelData.length > 10 && (
+                        <div className="p-2 text-xs text-slate-500 text-center bg-slate-50">
+                          Showing first 10 of {excelData.length} rows. All rows will be imported.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {excelHeaders.length > 0 && (
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
@@ -1976,6 +2420,53 @@ const ManagerLeads = () => {
                   <>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Assign {selectedLeadIds.size} Lead{selectedLeadIds.size !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Delete Modal */}
+        <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Leads</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Are you sure you want to delete {selectedLeadIds.size} selected lead{selectedLeadIds.size !== 1 ? 's' : ''}? 
+                  This action cannot be undone.
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowBulkDeleteModal(false);
+                }} 
+                disabled={bulkDeleting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBulkDelete} 
+                disabled={bulkDeleting}
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {bulkDeleting ? (
+                  <>
+                    <Loader className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete {selectedLeadIds.size} Lead{selectedLeadIds.size !== 1 ? 's' : ''}
                   </>
                 )}
               </Button>
