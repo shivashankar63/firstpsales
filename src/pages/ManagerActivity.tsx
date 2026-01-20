@@ -85,6 +85,7 @@ const ManagerActivity = () => {
   const [editSalesmanForm, setEditSalesmanForm] = useState({ fullName: "", email: "" });
   const [updatingSalesman, setUpdatingSalesman] = useState(false);
   const [deletingSalesmanId, setDeletingSalesmanId] = useState<string | null>(null);
+  const [deletingSalesman, setDeletingSalesman] = useState(false);
   // Fetch leads for a team (by member ids)
   const fetchLeadsForTeam = useCallback(async (team: Team) => {
     setTeamLeadsLoading(prev => ({ ...prev, [team.id]: true }));
@@ -268,20 +269,62 @@ const ManagerActivity = () => {
   };
 
   const handleDeleteSalesman = async () => {
-    if (!deletingSalesmanId) return;
+    if (!deletingSalesmanId || deletingSalesman) return;
+    
+    const salesmanToDelete = deletingSalesmanId;
+    setDeletingSalesman(true);
+    
     try {
-      const { error } = await deleteUser(deletingSalesmanId);
+      // Delete from server first
+      const { error } = await deleteUser(salesmanToDelete);
+      
       if (error) {
-        alert(`Failed to delete salesman: ${error.message || 'Unknown error'}`);
-      } else {
-        // Refresh salesmen list
-        const { data: salesmenData } = await getUsersByRole('salesman');
-        setSalesmen(salesmenData || []);
+        console.error('Delete user error:', error);
+        const errorMessage = error.message || error.code || 'Unknown error';
+        alert(`Failed to delete salesman: ${errorMessage}\n\nThis might be due to RLS (Row Level Security) policies. Please ensure managers have permission to delete users.`);
         setDeletingSalesmanId(null);
-        alert("Salesman deleted successfully");
+        setDeletingSalesman(false);
+        return;
       }
+      
+      // Close modal immediately
+      setDeletingSalesmanId(null);
+      
+      // Remove from UI immediately (optimistic update)
+      setSalesmen(prev => {
+        const filtered = prev.filter(s => s.id !== salesmanToDelete);
+        return filtered;
+      });
+      
+      // Wait a bit for server to process, then refresh to ensure consistency
+      setTimeout(async () => {
+        try {
+          const { data: salesmenData, error: refreshError } = await getUsersByRole('salesman');
+          if (refreshError) {
+            console.error('Error refreshing salesmen list:', refreshError);
+            return;
+          }
+          if (salesmenData) {
+            // Verify the deleted salesman is not in the list
+            const stillExists = salesmenData.some(s => s.id === salesmanToDelete);
+            if (!stillExists) {
+              setSalesmen(salesmenData);
+            } else {
+              // If still exists, remove it manually
+              setSalesmen(salesmenData.filter(s => s.id !== salesmanToDelete));
+            }
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing salesmen list:', refreshError);
+        }
+      }, 500);
+      
     } catch (error: any) {
-      alert(`Failed to delete salesman: ${error.message || 'Unknown error'}`);
+      console.error('Delete salesman exception:', error);
+      alert(`Failed to delete salesman: ${error.message || 'Unknown error'}\n\nPlease check the browser console for more details.`);
+      setDeletingSalesmanId(null);
+    } finally {
+      setDeletingSalesman(false);
     }
   };
 
@@ -316,10 +359,10 @@ const ManagerActivity = () => {
             </Button>
           </div>
           {salesmen.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" key={`salesmen-${salesmen.length}`}>
               {salesmen.map((salesman) => (
                 <div
-                  key={salesman.id}
+                  key={`salesman-${salesman.id}`}
                   className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
@@ -791,9 +834,10 @@ const ManagerActivity = () => {
               </Button>
               <Button 
                 onClick={handleDeleteSalesman}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={deletingSalesman}
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
               >
-                Delete
+                {deletingSalesman ? "Deleting..." : "Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>
