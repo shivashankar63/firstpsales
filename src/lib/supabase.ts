@@ -312,6 +312,8 @@ export const createLead = async (leadData: {
       email: leadData.email && String(leadData.email).trim() ? String(leadData.email).trim() : null,
       phone: leadData.phone && String(leadData.phone).trim() ? String(leadData.phone).trim() : null,
       created_by: currentUser.id,
+      // Preserve assigned_to if provided (for salesman auto-assignment)
+      assigned_to: leadData.assigned_to || null,
     };
     
     const { data, error } = await supabase
@@ -338,6 +340,7 @@ export const createBulkLeads = async (leads: Array<{
   description?: string;
   link?: string;
   value?: number;
+  assigned_to?: string | null;
 }>) => {
   try {
     const currentUser = await getCurrentUser();
@@ -360,6 +363,14 @@ export const createBulkLeads = async (leads: Array<{
         email: emailValue || null,
         phone: phoneValue || null,
       };
+      
+      // Preserve assigned_to if provided (for salesman auto-assignment)
+      // Always set assigned_to if it's provided, even if it's an empty string (will be converted to null)
+      if (lead.assigned_to !== undefined && lead.assigned_to !== null) {
+        leadData.assigned_to = String(lead.assigned_to).trim() || null;
+      } else {
+        leadData.assigned_to = null;
+      }
       
       // Add optional fields only if they have values
       if (lead.description && String(lead.description).trim()) {

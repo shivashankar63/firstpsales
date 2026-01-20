@@ -37,7 +37,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects } from "@/lib/supabase";
+import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects, subscribeToLeads } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -90,6 +90,7 @@ const SalesPipeline = () => {
     source: "",
     status: "new",
     description: "",
+    project_id: "",
   });
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -136,6 +137,25 @@ const SalesPipeline = () => {
       }
     };
     fetchData();
+    
+    // Subscribe to realtime changes
+    const subscription = subscribeToLeads(async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+          setLeads(data || []);
+        }
+      } catch (error) {
+        // Silently handle error
+      }
+    });
+    
+    return () => {
+      try {
+        subscription?.unsubscribe?.();
+      } catch {}
+    };
   }, [navigate]);
   
   // Handle Excel file upload and parsing
@@ -393,13 +413,31 @@ const SalesPipeline = () => {
   };
 
   const handleAddLead = async () => {
+    if (!formData.project_id) {
+      alert("Please select a project");
+      return;
+    }
+    if (!formData.company_name || !formData.contact_name) {
+      alert("Company name and contact name are required");
+      return;
+    }
     try {
       const { createLead } = await import("@/lib/supabase");
-      let leadData = { ...formData };
+      let leadData: any = {
+        company_name: formData.company_name,
+        contact_name: formData.contact_name,
+        email: formData.contact_email || null,
+        phone: formData.contact_phone || null,
+        value: formData.value || 0,
+        status: formData.status as 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested',
+        project_id: formData.project_id,
+        description: formData.description || undefined,
+        link: undefined,
+      };
       if (currentUser) {
-        leadData.assigned_to = currentUser.id;
+        leadData.assigned_to = currentUser.id; // Automatically assign to current salesman
       }
-      const { data, error } = await createLead(leadData as any);
+      const { data, error } = await createLead(leadData);
       if (!error) {
         alert("Lead added successfully!");
         setShowAddModal(false);
@@ -412,15 +450,16 @@ const SalesPipeline = () => {
           source: "",
           status: "new",
           description: "",
+          project_id: "",
         });
         // Refresh leads
         const { data: leadsData } = await getLeads(currentUser ? { assignedTo: currentUser.id } : undefined);
         if (leadsData) setLeads(leadsData);
       } else {
-        alert("Failed to add lead");
+        alert(`Failed to add lead: ${error.message || 'Unknown error'}`);
       }
-    } catch (err) {
-      alert("Failed to add lead");
+    } catch (err: any) {
+      alert(`Failed to add lead: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -551,6 +590,21 @@ const SalesPipeline = () => {
                                       <Label>Phone</Label>
                                       <Input value={formData.contact_phone} onChange={e => setFormData({ ...formData, contact_phone: e.target.value })} />
                                     </div>
+                                  </div>
+                                  <div>
+                                    <Label>Project *</Label>
+                                    <Select value={formData.project_id} onValueChange={value => setFormData({ ...formData, project_id: value })}>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select a project" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {projects.map((project) => (
+                                          <SelectItem key={project.id} value={project.id}>
+                                            {project.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>

@@ -72,6 +72,10 @@ const SalesmanDashboard = () => {
               </div>
             </div>
             
+            <div className="text-xs text-slate-500 text-center mt-4">
+              <p>Leads you add will automatically appear here. If you don't see your leads, try refreshing the page.</p>
+            </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               {/* <QuotaProgress /> */}
               {/* <ActivityTimeline /> */}

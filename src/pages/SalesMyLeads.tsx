@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Phone, Mail, ArrowUpRight, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet } from "lucide-react";
-import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects } from "@/lib/supabase";
+import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -92,6 +92,25 @@ const SalesMyLeads = () => {
       }
     };
     fetchData();
+    
+    // Subscribe to realtime changes
+    const subscription = subscribeToLeads(async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+          setLeads(data || []);
+        }
+      } catch (error) {
+        // Silently handle error
+      }
+    });
+    
+    return () => {
+      try {
+        subscription?.unsubscribe?.();
+      } catch {}
+    };
   }, [navigate]);
 
   const totalValue = useMemo(() => leads.reduce((s, l) => s + (l.value || 0), 0), [leads]);

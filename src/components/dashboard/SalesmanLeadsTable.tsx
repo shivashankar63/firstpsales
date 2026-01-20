@@ -64,6 +64,7 @@ const SalesmanLeadsTable = () => {
           }
           const { data, error } = await getLeads({ assignedTo: user.id });
           if (error) {
+            console.error("Error fetching leads:", error);
             setLeads([]);
           } else if (isMounted) {
             setLeads(data || []);
@@ -92,7 +93,41 @@ const SalesmanLeadsTable = () => {
         }
       };
       fetchLeads();
-      return () => { isMounted = false; };
+      
+      // Subscribe to realtime changes
+      const subscription = subscribeToLeads(async () => {
+        if (isMounted) {
+          const user = await getCurrentUser();
+          if (user) {
+            const { data } = await getLeads({ assignedTo: user.id });
+            if (isMounted) {
+              setLeads(data || []);
+              // Recalculate stats
+              const projectsSet = new Set<string>();
+              (data || []).forEach((lead: any) => {
+                if (lead.projects?.name) projectsSet.add(lead.projects.name);
+              });
+              setUniqueProjects(Array.from(projectsSet));
+              const grouped: Record<string, { name: string; count: number; value: number; needsAttention: number }> = {};
+              (data || []).forEach((lead: any) => {
+                const name = lead.projects?.name || 'No Project';
+                if (!grouped[name]) grouped[name] = { name, count: 0, value: 0, needsAttention: 0 };
+                grouped[name].count++;
+                grouped[name].value += lead.value || 0;
+                if (lead.status === 'new' || lead.status === 'proposal') grouped[name].needsAttention++;
+              });
+              setProjectStats(Object.values(grouped));
+            }
+          }
+        }
+      });
+      
+      return () => { 
+        isMounted = false;
+        try {
+          subscription?.unsubscribe?.();
+        } catch {}
+      };
     }, []);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
@@ -104,11 +139,14 @@ const SalesmanLeadsTable = () => {
   const [projectFilter, setProjectFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("new");
+  const [editingValue, setEditingValue] = useState<string>("0");
   const [updateMessage, setUpdateMessage] = useState<{ type: string; text: string } | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [updateLoadingId, setUpdateLoadingId] = useState<string | null>(null);
+  const [editingValueId, setEditingValueId] = useState<string | null>(null);
+  const [editingValueInput, setEditingValueInput] = useState<string>("0");
   const [projectStats, setProjectStats] = useState<any[]>([]);
   const [uniqueProjects, setUniqueProjects] = useState<string[]>([]);
 
@@ -146,6 +184,7 @@ const SalesmanLeadsTable = () => {
   const handleChangeStatusClick = (lead: Lead) => {
     setSelectedLead(lead);
     setEditingStatus(lead.status);
+    setEditingValue(String(lead.value || 0));
     setUpdateMessage(null);
     setShowEditModal(true);
   };
@@ -165,6 +204,7 @@ const SalesmanLeadsTable = () => {
   const handleEditClick = (lead: Lead) => {
     setSelectedLead(lead);
     setEditingStatus(lead.status);
+    setEditingValue(String(lead.value || 0));
     setUpdateMessage(null);
     setShowEditModal(true);
   };
@@ -203,6 +243,13 @@ const SalesmanLeadsTable = () => {
   const handleUpdateLead = async () => {
     if (!selectedLead) return;
     
+    // Validate value
+    const valueNum = Number(editingValue);
+    if (isNaN(valueNum) || valueNum < 0) {
+      setUpdateMessage({ type: "error", text: "Value must be a valid positive number." });
+      return;
+    }
+    
     setUpdateLoadingId(selectedLead.id);
     setUpdateMessage(null);
 
@@ -211,6 +258,7 @@ const SalesmanLeadsTable = () => {
         .from("leads")
         .update({
           status: editingStatus,
+          value: valueNum,
         })
         .eq("id", selectedLead.id);
 
@@ -222,7 +270,7 @@ const SalesmanLeadsTable = () => {
         // Update local state
         setLeads(leads.map(lead => 
           lead.id === selectedLead.id 
-            ? { ...lead, status: editingStatus as any }
+            ? { ...lead, status: editingStatus as any, value: valueNum }
             : lead
         ));
 
@@ -474,7 +522,7 @@ const SalesmanLeadsTable = () => {
                                 setUpdateMessage({ type: "error", text: error.message });
                                 return;
                               }
-                              setLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? { ...l, status: value } : l));
+                              setLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? { ...l, status: value as any } : l));
                               setUpdateMessage({ type: "success", text: "Status updated successfully!" });
                             } catch (err) {
                               setUpdateMessage({ type: "error", text: 'Exception: ' + (err?.message || err) });
@@ -497,8 +545,88 @@ const SalesmanLeadsTable = () => {
                         )}
                       </div>
                     </td>
-                    <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
-                      ${(lead.value / 1000).toFixed(0)}K
+                    <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      {editingValueId === lead.id ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <Input
+                            type="number"
+                            value={editingValueInput}
+                            onChange={(e) => setEditingValueInput(e.target.value)}
+                            onBlur={async () => {
+                              const valueNum = Number(editingValueInput);
+                              if (isNaN(valueNum) || valueNum < 0) {
+                                setEditingValueId(null);
+                                return;
+                              }
+                              setUpdateLoadingId(lead.id);
+                              try {
+                                const { error } = await supabase
+                                  .from("leads")
+                                  .update({ value: valueNum })
+                                  .eq("id", lead.id);
+                                if (!error) {
+                                  setLeads(prevLeads => prevLeads.map(l => 
+                                    l.id === lead.id ? { ...l, value: valueNum } : l
+                                  ));
+                                }
+                              } catch (err) {
+                                console.error("Error updating value:", err);
+                              } finally {
+                                setEditingValueId(null);
+                                setUpdateLoadingId(null);
+                              }
+                            }}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                const valueNum = Number(editingValueInput);
+                                if (isNaN(valueNum) || valueNum < 0) {
+                                  setEditingValueId(null);
+                                  return;
+                                }
+                                setUpdateLoadingId(lead.id);
+                                try {
+                                  const { error } = await supabase
+                                    .from("leads")
+                                    .update({ value: valueNum })
+                                    .eq("id", lead.id);
+                                  if (!error) {
+                                    setLeads(prevLeads => prevLeads.map(l => 
+                                      l.id === lead.id ? { ...l, value: valueNum }
+                                      : l
+                                    ));
+                                  }
+                                } catch (err) {
+                                  console.error("Error updating value:", err);
+                                } finally {
+                                  setEditingValueId(null);
+                                  setUpdateLoadingId(null);
+                                }
+                              } else if (e.key === 'Escape') {
+                                setEditingValueId(null);
+                                setEditingValueInput(String(lead.value || 0));
+                              }
+                            }}
+                            className="w-20 h-7 text-xs text-right"
+                            autoFocus
+                            min="0"
+                            step="0.01"
+                          />
+                          {updateLoadingId === lead.id && (
+                            <Loader className="w-3 h-3 animate-spin text-slate-400" />
+                          )}
+                        </div>
+                      ) : (
+                        <span 
+                          className="text-xs font-semibold text-slate-900 cursor-pointer hover:text-slate-700 hover:underline"
+                          onClick={() => {
+                            setEditingValueId(lead.id);
+                            setEditingValueInput(String(lead.value || 0));
+                          }}
+                          title="Click to edit value"
+                        >
+                          ${(lead.value / 1000).toFixed(0)}K
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-1">
@@ -587,8 +715,8 @@ const SalesmanLeadsTable = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500 text-xs">
-                    No leads found
+                  <td colSpan={7} className="py-6 text-center text-slate-500 text-xs">
+                    {loading ? "Loading leads..." : "No leads found. Add leads using the 'Add Lead' or 'Bulk Import' buttons."}
                   </td>
                 </tr>
               )}
@@ -628,19 +756,19 @@ const SalesmanLeadsTable = () => {
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
                 <p className="text-sm font-medium text-foreground mt-1">
-                  {selectedLead.contact_email || selectedLead.email || "N/A"}
+                  {selectedLead.contact_email || (selectedLead as any).email || "N/A"}
                 </p>
               </div>
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">
                   Phone{(() => {
-                    const phones = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
+                    const phones = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
                     return phones.length > 1 ? ` (${phones.length})` : '';
                   })()}
                 </Label>
                 <div className="text-sm font-medium text-foreground mt-1 space-y-1">
                   {(() => {
-                    const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
+                    const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
                     if (phoneNumbers.length === 0) {
                       return <span className="text-slate-400">N/A</span>;
                     }
@@ -678,7 +806,7 @@ const SalesmanLeadsTable = () => {
           <DialogHeader>
             <DialogTitle>Edit Lead - {selectedLead?.company_name}</DialogTitle>
             <DialogDescription>
-              Update the status of this lead. Select a new status and click "Update Lead" to save changes.
+              Update the status and value of this lead. Click "Update Lead" to save changes.
             </DialogDescription>
           </DialogHeader>
           {selectedLead && (
@@ -704,6 +832,19 @@ const SalesmanLeadsTable = () => {
                   <option value="closed_won">Closed Won</option>
                   <option value="not_interested">Not Interested</option>
                 </select>
+              </div>
+              <div>
+                <Label htmlFor="value">Value ($)</Label>
+                <Input
+                  id="value"
+                  type="number"
+                  value={editingValue}
+                  onChange={(e) => setEditingValue(e.target.value)}
+                  placeholder="Enter lead value"
+                  className="w-full mt-1"
+                  min="0"
+                  step="0.01"
+                />
               </div>
             </div>
           )}
