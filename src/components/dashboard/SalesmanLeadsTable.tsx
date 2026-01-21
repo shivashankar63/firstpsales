@@ -1,4 +1,4 @@
-import { Search, Filter, ChevronDown, Phone, MessageSquare, MoreHorizontal, Loader, X, Clock, TrendingUp, AlertCircle, MessageCircle } from "lucide-react";
+import { Search, Filter, ChevronDown, Phone, MessageSquare, MoreHorizontal, Loader, X, Clock, TrendingUp, AlertCircle, MessageCircle, StickyNote, Calendar, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getLeads, getCurrentUser, supabase, subscribeToLeads, createActivity } from "@/lib/supabase";
+import { getLeads, getCurrentUser, supabase, subscribeToLeads, createActivity, updateLead, createLeadActivity } from "@/lib/supabase";
 
 interface Lead {
   id: string;
@@ -159,6 +159,11 @@ const SalesmanLeadsTable = () => {
   const [editingValueInput, setEditingValueInput] = useState<string>("0");
   const [projectStats, setProjectStats] = useState<any[]>([]);
   const [uniqueProjects, setUniqueProjects] = useState<string[]>([]);
+  const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<Lead | null>(null);
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
+  const [callbackDate, setCallbackDate] = useState("");
+  const [callbackNotes, setCallbackNotes] = useState("");
+  const [submittingActivity, setSubmittingActivity] = useState(false);
 
   // ...existing useEffect and logic...
 
@@ -209,6 +214,58 @@ const SalesmanLeadsTable = () => {
     setNoteText("");
     setUpdateMessage(null);
     setShowNoteModal(true);
+  };
+
+  const handleScheduleCallback = (lead: Lead) => {
+    setSelectedLeadForActivity(lead);
+    setCallbackDate("");
+    setCallbackNotes("");
+    setShowCallbackModal(true);
+  };
+
+  const handleSubmitCallback = async () => {
+    if (!selectedLeadForActivity || !callbackDate || !callbackNotes.trim()) {
+      alert("Please provide both date and notes for the callback");
+      return;
+    }
+    
+    setSubmittingActivity(true);
+    try {
+      // Create activity with callback information
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: `Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}. Notes: ${callbackNotes.trim()}`,
+      });
+      
+      // Update lead with callback date and notes
+      const callbackDateTime = new Date(callbackDate);
+      callbackDateTime.setHours(9, 0, 0, 0); // Set to 9 AM by default
+      
+      await updateLead(selectedLeadForActivity.id, {
+        next_followup_date: callbackDateTime.toISOString(),
+        followup_notes: callbackNotes.trim(),
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads({ assignedTo: user.id });
+        setLeads(data || []);
+      }
+      
+      setShowCallbackModal(false);
+      setCallbackDate("");
+      setCallbackNotes("");
+      setSelectedLeadForActivity(null);
+      alert(`Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}`);
+    } catch (error) {
+      console.error("Failed to schedule callback", error);
+      alert("Failed to schedule callback. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
+    }
   };
 
   const handleViewDetails = (lead: Lead) => {
@@ -471,31 +528,34 @@ const SalesmanLeadsTable = () => {
     setUpdateMessage(null);
 
     try {
-      const user = await getCurrentUser();
-      const title = `Note - ${selectedLead.company_name}`;
-
-      // Use helper that matches table schema and includes required title
-      const { error } = await createActivity({
-        user_id: user?.id as string,
-        type: "note",
-        title,
-        description: noteText,
+      // Create activity note
+      await createLeadActivity({
         lead_id: selectedLead.id,
+        type: 'note',
+        description: noteText.trim(),
       });
-
-      if (error) {
-        setUpdateMessage({ type: "error", text: error.message });
-      } else {
-        setUpdateMessage({ type: "success", text: "Note added successfully!" });
-        
-        setTimeout(() => {
-          setShowNoteModal(false);
-          setSelectedLead(null);
-          setNoteText("");
-        }, 1500);
+      
+      // Update last_contacted_at for the lead
+      await updateLead(selectedLead.id, {
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads({ assignedTo: user.id });
+        setLeads(data || []);
       }
+      
+      setUpdateMessage({ type: "success", text: "Note added successfully!" });
+      
+      setTimeout(() => {
+        setShowNoteModal(false);
+        setSelectedLead(null);
+        setNoteText("");
+      }, 1500);
     } catch (error: any) {
-      setUpdateMessage({ type: "error", text: error.message });
+      setUpdateMessage({ type: "error", text: error.message || "Failed to add note. Please try again." });
     } finally {
       setUpdateLoadingId(null);
     }
@@ -879,6 +939,26 @@ const SalesmanLeadsTable = () => {
                           onClick={() => handleWhatsAppModal(lead)}
                         >
                           <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 hover:bg-slate-100 text-xs"
+                          title="Add Note"
+                          onClick={() => handleAddNote(lead)}
+                        >
+                          <StickyNote className="w-3.5 h-3.5 mr-1" />
+                          Note
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 hover:bg-slate-100 text-xs"
+                          title="Schedule Callback"
+                          onClick={() => handleScheduleCallback(lead)}
+                        >
+                          <Calendar className="w-3.5 h-3.5 mr-1" />
+                          Callback
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1730,6 +1810,62 @@ const SalesmanLeadsTable = () => {
               disabled={updateLoadingId === selectedLead?.id}
             >
               {updateLoadingId === selectedLead?.id ? "Adding..." : "Add Note"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Callback Modal */}
+      <Dialog open={showCallbackModal} onOpenChange={setShowCallbackModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Callback - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+          </DialogHeader>
+          {selectedLeadForActivity && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="callback-date">Callback Date & Time</Label>
+                <Input
+                  id="callback-date"
+                  type="datetime-local"
+                  value={callbackDate}
+                  onChange={(e) => setCallbackDate(e.target.value)}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="callback-notes">Notes</Label>
+                <Textarea
+                  id="callback-notes"
+                  placeholder="Enter callback notes..."
+                  value={callbackNotes}
+                  onChange={(e) => setCallbackNotes(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                  required
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCallbackModal(false);
+                setCallbackDate("");
+                setCallbackNotes("");
+                setSelectedLeadForActivity(null);
+              }}
+              disabled={submittingActivity}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitCallback}
+              disabled={submittingActivity || !callbackDate || !callbackNotes.trim()}
+            >
+              {submittingActivity ? "Scheduling..." : "Schedule Callback"}
             </Button>
           </DialogFooter>
         </DialogContent>
