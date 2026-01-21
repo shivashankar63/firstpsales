@@ -1,4 +1,4 @@
-import { Search, Filter, ChevronDown, Phone, MessageSquare, MoreHorizontal, Loader, X, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import { Search, Filter, ChevronDown, Phone, MessageSquare, MoreHorizontal, Loader, X, Clock, TrendingUp, AlertCircle, MessageCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -147,6 +147,13 @@ const SalesmanLeadsTable = () => {
   const [editFormData, setEditFormData] = useState<any>(null);
   const [noteText, setNoteText] = useState("");
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [selectedLeadForWhatsApp, setSelectedLeadForWhatsApp] = useState<Lead | null>(null);
+  const [whatsAppMessage, setWhatsAppMessage] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedLeadForEmail, setSelectedLeadForEmail] = useState<Lead | null>(null);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   const [updateLoadingId, setUpdateLoadingId] = useState<string | null>(null);
   const [editingValueId, setEditingValueId] = useState<string | null>(null);
   const [editingValueInput, setEditingValueInput] = useState<string>("0");
@@ -246,11 +253,125 @@ const SalesmanLeadsTable = () => {
 
   const handleMessageLead = (lead: Lead) => {
     const email = (lead as any).contact_email || (lead as any).email || '';
-    if (email) {
-      window.location.href = `mailto:${email}`;
-    } else {
+    if (!email) {
       alert('No email address available for this lead');
+      return;
     }
+    setSelectedLeadForEmail(lead);
+    const { subject, body } = getEmailDefaults(lead);
+    setEmailSubject(subject);
+    setEmailBody(body);
+    setShowEmailModal(true);
+  };
+
+  // Format phone for WhatsApp (reuse logic from leads pages)
+  const formatPhoneForWhatsApp = (phone: string): string | null => {
+    if (!phone) return null;
+    let cleaned = phone.replace(/[^\d]/g, "");
+    if (cleaned.startsWith("00")) cleaned = cleaned.slice(2);
+    cleaned = cleaned.replace(/^0+/, "");
+    if (cleaned.length < 8) return null;
+    return cleaned;
+  };
+
+  const getWhatsAppDefaults = (lead: Lead) => {
+    const contactName = lead.contact_name || "";
+    const companyName = lead.company_name || "";
+    const message = `Hi${contactName ? ` ${contactName}` : ""}, I hope you're doing well. I wanted to follow up regarding ${companyName}. Is this a good time to talk?`;
+    return message;
+  };
+
+  const handleWhatsAppQuick = (lead: Lead) => {
+    const phoneNumbers = parsePhoneNumbers((lead as any).contact_phone || (lead as any).phone || (lead as any).mobile_phone);
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+
+    if (validPhones.length === 0) {
+      alert("No valid phone number available for WhatsApp");
+      return;
+    }
+
+    const message = encodeURIComponent(getWhatsAppDefaults(lead));
+
+    const formattedPhone = validPhones[0];
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
+  };
+
+  const handleWhatsAppModal = (lead: Lead) => {
+    const phoneNumbers = parsePhoneNumbers((lead as any).contact_phone || (lead as any).phone || (lead as any).mobile_phone);
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+
+    if (validPhones.length === 0) {
+      alert("No valid phone number available for WhatsApp");
+      return;
+    }
+
+    setSelectedLeadForWhatsApp(lead);
+    setWhatsAppMessage(getWhatsAppDefaults(lead));
+    setShowWhatsAppModal(true);
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!selectedLeadForWhatsApp || !whatsAppMessage.trim()) {
+      alert("Please enter a message");
+      return;
+    }
+
+    const phoneNumbers = parsePhoneNumbers(
+      (selectedLeadForWhatsApp as any).contact_phone ||
+      (selectedLeadForWhatsApp as any).phone ||
+      (selectedLeadForWhatsApp as any).mobile_phone
+    );
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+
+    if (validPhones.length === 0) {
+      alert("No valid phone number available for WhatsApp");
+      return;
+    }
+
+    const formattedPhone = validPhones[0];
+    const message = encodeURIComponent(whatsAppMessage.trim());
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
+
+    setShowWhatsAppModal(false);
+    setSelectedLeadForWhatsApp(null);
+    setWhatsAppMessage("");
+  };
+
+  const getEmailDefaults = (lead: Lead) => {
+    const companyName = lead.company_name || "";
+    const contactName = lead.contact_name || "";
+    const subject = `Quick follow-up - ${companyName || "your project"}`;
+    const body = `Hi${contactName ? ` ${contactName}` : ""},\n\nI hope you're doing well. I wanted to follow up regarding ${companyName || "our discussion"}. Please let me know a good time to connect.\n\nThanks,\n`;
+    return { subject, body };
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedLeadForEmail) return;
+    const email = (selectedLeadForEmail as any).contact_email || (selectedLeadForEmail as any).email || '';
+    if (!email) {
+      alert('No email address available for this lead');
+      return;
+    }
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      alert("Subject and body are required");
+      return;
+    }
+
+    const subject = encodeURIComponent(emailSubject.trim());
+    const body = encodeURIComponent(emailBody.trim());
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, "_blank");
+
+    setShowEmailModal(false);
+    setSelectedLeadForEmail(null);
+    setEmailSubject("");
+    setEmailBody("");
   };
 
   const handleUpdateLead = async () => {
@@ -745,10 +866,19 @@ const SalesmanLeadsTable = () => {
                           variant="ghost" 
                           size="sm" 
                           className="h-7 w-7 p-0 hover:bg-slate-100" 
-                          title="Message"
+                          title="Email"
                           onClick={() => handleMessageLead(lead)}
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 hover:bg-green-100"
+                          title="WhatsApp"
+                          onClick={() => handleWhatsAppModal(lead)}
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-green-600" />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -778,6 +908,95 @@ const SalesmanLeadsTable = () => {
           </table>
         </div>
       )}
+
+      {/* WhatsApp Modal */}
+      <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              WhatsApp - {selectedLeadForWhatsApp?.company_name || "Lead"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="whatsapp-message">Message</Label>
+              <Textarea
+                id="whatsapp-message"
+                value={whatsAppMessage}
+                onChange={(e) => setWhatsAppMessage(e.target.value)}
+                rows={4}
+                className="mt-1"
+                placeholder="Type your WhatsApp message..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowWhatsAppModal(false);
+                setSelectedLeadForWhatsApp(null);
+                setWhatsAppMessage("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSendWhatsApp}>
+              Send on WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email (Gmail) Modal */}
+      <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Email - {selectedLeadForEmail?.company_name || "Lead"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email-subject">Subject</Label>
+              <Input
+                id="email-subject"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                className="mt-1"
+                placeholder="Email subject"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email-body">Message</Label>
+              <Textarea
+                id="email-body"
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                rows={5}
+                className="mt-1"
+                placeholder="Type your email..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEmailModal(false);
+                setSelectedLeadForEmail(null);
+                setEmailSubject("");
+                setEmailBody("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSendEmail}>
+              Open in Gmail
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
