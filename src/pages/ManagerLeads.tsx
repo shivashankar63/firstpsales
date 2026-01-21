@@ -1872,7 +1872,7 @@ const ManagerLeads = () => {
                               )}
                             </td>
                             <td className="py-2 px-3">
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col gap-1">
                                 <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
                                 {lead.email && (
                                   <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
@@ -1880,7 +1880,26 @@ const ManagerLeads = () => {
                                 {lead.phone && (
                                   <div className="text-xs text-slate-500">{lead.phone}</div>
                                 )}
-                      </div>
+                                {/* Note + Callback indicators */}
+                                <div className="flex flex-wrap gap-1">
+                                  {lead.followup_notes && (
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0.5">
+                                      Note
+                                    </Badge>
+                                  )}
+                                  {lead.next_followup_date && new Date(lead.next_followup_date) > new Date() && (
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0.5">
+                                      Callback {new Date(lead.next_followup_date).toLocaleDateString()}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {(lead.followup_notes || lead.lead_notes) && (
+                                  <div className="text-[11px] text-slate-500 line-clamp-2">
+                                    {(lead.followup_notes || lead.lead_notes || '').slice(0, 80)}
+                                    {(lead.followup_notes || lead.lead_notes || '').length > 80 ? '…' : ''}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <Select
@@ -2280,15 +2299,34 @@ const ManagerLeads = () => {
                               )}
                             </td>
                             <td className="py-2 px-3">
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col gap-1">
                                 <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
-                            {lead.email && (
+                                {lead.email && (
                                   <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
-                            )}
-                            {lead.phone && (
+                                )}
+                                {lead.phone && (
                                   <div className="text-xs text-slate-500">{lead.phone}</div>
-                            )}
-                          </div>
+                                )}
+                                {/* Note + Callback indicators */}
+                                <div className="flex flex-wrap gap-1">
+                                  {lead.followup_notes && (
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0.5">
+                                      Note
+                                    </Badge>
+                                  )}
+                                  {lead.next_followup_date && new Date(lead.next_followup_date) > new Date() && (
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0.5">
+                                      Callback {new Date(lead.next_followup_date).toLocaleDateString()}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {(lead.followup_notes || lead.lead_notes) && (
+                                  <div className="text-[11px] text-slate-500 line-clamp-2">
+                                    {(lead.followup_notes || lead.lead_notes || '').slice(0, 80)}
+                                    {(lead.followup_notes || lead.lead_notes || '').length > 80 ? '…' : ''}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <Select
