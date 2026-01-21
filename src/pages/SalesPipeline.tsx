@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
@@ -35,9 +35,11 @@ import {
   MoreHorizontal,
   Upload,
   FileSpreadsheet,
+  MessageCircle,
+  StickyNote,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects, subscribeToLeads } from "@/lib/supabase";
+import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -138,6 +140,18 @@ const SalesPipeline = () => {
   const [importMessage, setImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [selectedImportProject, setSelectedImportProject] = useState<string>("");
   const [projects, setProjects] = useState<any[]>([]);
+  
+  // WhatsApp, Notes, and Schedule modals
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
+  const [selectedLeadForWhatsApp, setSelectedLeadForWhatsApp] = useState<any | null>(null);
+  const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
+  const [whatsAppMessage, setWhatsAppMessage] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [callbackDate, setCallbackDate] = useState("");
+  const [callbackNotes, setCallbackNotes] = useState("");
+  const [submittingActivity, setSubmittingActivity] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -611,6 +625,224 @@ const SalesPipeline = () => {
       );
     } catch (error) {
       console.error("Error moving lead:", error);
+    }
+  };
+
+  // Helper function to parse phone numbers
+  const parsePhoneNumbers = (phoneString: string | null | undefined): string[] => {
+    if (!phoneString) return [];
+    const phones = String(phoneString)
+      .split(/[,;|\n\r]+/)
+      .map(p => p.trim())
+      .filter(p => p.length >= 7 && p.length <= 20 && /[\d\+\-\(\)\s]{7,}/.test(p));
+    return [...new Set(phones)]; // Remove duplicates
+  };
+
+  // Format phone number for WhatsApp
+  const formatPhoneForWhatsApp = (phone: string): string | null => {
+    if (!phone) return null;
+    
+    // Step 1: Remove all non-digit characters (keep only digits)
+    let cleaned = phone.replace(/[^\d]/g, '');
+    
+    // Step 2: Handle international prefixes
+    if (cleaned.startsWith('00')) {
+      cleaned = cleaned.slice(2);
+    }
+    
+    // Step 3: Remove ALL leading zeros - WhatsApp requires no leading zeros
+    cleaned = cleaned.replace(/^0+/, '');
+    
+    // Step 4: Validate length (E.164 standard: 1-15 digits)
+    if (cleaned.length < 7 || cleaned.length > 15) {
+      return null;
+    }
+    
+    // Step 5: Ensure it's all digits and doesn't start with 0
+    if (!/^\d+$/.test(cleaned) || cleaned.startsWith('0')) {
+      return null;
+    }
+    
+    // Step 6: Final check - must start with 1-9 (valid country code)
+    if (!/^[1-9]\d+$/.test(cleaned)) {
+      return null;
+    }
+    
+    return cleaned;
+  };
+
+  // Get default WhatsApp message for a lead
+  const getWhatsAppMessage = (lead: any) => {
+    let messageTemplate = "";
+    if ((lead as any).whatsapp_message) {
+      messageTemplate = (lead as any).whatsapp_message;
+    } else {
+      const project = projects.find((p) => p.id === lead.project_id);
+      if (project && (project as any).whatsapp_message) {
+        messageTemplate = (project as any).whatsapp_message;
+      } else {
+        const companyName = lead.company_name || "there";
+        const contactName = lead.contact_name || "";
+        return `Hello${contactName ? ` ${contactName}` : ""}, I hope this message finds you well. I wanted to reach out regarding ${companyName}. Would you be available for a quick conversation?`;
+      }
+    }
+    const companyName = lead.company_name || "";
+    const contactName = lead.contact_name || "";
+    const projectName = projects.find((p) => p.id === lead.project_id)?.name || "";
+    return messageTemplate
+      .replace(/{company_name}/g, companyName)
+      .replace(/{contact_name}/g, contactName)
+      .replace(/{project_name}/g, projectName);
+  };
+
+  // Handle WhatsApp
+  const handleWhatsApp = (lead: any) => {
+    const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+    
+    if (validPhones.length === 0) {
+      alert('No phone number available for this lead');
+      return;
+    }
+    
+    setSelectedLeadForWhatsApp(lead);
+    const defaultMessage = getWhatsAppMessage(lead);
+    setWhatsAppMessage(defaultMessage);
+    setShowWhatsAppModal(true);
+  };
+
+  // Send WhatsApp message
+  const handleSendWhatsApp = () => {
+    if (!selectedLeadForWhatsApp || !whatsAppMessage.trim()) {
+      alert('Please enter a message');
+      return;
+    }
+
+    const phoneNumbers = parsePhoneNumbers(
+      selectedLeadForWhatsApp.contact_phone || 
+      selectedLeadForWhatsApp.phone || 
+      (selectedLeadForWhatsApp as any).mobile_phone
+    );
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+    
+    if (validPhones.length === 0) {
+      const originalPhone = selectedLeadForWhatsApp.contact_phone || selectedLeadForWhatsApp.phone || (selectedLeadForWhatsApp as any).mobile_phone;
+      alert(`Invalid phone number format: "${originalPhone}". Please ensure the number includes a country code (e.g., +1 for USA, +91 for India).`);
+      return;
+    }
+    
+    const message = encodeURIComponent(whatsAppMessage.trim());
+    // When there are two numbers, use the first number as WhatsApp number
+    const formattedPhone = validPhones[0];
+    
+    // Double-check the format before opening WhatsApp
+    if (!formattedPhone || formattedPhone.length < 7 || formattedPhone.length > 15 || formattedPhone.startsWith('0')) {
+      alert(`Invalid phone number format: "${formattedPhone}". Please check the number includes a valid country code.`);
+      return;
+    }
+    
+    // Open WhatsApp with the properly formatted number
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+    setShowWhatsAppModal(false);
+    setWhatsAppMessage("");
+    setSelectedLeadForWhatsApp(null);
+  };
+
+  // Handle Add Note
+  const handleAddNote = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setNoteText("");
+    setShowNoteModal(true);
+  };
+
+  // Handle Schedule Callback
+  const handleScheduleCallback = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setCallbackDate("");
+    setCallbackNotes("");
+    setShowCallbackModal(true);
+  };
+
+  // Submit Note
+  const handleSubmitNote = async () => {
+    if (!selectedLeadForActivity || !noteText.trim()) return;
+    
+    setSubmittingActivity(true);
+    try {
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: noteText.trim(),
+      });
+      
+      // Update last_contacted_at for the lead
+      await updateLead(selectedLeadForActivity.id, {
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+        setLeads(data || []);
+      }
+      
+      setShowNoteModal(false);
+      setNoteText("");
+      setSelectedLeadForActivity(null);
+    } catch (error) {
+      console.error("Failed to add note", error);
+      alert("Failed to add note. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
+    }
+  };
+
+  // Submit Callback
+  const handleSubmitCallback = async () => {
+    if (!selectedLeadForActivity || !callbackDate || !callbackNotes.trim()) return;
+    
+    setSubmittingActivity(true);
+    try {
+      // Create activity with callback information
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: `Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}. Notes: ${callbackNotes.trim()}`,
+      });
+      
+      // Update lead with callback date and notes
+      const callbackDateTime = new Date(callbackDate);
+      callbackDateTime.setHours(9, 0, 0, 0); // Set to 9 AM by default
+      
+      await updateLead(selectedLeadForActivity.id, {
+        next_followup_date: callbackDateTime.toISOString(),
+        followup_notes: callbackNotes.trim(),
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+        setLeads(data || []);
+      }
+      
+      setShowCallbackModal(false);
+      setCallbackDate("");
+      setCallbackNotes("");
+      setSelectedLeadForActivity(null);
+      alert(`Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}`);
+    } catch (error) {
+      console.error("Failed to schedule callback", error);
+      alert("Failed to schedule callback. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
     }
   };
 
@@ -1109,6 +1341,52 @@ const SalesPipeline = () => {
                                       <Mail className="w-3.5 h-3.5" />
                                     </a>
                                   </Button>
+                                  {(() => {
+                                    const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+                                    const validPhones = phoneNumbers.map(formatPhoneForWhatsApp).filter((p): p is string => Boolean(p));
+                                    if (validPhones.length === 0) {
+                                      return (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0"
+                                          title="WhatsApp - No phone number"
+                                          disabled
+                                        >
+                                          <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                                        </Button>
+                                      );
+                                    }
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-green-100"
+                                        title="WhatsApp"
+                                        onClick={() => handleWhatsApp(lead)}
+                                      >
+                                        <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                                      </Button>
+                                    );
+                                  })()}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-slate-100"
+                                    title="Add Note"
+                                    onClick={() => handleAddNote(lead)}
+                                  >
+                                    <StickyNote className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-slate-100"
+                                    title="Schedule Callback"
+                                    onClick={() => handleScheduleCallback(lead)}
+                                  >
+                                    <Calendar className="w-3.5 h-3.5" />
+                                  </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -1341,6 +1619,178 @@ const SalesPipeline = () => {
                 )}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* WhatsApp Message Modal */}
+        <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-green-600" />
+                Send WhatsApp Message - {selectedLeadForWhatsApp?.company_name || 'Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedLeadForWhatsApp && (() => {
+                const phoneNumbers = parsePhoneNumbers(
+                  selectedLeadForWhatsApp.contact_phone || 
+                  selectedLeadForWhatsApp.phone || 
+                  (selectedLeadForWhatsApp as any).mobile_phone
+                );
+                return (
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">To:</p>
+                    <p className="text-sm text-slate-900 font-medium">
+                      {selectedLeadForWhatsApp.contact_name || 'N/A'}
+                    </p>
+                    {phoneNumbers.length > 0 && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        📱 {phoneNumbers[0]}
+                        {phoneNumbers.length > 1 && (
+                          <span className="text-slate-500 ml-1">
+                            (WhatsApp: first of {phoneNumbers.length} numbers)
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+              <div>
+                <Label htmlFor="whatsapp-message">Message *</Label>
+                <Textarea
+                  id="whatsapp-message"
+                  placeholder="Enter your WhatsApp message..."
+                  value={whatsAppMessage}
+                  onChange={(e) => setWhatsAppMessage(e.target.value)}
+                  rows={6}
+                  className="mt-1 font-medium"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can customize this message before sending. The message will open in WhatsApp.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWhatsAppModal(false);
+                  setWhatsAppMessage("");
+                  setSelectedLeadForWhatsApp(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendWhatsApp}
+                disabled={!whatsAppMessage.trim()}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Send via WhatsApp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Note Modal */}
+        <Dialog open={showNoteModal} onOpenChange={setShowNoteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Note - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+              <DialogDescription>Add a note about this lead</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="note">Note *</Label>
+                <Textarea
+                  id="note"
+                  placeholder="Enter your note..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowNoteModal(false);
+                  setNoteText("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitNote}
+                disabled={!noteText.trim() || submittingActivity}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {submittingActivity ? "Adding..." : "Add Note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Callback Modal */}
+        <Dialog open={showCallbackModal} onOpenChange={setShowCallbackModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Schedule Callback - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+              <DialogDescription>Set a callback date and add notes about what was discussed</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="callback-date">Callback Date *</Label>
+                <Input
+                  id="callback-date"
+                  type="date"
+                  value={callbackDate}
+                  onChange={(e) => setCallbackDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">Select the date when you need to call back this lead</p>
+              </div>
+              <div>
+                <Label htmlFor="callback-notes">Notes *</Label>
+                <Textarea
+                  id="callback-notes"
+                  placeholder="What did the lead ask? What was discussed? What should you mention when calling back?"
+                  value={callbackNotes}
+                  onChange={(e) => setCallbackNotes(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">Add notes about what was discussed and what to mention during the callback</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCallbackModal(false);
+                  setCallbackDate("");
+                  setCallbackNotes("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitCallback}
+                disabled={!callbackDate || !callbackNotes.trim() || submittingActivity}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {submittingActivity ? "Scheduling..." : "Schedule Callback"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </main>

@@ -421,6 +421,7 @@ const SalesmanLeadsTable = () => {
       return;
     }
 
+    // When there are two numbers, use the first number as WhatsApp number
     const formattedPhone = validPhones[0];
     
     // Double-check the format before opening WhatsApp

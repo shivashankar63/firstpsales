@@ -288,6 +288,7 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
       return;
     }
     const message = encodeURIComponent(whatsAppMessage.trim());
+    // When there are two numbers, use the first number as WhatsApp number
     const formattedPhone = validPhones[0];
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
     setShowWhatsAppModal(false);
@@ -1512,6 +1513,11 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
                     {phoneNumbers.length > 0 && (
                       <p className="text-xs text-slate-600 mt-1">
                         📱 {phoneNumbers[0]}
+                        {phoneNumbers.length > 1 && (
+                          <span className="text-slate-500 ml-1">
+                            (WhatsApp: first of {phoneNumbers.length} numbers)
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>

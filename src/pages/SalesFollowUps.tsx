@@ -258,6 +258,7 @@ const SalesFollowUps = () => {
     }
     
     const message = encodeURIComponent(whatsAppMessage.trim());
+    // When there are two numbers, use the first number as WhatsApp number
     const formattedPhone = validPhones[0];
     
     // Double-check the format before opening WhatsApp
@@ -824,6 +825,11 @@ const SalesFollowUps = () => {
                     {phoneNumbers.length > 0 && (
                       <p className="text-xs text-slate-600 mt-1">
                         📱 {phoneNumbers[0]}
+                        {phoneNumbers.length > 1 && (
+                          <span className="text-slate-500 ml-1">
+                            (WhatsApp: first of {phoneNumbers.length} numbers)
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>
