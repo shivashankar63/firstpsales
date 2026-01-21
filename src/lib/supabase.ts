@@ -1174,3 +1174,620 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
     return null;
   }
 };
+
+// ============================================================================
+// DEAL STAGES FUNCTIONS
+// ============================================================================
+
+export const getDealStages = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('deal_stages')
+      .select('*')
+      .order('order_index', { ascending: true });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getDealStages', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createDealStage = async (stageData: { name: string; description?: string; order_index?: number; color?: string; created_by: string }) => {
+  try {
+    const { data, error } = await supabase
+      .from('deal_stages')
+      .insert([stageData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('createDealStage', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateDealStage = async (id: string, updates: Partial<{ name: string; description: string; order_index: number; color: string; is_active: boolean }>) => {
+  try {
+    const { data, error } = await supabase
+      .from('deal_stages')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updateDealStage', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deleteDealStage = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('deal_stages')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteDealStage', error);
+    return { error: error as any };
+  }
+};
+
+// ============================================================================
+// QUOTATIONS FUNCTIONS
+// ============================================================================
+
+export const getQuotations = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select('*, leads(company_name, contact_name), projects(name)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getQuotations', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const getQuotation = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select('*, quotation_items(*), leads(*), projects(*)')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getQuotation', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createQuotation = async (quotationData: any) => {
+  try {
+    const { quotation_items, ...quotation } = quotationData;
+    
+    const { data: quotationResult, error: quotationError } = await supabase
+      .from('quotations')
+      .insert([quotation])
+      .select()
+      .single();
+    
+    if (quotationError) throw quotationError;
+    
+    if (quotation_items && quotation_items.length > 0) {
+      const items = quotation_items.map((item: any, index: number) => ({
+        ...item,
+        quotation_id: quotationResult.id,
+        order_index: index,
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('quotation_items')
+        .insert(items);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    return { data: quotationResult, error: null };
+  } catch (error) {
+    logSupabaseError('createQuotation', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateQuotation = async (id: string, updates: any) => {
+  try {
+    const { quotation_items, ...quotation } = updates;
+    
+    const { data, error } = await supabase
+      .from('quotations')
+      .update(quotation)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (quotation_items !== undefined) {
+      // Delete existing items
+      await supabase.from('quotation_items').delete().eq('quotation_id', id);
+      
+      // Insert new items
+      if (quotation_items.length > 0) {
+        const items = quotation_items.map((item: any, index: number) => ({
+          ...item,
+          quotation_id: id,
+          order_index: index,
+        }));
+        
+        await supabase.from('quotation_items').insert(items);
+      }
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updateQuotation', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deleteQuotation = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteQuotation', error);
+    return { error: error as any };
+  }
+};
+
+// ============================================================================
+// INVOICES FUNCTIONS
+// ============================================================================
+
+export const getInvoices = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*, leads(company_name, contact_name), projects(name)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getInvoices', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const getInvoice = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*, invoice_items(*), leads(*), projects(*)')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getInvoice', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createInvoice = async (invoiceData: any) => {
+  try {
+    const { invoice_items, ...invoice } = invoiceData;
+    
+    const { data: invoiceResult, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert([invoice])
+      .select()
+      .single();
+    
+    if (invoiceError) throw invoiceError;
+    
+    if (invoice_items && invoice_items.length > 0) {
+      const items = invoice_items.map((item: any, index: number) => ({
+        ...item,
+        invoice_id: invoiceResult.id,
+        order_index: index,
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(items);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    return { data: invoiceResult, error: null };
+  } catch (error) {
+    logSupabaseError('createInvoice', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateInvoice = async (id: string, updates: any) => {
+  try {
+    const { invoice_items, ...invoice } = updates;
+    
+    const { data, error } = await supabase
+      .from('invoices')
+      .update(invoice)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (invoice_items !== undefined) {
+      await supabase.from('invoice_items').delete().eq('invoice_id', id);
+      
+      if (invoice_items.length > 0) {
+        const items = invoice_items.map((item: any, index: number) => ({
+          ...item,
+          invoice_id: id,
+          order_index: index,
+        }));
+        
+        await supabase.from('invoice_items').insert(items);
+      }
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updateInvoice', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deleteInvoice = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteInvoice', error);
+    return { error: error as any };
+  }
+};
+
+// ============================================================================
+// RECEIPTS FUNCTIONS
+// ============================================================================
+
+export const getReceipts = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('receipts')
+      .select('*, invoices(invoice_number, total_amount)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getReceipts', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createReceipt = async (receiptData: any) => {
+  try {
+    const { data, error } = await supabase
+      .from('receipts')
+      .insert([receiptData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    // Update invoice paid amount if invoice_id is provided
+    if (receiptData.invoice_id) {
+      const { data: invoice } = await getInvoice(receiptData.invoice_id);
+      if (invoice) {
+        const newPaidAmount = (invoice.paid_amount || 0) + receiptData.amount;
+        const newStatus = newPaidAmount >= invoice.total_amount ? 'paid' : 
+                         newPaidAmount > 0 ? 'partial' : 'pending';
+        await updateInvoice(receiptData.invoice_id, { 
+          paid_amount: newPaidAmount,
+          status: newStatus 
+        });
+      }
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('createReceipt', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateReceipt = async (id: string, updates: any) => {
+  try {
+    const { data, error } = await supabase
+      .from('receipts')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updateReceipt', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deleteReceipt = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('receipts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteReceipt', error);
+    return { error: error as any };
+  }
+};
+
+// ============================================================================
+// SUPPLIERS FUNCTIONS
+// ============================================================================
+
+export const getSuppliers = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('supplier_name', { ascending: true });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getSuppliers', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const getSupplier = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*, supplier_persons(*)')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getSupplier', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createSupplier = async (supplierData: any) => {
+  try {
+    const { supplier_persons, ...supplier } = supplierData;
+    
+    const { data: supplierResult, error: supplierError } = await supabase
+      .from('suppliers')
+      .insert([supplier])
+      .select()
+      .single();
+    
+    if (supplierError) throw supplierError;
+    
+    if (supplier_persons && supplier_persons.length > 0) {
+      const persons = supplier_persons.map((person: any) => ({
+        ...person,
+        supplier_id: supplierResult.id,
+      }));
+      
+      const { error: personsError } = await supabase
+        .from('supplier_persons')
+        .insert(persons);
+      
+      if (personsError) throw personsError;
+    }
+    
+    return { data: supplierResult, error: null };
+  } catch (error) {
+    logSupabaseError('createSupplier', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateSupplier = async (id: string, updates: any) => {
+  try {
+    const { supplier_persons, ...supplier } = updates;
+    
+    const { data, error } = await supabase
+      .from('suppliers')
+      .update(supplier)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (supplier_persons !== undefined) {
+      await supabase.from('supplier_persons').delete().eq('supplier_id', id);
+      
+      if (supplier_persons.length > 0) {
+        const persons = supplier_persons.map((person: any) => ({
+          ...person,
+          supplier_id: id,
+        }));
+        
+        await supabase.from('supplier_persons').insert(persons);
+      }
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updateSupplier', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deleteSupplier = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deleteSupplier', error);
+    return { error: error as any };
+  }
+};
+
+// ============================================================================
+// PURCHASE ORDERS FUNCTIONS
+// ============================================================================
+
+export const getPurchaseOrders = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .select('*, suppliers(supplier_name), projects(name)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getPurchaseOrders', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const getPurchaseOrder = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .select('*, purchase_order_items(*), suppliers(*), projects(*)')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('getPurchaseOrder', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const createPurchaseOrder = async (poData: any) => {
+  try {
+    const { purchase_order_items, ...purchaseOrder } = poData;
+    
+    const { data: poResult, error: poError } = await supabase
+      .from('purchase_orders')
+      .insert([purchaseOrder])
+      .select()
+      .single();
+    
+    if (poError) throw poError;
+    
+    if (purchase_order_items && purchase_order_items.length > 0) {
+      const items = purchase_order_items.map((item: any, index: number) => ({
+        ...item,
+        purchase_order_id: poResult.id,
+        order_index: index,
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(items);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    return { data: poResult, error: null };
+  } catch (error) {
+    logSupabaseError('createPurchaseOrder', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updatePurchaseOrder = async (id: string, updates: any) => {
+  try {
+    const { purchase_order_items, ...purchaseOrder } = updates;
+    
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .update(purchaseOrder)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (purchase_order_items !== undefined) {
+      await supabase.from('purchase_order_items').delete().eq('purchase_order_id', id);
+      
+      if (purchase_order_items.length > 0) {
+        const items = purchase_order_items.map((item: any, index: number) => ({
+          ...item,
+          purchase_order_id: id,
+          order_index: index,
+        }));
+        
+        await supabase.from('purchase_order_items').insert(items);
+      }
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('updatePurchaseOrder', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const deletePurchaseOrder = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('purchase_orders')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    logSupabaseError('deletePurchaseOrder', error);
+    return { error: error as any };
+  }
+};

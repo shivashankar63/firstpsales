@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
+import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Download, FileSpreadsheet, ChevronDown, FileText, Receipt, Package, ShoppingCart, UserPlus } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount } from "@/lib/supabase";
+import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount, supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import {
   DropdownMenu,
@@ -35,7 +35,67 @@ const ManagerDashboard = () => {
   const [creatingSalesman, setCreatingSalesman] = useState(false);
   const [createdSalesman, setCreatedSalesman] = useState<{ email: string; password: string; fullName: string } | null>(null);
   const [currentManagerId, setCurrentManagerId] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    quotations: { count: 0 },
+    invoices: { count: 0, total: 0 },
+    receipts: { count: 0, total: 0 },
+    suppliers: { count: 0 },
+    purchaseOrders: { count: 0, total: 0 },
+    clients: { count: 0, total: 0 },
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
   const navigate = useNavigate();
+
+  const formatCurrency = (value: number) =>
+    value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      const [quotationsCountRes, invoicesCountRes, invoicesTotalsRes, receiptsCountRes, receiptsTotalsRes, suppliersCountRes, poCountRes, poTotalsRes, clientsRes] =
+        await Promise.all([
+          supabase.from("quotations").select("id", { count: "exact", head: true }),
+          supabase.from("invoices").select("id", { count: "exact", head: true }),
+          supabase.from("invoices").select("total_amount"),
+          supabase.from("receipts").select("id", { count: "exact", head: true }),
+          supabase.from("receipts").select("amount"),
+          supabase.from("suppliers").select("id", { count: "exact", head: true }),
+          supabase.from("purchase_orders").select("id", { count: "exact", head: true }),
+          supabase.from("purchase_orders").select("total_amount"),
+          supabase.from("leads").select("id, value").eq("status", "closed_won"),
+        ]);
+
+      const invoicesTotal = (invoicesTotalsRes.data || []).reduce(
+        (sum, row: any) => sum + Number(row.total_amount || 0),
+        0
+      );
+      const receiptsTotal = (receiptsTotalsRes.data || []).reduce(
+        (sum, row: any) => sum + Number(row.amount || 0),
+        0
+      );
+      const poTotal = (poTotalsRes.data || []).reduce(
+        (sum, row: any) => sum + Number(row.total_amount || 0),
+        0
+      );
+      const clientsTotal = (clientsRes.data || []).reduce(
+        (sum, row: any) => sum + Number(row.value || 0),
+        0
+      );
+
+      setStats({
+        quotations: { count: quotationsCountRes.count || 0 },
+        invoices: { count: invoicesCountRes.count || 0, total: invoicesTotal },
+        receipts: { count: receiptsCountRes.count || 0, total: receiptsTotal },
+        suppliers: { count: suppliersCountRes.count || 0 },
+        purchaseOrders: { count: poCountRes.count || 0, total: poTotal },
+        clients: { count: clientsRes.data?.length || 0, total: clientsTotal },
+      });
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,6 +139,8 @@ const ManagerDashboard = () => {
         setSalesTeam((usersRes.data || []).filter((u: any) => 
           String(u.role || "").toLowerCase().includes("sales")
         ));
+
+        await fetchStats();
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -165,6 +227,59 @@ const ManagerDashboard = () => {
   const totalRevenue = leads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0);
   const totalPipeline = leads.filter(l => ['new', 'qualified', 'proposal'].includes(normalizeStatus(l.status))).reduce((sum, l) => sum + (l.value || 0), 0);
   const winRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
+
+  const quickLinks = [
+    {
+      title: "Quotations",
+      description: statsLoading ? "Loading..." : `${stats.quotations.count} total quotes`,
+      icon: FileText,
+      path: "/manager/quotations",
+      pillClass: "bg-blue-100 text-blue-700",
+    },
+    {
+      title: "Invoices",
+      description: statsLoading
+        ? "Loading..."
+        : `${stats.invoices.count} invoices • $${formatCurrency(stats.invoices.total)} total`,
+      icon: Receipt,
+      path: "/manager/invoices",
+      pillClass: "bg-indigo-100 text-indigo-700",
+    },
+    {
+      title: "Receipts",
+      description: statsLoading
+        ? "Loading..."
+        : `${stats.receipts.count} payments • $${formatCurrency(stats.receipts.total)} received`,
+      icon: Package,
+      path: "/manager/receipts",
+      pillClass: "bg-emerald-100 text-emerald-700",
+    },
+    {
+      title: "Clients",
+      description: statsLoading
+        ? "Loading..."
+        : `${stats.clients.count} clients • $${formatCurrency(stats.clients.total)} total value`,
+      icon: Users,
+      path: "/manager/clients",
+      pillClass: "bg-teal-100 text-teal-700",
+    },
+    {
+      title: "Suppliers",
+      description: statsLoading ? "Loading..." : `${stats.suppliers.count} suppliers`,
+      icon: ShoppingCart,
+      path: "/manager/suppliers",
+      pillClass: "bg-amber-100 text-amber-700",
+    },
+    {
+      title: "Purchase Orders",
+      description: statsLoading
+        ? "Loading..."
+        : `${stats.purchaseOrders.count} POs • $${formatCurrency(stats.purchaseOrders.total)} total`,
+      icon: UserPlus,
+      path: "/manager/purchase-orders",
+      pillClass: "bg-purple-100 text-purple-700",
+    },
+  ];
 
   // Download Functions
   const handleDownloadAllLeads = () => {
@@ -552,6 +667,33 @@ const ManagerDashboard = () => {
               <p className="text-xs font-medium text-red-700 mt-1">Lost</p>
               <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'not_interested').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
             </div>
+          </div>
+        </Card>
+
+        {/* Sales & Purchase Hub quick links */}
+        <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Sales & Purchase Hub</h2>
+              <p className="text-sm text-slate-600 mt-1">One-click access to deal stages, quotes, invoices, suppliers, and POs</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {quickLinks.map((item) => (
+              <button
+                key={item.title}
+                onClick={() => navigate(item.path)}
+                className="text-left"
+              >
+                <div className="p-3 sm:p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all h-full bg-white">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${item.pillClass}`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">{item.title}</h3>
+                  <p className="text-sm text-slate-600 mt-1">{item.description}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </Card>
 

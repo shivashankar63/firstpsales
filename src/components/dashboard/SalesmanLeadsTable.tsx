@@ -678,7 +678,7 @@ const SalesmanLeadsTable = () => {
                           }}
                           title="Click to edit value"
                         >
-                          ${(lead.value / 1000).toFixed(0)}K
+                      ${(lead.value / 1000).toFixed(0)}K
                         </span>
                       )}
                     </td>
@@ -688,10 +688,10 @@ const SalesmanLeadsTable = () => {
                           const phoneNumbers = parsePhoneNumbers((lead as any).contact_phone || (lead as any).phone);
                           if (phoneNumbers.length === 0) {
                             return (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-7 w-7 p-0 hover:bg-slate-100" 
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 w-7 p-0 hover:bg-slate-100" 
                                 title="No phone number"
                                 disabled
                               >
@@ -706,9 +706,9 @@ const SalesmanLeadsTable = () => {
                                 className="h-7 w-7 p-0 hover:bg-slate-100" 
                                 title={`Call ${phoneNumbers[0]}`}
                                 onClick={() => window.location.href = `tel:${phoneNumbers[0]}`}
-                              >
-                                <Phone className="w-3.5 h-3.5" />
-                              </Button>
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                        </Button>
                             );
                           } else {
                             return (
@@ -791,10 +791,10 @@ const SalesmanLeadsTable = () => {
               <div>
                 <h4 className="text-sm font-bold text-slate-900 mb-2">Basic Information</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-semibold text-muted-foreground">Company Name</Label>
-                    <p className="text-sm font-medium text-foreground mt-1">{selectedLead.company_name}</p>
-                  </div>
+              <div>
+                <Label className="text-xs font-semibold text-muted-foreground">Company Name</Label>
+                <p className="text-sm font-medium text-foreground mt-1">{selectedLead.company_name}</p>
+              </div>
                   <div>
                     <Label className="text-xs font-semibold text-muted-foreground">Contact Name</Label>
                     <p className="text-sm font-medium text-foreground mt-1">{selectedLead.contact_name}</p>
@@ -805,22 +805,22 @@ const SalesmanLeadsTable = () => {
                       <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).designation}</p>
                     </div>
                   )}
-                  <div>
-                    <Label className="text-xs font-semibold text-muted-foreground">Project</Label>
-                    <p className="text-sm font-medium text-foreground mt-1">
-                      {selectedLead.projects?.name ? (
-                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                          {selectedLead.projects.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-slate-400">No project assigned</span>
-                      )}
-                    </p>
-                  </div>
-                  <div>
+              <div>
+                <Label className="text-xs font-semibold text-muted-foreground">Project</Label>
+                <p className="text-sm font-medium text-foreground mt-1">
+                  {selectedLead.projects?.name ? (
+                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                      {selectedLead.projects.name}
+                    </Badge>
+                  ) : (
+                    <span className="text-slate-400">No project assigned</span>
+                  )}
+                </p>
+              </div>
+              <div>
                     <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
                     <p className="text-sm font-medium text-foreground mt-1">{statusLabel[selectedLead.status] || selectedLead.status}</p>
-                  </div>
+              </div>
                   <div>
                     <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
                     <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
@@ -832,9 +832,9 @@ const SalesmanLeadsTable = () => {
               <div>
                 <h4 className="text-sm font-bold text-slate-900 mb-2">Contact Information</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
-                    <p className="text-sm font-medium text-foreground mt-1">
+              <div>
+                <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
+                <p className="text-sm font-medium text-foreground mt-1">
                       {selectedLead.contact_email || (selectedLead as any).email ? (
                         <a href={`mailto:${selectedLead.contact_email || (selectedLead as any).email}`} className="text-blue-600 hover:text-blue-800">
                           {selectedLead.contact_email || (selectedLead as any).email}
@@ -842,9 +842,9 @@ const SalesmanLeadsTable = () => {
                       ) : (
                         "N/A"
                       )}
-                    </p>
-                  </div>
-                  <div>
+                </p>
+              </div>
+              <div>
                     <Label className="text-xs font-semibold text-muted-foreground">
                       Phone{(() => {
                         const phones = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
@@ -872,26 +872,26 @@ const SalesmanLeadsTable = () => {
                   {(selectedLead as any).mobile_phone && (
                     <div>
                       <Label className="text-xs font-semibold text-muted-foreground">Mobile Phone</Label>
-                      <p className="text-sm font-medium text-foreground mt-1">
+                <p className="text-sm font-medium text-foreground mt-1">
                         <a href={`tel:${(selectedLead as any).mobile_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).mobile_phone}</a>
-                      </p>
-                    </div>
+                </p>
+              </div>
                   )}
                   {(selectedLead as any).direct_phone && (
-                    <div>
+              <div>
                       <Label className="text-xs font-semibold text-muted-foreground">Direct Phone</Label>
                       <p className="text-sm font-medium text-foreground mt-1">
                         <a href={`tel:${(selectedLead as any).direct_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).direct_phone}</a>
                       </p>
-                    </div>
+              </div>
                   )}
                   {(selectedLead as any).office_phone && (
-                    <div>
+              <div>
                       <Label className="text-xs font-semibold text-muted-foreground">Office Phone</Label>
                       <p className="text-sm font-medium text-foreground mt-1">
                         <a href={`tel:${(selectedLead as any).office_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).office_phone}</a>
                       </p>
-                    </div>
+              </div>
                   )}
                   {(selectedLead as any).linkedin && (
                     <div>
@@ -1053,7 +1053,7 @@ const SalesmanLeadsTable = () => {
                 {/* Basic Information Tab */}
                 <TabsContent value="basic" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+              <div>
                       <Label htmlFor="edit-company">Company Name *</Label>
                       <Input
                         id="edit-company"
@@ -1082,19 +1082,19 @@ const SalesmanLeadsTable = () => {
                     </div>
                     <div>
                       <Label htmlFor="edit-status">Status</Label>
-                      <select
+                <select
                         id="edit-status"
                         value={editFormData.status || editingStatus}
                         onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                        className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
-                      >
-                        <option value="new">New</option>
-                        <option value="qualified">Qualified</option>
-                        <option value="proposal">Proposal</option>
-                        <option value="closed_won">Closed Won</option>
-                        <option value="not_interested">Not Interested</option>
-                      </select>
-                    </div>
+                  className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
+                >
+                  <option value="new">New</option>
+                  <option value="qualified">Qualified</option>
+                  <option value="proposal">Proposal</option>
+                  <option value="closed_won">Closed Won</option>
+                  <option value="not_interested">Not Interested</option>
+                </select>
+              </div>
                     <div>
                       <Label htmlFor="edit-value">Value ($) *</Label>
                       <Input

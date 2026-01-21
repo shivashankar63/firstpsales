@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download } from "lucide-react";
+import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download, CalendarCheck } from "lucide-react";
 import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -798,6 +798,17 @@ const SalesMyLeads = () => {
                   >
                     <Download className="w-4 h-4" />
                     Export Excel
+                  </Button>
+
+                  {/* Follow-ups Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/sales/follow-ups')}
+                    className="gap-2 h-9 bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                  >
+                    <CalendarCheck className="w-4 h-4" />
+                    Follow-ups
                   </Button>
 
                   {/* Bulk Import Button */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2, ChevronDown, Download, X, StickyNote, Calendar } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2, ChevronDown, Download, X, StickyNote, Calendar, MessageCircle, CalendarCheck } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +71,14 @@ const ManagerLeads = () => {
   const [editMessage, setEditMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCallbackModal, setShowCallbackModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
+  const [selectedLeadForWhatsApp, setSelectedLeadForWhatsApp] = useState<any | null>(null);
+  const [selectedLeadForEmail, setSelectedLeadForEmail] = useState<any | null>(null);
+  const [whatsAppMessage, setWhatsAppMessage] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   const [noteText, setNoteText] = useState("");
   const [callbackDate, setCallbackDate] = useState("");
   const [callbackNotes, setCallbackNotes] = useState("");
@@ -979,6 +986,151 @@ const ManagerLeads = () => {
     setShowCallbackModal(true);
   };
 
+  // Get default WhatsApp message for a lead
+  const getWhatsAppMessage = (lead: any) => {
+    let messageTemplate = '';
+    
+    // First check if lead has a custom message
+    if ((lead as any).whatsapp_message) {
+      messageTemplate = (lead as any).whatsapp_message;
+    } else {
+      // Then check project for default message
+      const project = projects.find(p => p.id === lead.project_id);
+      if (project && (project as any).whatsapp_message) {
+        messageTemplate = (project as any).whatsapp_message;
+      } else {
+        // Default message
+        const companyName = lead.company_name || 'there';
+        const contactName = lead.contact_name || '';
+        return `Hello${contactName ? ` ${contactName}` : ''}, I hope this message finds you well. I wanted to reach out regarding ${companyName}. Would you be available for a quick conversation?`;
+      }
+    }
+    
+    // Replace placeholders in the message template
+    const companyName = lead.company_name || '';
+    const contactName = lead.contact_name || '';
+    const projectName = projects.find(p => p.id === lead.project_id)?.name || '';
+    
+    return messageTemplate
+      .replace(/{company_name}/g, companyName)
+      .replace(/{contact_name}/g, contactName)
+      .replace(/{project_name}/g, projectName);
+  };
+
+  // Format phone number for WhatsApp (remove non-digits; basic validity)
+  const formatPhoneForWhatsApp = (phone: string): string | null => {
+    if (!phone) return null;
+    let cleaned = phone.replace(/[^\d]/g, '');
+
+    // Strip leading 00 (international prefixes), and leading 0s
+    if (cleaned.startsWith('00')) cleaned = cleaned.slice(2);
+    cleaned = cleaned.replace(/^0+/, '');
+
+    // Require at least 8 digits to avoid WA validation errors
+    if (cleaned.length < 8) return null;
+    return cleaned;
+  };
+
+  // Open WhatsApp modal to customize message
+  const handleWhatsApp = (lead: any) => {
+    const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+    
+    if (validPhones.length === 0) {
+      alert('No phone number available for this lead');
+      return;
+    }
+    
+    setSelectedLeadForWhatsApp(lead);
+    const defaultMessage = getWhatsAppMessage(lead);
+    setWhatsAppMessage(defaultMessage);
+    setShowWhatsAppModal(true);
+  };
+
+  // Send WhatsApp message (opens WhatsApp with customized message)
+  const handleSendWhatsApp = () => {
+    if (!selectedLeadForWhatsApp || !whatsAppMessage.trim()) {
+      alert('Please enter a message');
+      return;
+    }
+
+    const phoneNumbers = parsePhoneNumbers(
+      selectedLeadForWhatsApp.contact_phone || 
+      selectedLeadForWhatsApp.phone || 
+      (selectedLeadForWhatsApp as any).mobile_phone
+    );
+    const validPhones = phoneNumbers
+      .map(formatPhoneForWhatsApp)
+      .filter((p): p is string => Boolean(p));
+    
+    if (validPhones.length === 0) {
+      alert('No phone number available for this lead');
+      return;
+    }
+    
+    const message = encodeURIComponent(whatsAppMessage.trim());
+    const formattedPhone = validPhones[0];
+    
+    if (formattedPhone) {
+      window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
+      setShowWhatsAppModal(false);
+      setWhatsAppMessage("");
+      setSelectedLeadForWhatsApp(null);
+    }
+  };
+
+  // Email helpers
+  const getEmailDefaults = (lead: any) => {
+    const companyName = lead.company_name || "";
+    const contactName = lead.contact_name || "";
+    const projectName = projects.find(p => p.id === lead.project_id)?.name || "";
+
+    const defaultSubject = `Quick follow-up - ${companyName || projectName || "your project"}`;
+    const defaultBody = `Hi${contactName ? ` ${contactName}` : ""},\n\nI hope you're doing well. I wanted to follow up regarding ${companyName || projectName || "our discussion"}. Please let me know a good time to connect.\n\nThanks,\n`;
+
+    return { subject: defaultSubject, body: defaultBody };
+  };
+
+  const handleEmail = (lead: any) => {
+    const emailAddress = lead.contact_email || lead.email;
+    if (!emailAddress) {
+      alert("No email available for this lead");
+      return;
+    }
+    setSelectedLeadForEmail(lead);
+    const defaults = getEmailDefaults(lead);
+    setEmailSubject(defaults.subject);
+    setEmailBody(defaults.body);
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedLeadForEmail) return;
+    const emailAddress = selectedLeadForEmail.contact_email || selectedLeadForEmail.email;
+    if (!emailAddress) {
+      alert("No email available for this lead");
+      return;
+    }
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      alert("Subject and body are required");
+      return;
+    }
+
+    const subject = encodeURIComponent(emailSubject.trim());
+    const body = encodeURIComponent(emailBody.trim());
+
+    // Gmail compose link; if Gmail not default, mailto will still work
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emailAddress)}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, "_blank");
+
+    setShowEmailModal(false);
+    setSelectedLeadForEmail(null);
+    setEmailSubject("");
+    setEmailBody("");
+  };
+
   const handleSubmitNote = async () => {
     if (!selectedLeadForActivity || !noteText.trim()) return;
     
@@ -1640,47 +1792,59 @@ const ManagerLeads = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Export to Excel Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportToExcel}
-                className="gap-2 h-9"
-                disabled={filteredLeads.length === 0}
-              >
-                <Download className="w-4 h-4" />
-                Export Excel
-              </Button>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                {/* Export to Excel Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportToExcel}
+                  className="gap-2 h-9 w-full sm:w-auto shrink-0"
+                  disabled={filteredLeads.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                  Export Excel
+                </Button>
 
-              {/* Add Lead Button */}
-            <Button 
-              onClick={() => setShowAddLeadModal(true)} 
-              disabled={!selectedProject}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9"
-              title={!selectedProject ? "Select a project to add a lead. Switch to a specific project above." : "Add a new lead"}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Lead
-            </Button>
+                {/* Add Lead Button */}
+                <Button 
+                  onClick={() => setShowAddLeadModal(true)} 
+                  disabled={!selectedProject}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9 w-full sm:w-auto shrink-0"
+                  title={!selectedProject ? "Select a project to add a lead. Switch to a specific project above." : "Add a new lead"}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Lead
+                </Button>
 
-              {/* Bulk Import Button */}
-              <Button 
-                onClick={() => {
-                  setShowBulkImportModal(true);
-                  setExcelData([]);
-                  setExcelHeaders([]);
-                  setImportMessage(null);
-                  if (selectedProject) {
-                    setSelectedImportProject(selectedProject.id);
-                  }
-                }}
-                disabled={projects.length === 0}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9"
-                title={projects.length === 0 ? "Create a project first to import leads" : "Import leads from Excel file"}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Bulk Import
-              </Button>
+                {/* Bulk Import Button */}
+                <Button 
+                  onClick={() => {
+                    setShowBulkImportModal(true);
+                    setExcelData([]);
+                    setExcelHeaders([]);
+                    setImportMessage(null);
+                    if (selectedProject) {
+                      setSelectedImportProject(selectedProject.id);
+                    }
+                  }}
+                  disabled={projects.length === 0}
+                  className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9 w-full sm:w-auto shrink-0"
+                  title={projects.length === 0 ? "Create a project first to import leads" : "Import leads from Excel file"}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Bulk Import
+                </Button>
+
+                {/* Follow-ups Button */}
+                <Button 
+                  onClick={() => navigate('/manager/follow-ups')}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-medium h-9 w-full sm:w-auto shrink-0"
+                  title="View all follow-ups"
+                >
+                  <CalendarCheck className="w-4 h-4 mr-2" />
+                  Follow-ups
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -1897,7 +2061,7 @@ const ManagerLeads = () => {
                                       Not Interested
                                     </Badge>
                                   )}
-                                </div>
+                      </div>
                                 {(lead.followup_notes || lead.lead_notes) && (
                                   <div className="text-[11px] text-slate-500 line-clamp-2">
                                     {(lead.followup_notes || lead.lead_notes || '').slice(0, 80)}
@@ -2011,17 +2175,42 @@ const ManagerLeads = () => {
                                     );
                                   }
                                 })()}
-                                <Button
+                                <Button 
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Email"
-                                  asChild
+                                  onClick={() => handleEmail(lead)}
                                 >
-                                  <a href={`mailto:${lead.contact_email || lead.email || ''}`}>
-                                    <Mail className="w-3.5 h-3.5" />
-                                  </a>
+                                  <Mail className="w-3.5 h-3.5" />
                                 </Button>
+                                {(() => {
+                                  const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+                                  if (phoneNumbers.length === 0) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title="WhatsApp - No phone number"
+                                        disabled
+                                      >
+                                        <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                                      </Button>
+                                    );
+                                  }
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 hover:bg-green-100"
+                                      title="WhatsApp"
+                                      onClick={() => handleWhatsApp(lead)}
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                                    </Button>
+                                  );
+                                })()}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -2306,10 +2495,10 @@ const ManagerLeads = () => {
                             <td className="py-2 px-3">
                               <div className="flex flex-col gap-1">
                                 <div className="text-xs text-slate-900">{lead.contact_name || 'N/A'}</div>
-                                {lead.email && (
+                            {lead.email && (
                                   <div className="text-xs text-slate-500 truncate max-w-[150px]">{lead.email}</div>
-                                )}
-                                {lead.phone && (
+                            )}
+                            {lead.phone && (
                                   <div className="text-xs text-slate-500">{lead.phone}</div>
                                 )}
                                 {/* Note + Callback indicators */}
@@ -2328,15 +2517,15 @@ const ManagerLeads = () => {
                                     <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] px-1.5 py-0.5">
                                       Not Interested
                                     </Badge>
-                                  )}
-                                </div>
+                            )}
+                          </div>
                                 {(lead.followup_notes || lead.lead_notes) && (
                                   <div className="text-[11px] text-slate-500 line-clamp-2">
                                     {(lead.followup_notes || lead.lead_notes || '').slice(0, 80)}
                                     {(lead.followup_notes || lead.lead_notes || '').length > 80 ? '…' : ''}
-                                  </div>
+                          </div>
                                 )}
-                              </div>
+                        </div>
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <Select
@@ -2443,17 +2632,42 @@ const ManagerLeads = () => {
                                     );
                                   }
                                 })()}
-                                <Button 
+                                <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Email"
-                                  asChild
+                                  onClick={() => handleEmail(lead)}
                                 >
-                                  <a href={`mailto:${lead.contact_email || lead.email || ''}`}>
-                                    <Mail className="w-3.5 h-3.5" />
-                                  </a>
+                                  <Mail className="w-3.5 h-3.5" />
                                 </Button>
+                                {(() => {
+                                  const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+                                  if (phoneNumbers.length === 0) {
+                                    return (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-slate-100"
+                                        title="WhatsApp - No phone number"
+                                        disabled
+                                      >
+                                        <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                                      </Button>
+                                    );
+                                  }
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 hover:bg-green-100"
+                                      title="WhatsApp"
+                                      onClick={() => handleWhatsApp(lead)}
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                                    </Button>
+                                  );
+                                })()}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -2477,13 +2691,13 @@ const ManagerLeads = () => {
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Edit"
-                                  onClick={() => {
+                      onClick={() => {
                                     setSelectedLead(lead);
                                     openEditLeadModal();
-                                  }}
-                                >
+                      }}
+                    >
                                   <Edit className="w-3.5 h-3.5" />
-                                </Button>
+                    </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -2612,7 +2826,7 @@ const ManagerLeads = () => {
                           <SelectItem value="not_interested">Not Interested</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                </div>
                 <div>
                   <Label htmlFor="assign">Assign To</Label>
                   <Select value={leadForm.assigned_to || "unassigned"} onValueChange={(value) => setLeadForm({ ...leadForm, assigned_to: value === "unassigned" ? "" : value })}>
@@ -2647,7 +2861,7 @@ const ManagerLeads = () => {
                         onChange={(e) => setLeadForm({ ...leadForm, link: e.target.value })}
                         placeholder="https://example.com"
                       />
-                    </div>
+                </div>
                 <div className="col-span-2">
                   <Label htmlFor="description">Notes / Description</Label>
                   <Textarea
@@ -3061,43 +3275,72 @@ const ManagerLeads = () => {
             {selectedLead && (
               <div className="space-y-6">
                 {/* Header Section */}
-                <div className="pb-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div>
-                      <h3 className="text-2xl font-bold text-slate-900">{selectedLead.company_name}</h3>
-                      <p className="text-slate-600 text-sm mt-2">📞 {selectedLead.contact_name}</p>
+                <div className="p-4 border border-slate-200 rounded-lg bg-white shadow-sm">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-bold text-slate-900">{selectedLead.company_name}</h3>
+                        <p className="text-sm text-slate-600">{selectedLead.contact_name || 'No contact'}</p>
+                      </div>
+                      <Badge className={`${getStatusColor(selectedLead.status)} text-xs px-3 py-1`}>
+                        {selectedLead.status.toUpperCase()}
+                      </Badge>
                     </div>
-                    <Badge className={`${getStatusColor(selectedLead.status)} text-sm px-3 py-1`}>{selectedLead.status.toUpperCase()}</Badge>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                        {selectedLead.project_id && (
+                          <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs px-2 py-0.5">
+                            {selectedLead.projects?.name || 'Project'}
+                          </Badge>
+                        )}
+                        <span className="text-slate-500">•</span>
+                        <span className="font-semibold text-slate-900">${(selectedLead.value || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 justify-start sm:justify-end">
+                        <span className="font-medium text-slate-700">Assigned:</span>
+                        <span className="text-slate-900">
+                          {salesUsers.find(u => u.id === selectedLead.assigned_to)?.full_name ||
+                            salesUsers.find(u => u.id === selectedLead.assigned_to)?.email?.split("@")[0] ||
+                            'Unassigned'}
+                        </span>
+                        {selectedLead.updated_at && (
+                          <>
+                            <span className="text-slate-400">•</span>
+                            <span>Updated {new Date(selectedLead.updated_at).toLocaleDateString()}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Contact Information */}
                 <div>
-                  <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
                     Contact Information
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selectedLead.email && (
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 hover:border-blue-300 hover:bg-blue-100 transition-all">
-                        <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">📧 Email</span>
-                        <a href={`mailto:${selectedLead.email}`} className="text-blue-600 hover:text-blue-800 break-all text-sm font-medium">{selectedLead.email}</a>
+                      <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Email</span>
+                        <a href={`mailto:${selectedLead.email}`} className="text-blue-700 hover:text-blue-900 break-all text-sm font-medium">{selectedLead.email}</a>
                       </div>
                     )}
                     {(() => {
                       const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
                       if (phoneNumbers.length > 0) {
                         return (
-                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100 transition-all">
-                            <span className="text-xs font-semibold text-indigo-700 block mb-2 uppercase tracking-wide">
-                              ☎️ Phone Number{phoneNumbers.length > 1 ? `s (${phoneNumbers.length})` : ''}
+                          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                            <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">
+                              Phone {phoneNumbers.length > 1 ? `(${phoneNumbers.length})` : ''}
                             </span>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                               {phoneNumbers.map((phone, idx) => (
                                 <a 
                                   key={idx}
                                   href={`tel:${phone}`} 
-                                  className="flex items-center gap-2 block text-indigo-600 hover:text-indigo-800 text-sm font-medium p-2 bg-white rounded border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                  className="flex items-center gap-2 text-slate-800 hover:text-blue-700 text-sm font-medium"
                                 >
                                   <PhoneIcon className="w-4 h-4" />
                                   <span>{phone}</span>
@@ -3109,34 +3352,16 @@ const ManagerLeads = () => {
                       }
                       return null;
                     })()}
-                    {(selectedLead as any).mobile_phone && (
-                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                        <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">📱 Mobile Phone</span>
-                        <a href={`tel:${(selectedLead as any).mobile_phone}`} className="text-green-600 hover:text-green-800 text-sm font-medium">{(selectedLead as any).mobile_phone}</a>
-                      </div>
-                    )}
-                    {(selectedLead as any).direct_phone && (
-                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                        <span className="text-xs font-semibold text-purple-700 block mb-2 uppercase tracking-wide">📞 Direct Phone</span>
-                        <a href={`tel:${(selectedLead as any).direct_phone}`} className="text-purple-600 hover:text-purple-800 text-sm font-medium">{(selectedLead as any).direct_phone}</a>
-                      </div>
-                    )}
-                    {(selectedLead as any).office_phone && (
-                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                        <span className="text-xs font-semibold text-amber-700 block mb-2 uppercase tracking-wide">🏢 Office Phone</span>
-                        <a href={`tel:${(selectedLead as any).office_phone}`} className="text-amber-600 hover:text-amber-800 text-sm font-medium">{(selectedLead as any).office_phone}</a>
-                      </div>
-                    )}
                     {(selectedLead as any).designation && (
-                      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <span className="text-xs font-semibold text-slate-700 block mb-2 uppercase tracking-wide">💼 Designation</span>
+                      <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Title</span>
                         <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).designation}</span>
                       </div>
                     )}
                     {(selectedLead as any).linkedin && (
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">💼 LinkedIn</span>
-                        <a href={(selectedLead as any).linkedin.startsWith('http') ? (selectedLead as any).linkedin : `https://${(selectedLead as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium underline">View Profile</a>
+                      <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">LinkedIn</span>
+                        <a href={(selectedLead as any).linkedin.startsWith('http') ? (selectedLead as any).linkedin : `https://${(selectedLead as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 text-sm font-medium underline">View Profile</a>
                       </div>
                     )}
                   </div>
@@ -3145,13 +3370,13 @@ const ManagerLeads = () => {
                 {/* Address Information */}
                 {((selectedLead as any).address_line1 || (selectedLead as any).city || (selectedLead as any).state || (selectedLead as any).country) && (
                   <div>
-                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                    <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
                       Address Information
                     </h4>
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                      {(selectedLead as any).address_line1 && <p className="text-slate-900 text-sm mb-1">{(selectedLead as any).address_line1}</p>}
-                      {(selectedLead as any).address_line2 && <p className="text-slate-900 text-sm mb-1">{(selectedLead as any).address_line2}</p>}
+                    <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+                      {(selectedLead as any).address_line1 && <p className="text-slate-900 text-sm">{(selectedLead as any).address_line1}</p>}
+                      {(selectedLead as any).address_line2 && <p className="text-slate-900 text-sm">{(selectedLead as any).address_line2}</p>}
                       <p className="text-slate-700 text-sm">
                         {[
                           (selectedLead as any).city,
@@ -3167,47 +3392,49 @@ const ManagerLeads = () => {
                 {/* Classification & Grouping */}
                 {((selectedLead as any).customer_group || (selectedLead as any).product_group || (selectedLead as any).tags || (selectedLead as any).lead_source || (selectedLead as any).lead_score) && (
                   <div>
-                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-violet-500 rounded-full"></span>
+                    <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-violet-500 rounded-full"></span>
                       Classification & Grouping
                     </h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(selectedLead as any).customer_group && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">👥 Customer Group</span>
-                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).customer_group}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Customer Group</span>
+                          <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).customer_group}</span>
                         </div>
                       )}
                       {(selectedLead as any).product_group && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">📦 Product Group</span>
-                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).product_group}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Product Group</span>
+                          <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).product_group}</span>
                         </div>
                       )}
                       {(selectedLead as any).lead_source && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">📊 Lead Source</span>
-                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).lead_source}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Lead Source</span>
+                          <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).lead_source}</span>
                         </div>
                       )}
                       {(selectedLead as any).data_source && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">💾 Data Source</span>
-                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).data_source}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Data Source</span>
+                          <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).data_source}</span>
                         </div>
                       )}
                       {(selectedLead as any).lead_score !== undefined && (selectedLead as any).lead_score !== null && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">⭐ Lead Score</span>
-                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).lead_score}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Lead Score</span>
+                          <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).lead_score}</span>
                         </div>
                       )}
                       {(selectedLead as any).tags && Array.isArray((selectedLead as any).tags) && (selectedLead as any).tags.length > 0 && (
-                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200 col-span-2">
-                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">🏷️ Tags</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 sm:col-span-2">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Tags</span>
                           <div className="flex flex-wrap gap-2">
                             {(selectedLead as any).tags.map((tag: string, idx: number) => (
-                              <Badge key={idx} variant="outline" className="bg-white">{tag}</Badge>
+                              <Badge key={idx} variant="outline" className="bg-white text-slate-800 border-slate-200 text-[11px]">
+                                {tag}
+                              </Badge>
                             ))}
                           </div>
                         </div>
@@ -3219,36 +3446,36 @@ const ManagerLeads = () => {
                 {/* Follow-up Information */}
                 {((selectedLead as any).next_followup_date || (selectedLead as any).followup_notes || (selectedLead as any).do_not_followup) && (
                   <div>
-                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                    <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
                       Follow-up Information
                     </h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(selectedLead as any).next_followup_date && (
-                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">📅 Next Follow-up</span>
-                          <span className="text-orange-900 text-sm font-medium">{new Date((selectedLead as any).next_followup_date).toLocaleDateString()}</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Next Follow-up</span>
+                          <span className="text-slate-900 text-sm font-medium">{new Date((selectedLead as any).next_followup_date).toLocaleDateString()}</span>
                         </div>
                       )}
                       {(selectedLead as any).repeat_followup && (
-                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">🔄 Repeat Follow-up</span>
-                          <span className="text-orange-900 text-sm font-medium">Yes</span>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Repeat Follow-up</span>
+                          <span className="text-slate-900 text-sm font-medium">Yes</span>
                         </div>
                       )}
                       {(selectedLead as any).do_not_followup && (
-                        <div className="bg-red-50 p-4 rounded-lg border border-red-200 col-span-2">
-                          <span className="text-xs font-semibold text-red-700 block mb-2 uppercase tracking-wide">🚫 Do Not Follow-up</span>
+                        <div className="p-3 rounded-lg border border-red-200 bg-red-50 sm:col-span-2">
+                          <span className="text-[11px] font-semibold text-red-700 block mb-1 uppercase tracking-wide">Do Not Follow-up</span>
                           <span className="text-red-900 text-sm font-medium">Yes</span>
                           {(selectedLead as any).do_not_followup_reason && (
-                            <p className="text-red-700 text-sm mt-2">Reason: {(selectedLead as any).do_not_followup_reason}</p>
+                            <p className="text-red-800 text-sm mt-1">Reason: {(selectedLead as any).do_not_followup_reason}</p>
                           )}
                         </div>
                       )}
                       {(selectedLead as any).followup_notes && (
-                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 col-span-2">
-                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">📝 Follow-up Notes</span>
-                          <p className="text-orange-900 text-sm">{(selectedLead as any).followup_notes}</p>
+                        <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 sm:col-span-2">
+                          <span className="text-[11px] font-semibold text-slate-600 block mb-1 uppercase tracking-wide">Follow-up Notes</span>
+                          <p className="text-slate-900 text-sm">{(selectedLead as any).followup_notes}</p>
                         </div>
                       )}
                     </div>
@@ -3551,7 +3778,7 @@ const ManagerLeads = () => {
                           onChange={(e) => setEditLeadForm({ ...editLeadForm, link: e.target.value })}
                           placeholder="https://example.com"
                         />
-                      </div>
+                  </div>
                   <div className="col-span-2">
                     <Label htmlFor="edit-description">Notes / Description</Label>
                     <Textarea
@@ -4307,6 +4534,143 @@ const ManagerLeads = () => {
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {submittingActivity ? "Scheduling..." : "Schedule Callback"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* WhatsApp Message Modal */}
+        <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-green-600" />
+                Send WhatsApp Message - {selectedLeadForWhatsApp?.company_name || 'Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedLeadForWhatsApp && (() => {
+                const phoneNumbers = parsePhoneNumbers(
+                  selectedLeadForWhatsApp.contact_phone || 
+                  selectedLeadForWhatsApp.phone || 
+                  (selectedLeadForWhatsApp as any).mobile_phone
+                );
+                return (
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">To:</p>
+                    <p className="text-sm text-slate-900 font-medium">
+                      {selectedLeadForWhatsApp.contact_name || 'N/A'}
+                    </p>
+                    {phoneNumbers.length > 0 && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        📱 {phoneNumbers[0]}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+              <div>
+                <Label htmlFor="whatsapp-message">Message *</Label>
+                <Textarea
+                  id="whatsapp-message"
+                  placeholder="Enter your WhatsApp message..."
+                  value={whatsAppMessage}
+                  onChange={(e) => setWhatsAppMessage(e.target.value)}
+                  rows={6}
+                  className="mt-1 font-medium"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can customize this message before sending. The message will open in WhatsApp.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWhatsAppModal(false);
+                  setWhatsAppMessage("");
+                  setSelectedLeadForWhatsApp(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendWhatsApp}
+                disabled={!whatsAppMessage.trim()}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Send via WhatsApp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Email Modal */}
+        <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-blue-600" />
+                Send Email - {selectedLeadForEmail?.company_name || 'Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedLeadForEmail && (
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-1">To:</p>
+                  <p className="text-sm text-slate-900 font-medium">
+                    {selectedLeadForEmail.contact_email || selectedLeadForEmail.email || 'N/A'}
+                  </p>
+                  {selectedLeadForEmail.contact_name && (
+                    <p className="text-xs text-slate-600 mt-1">{selectedLeadForEmail.contact_name}</p>
+                  )}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email-subject">Subject *</Label>
+                <Input
+                  id="email-subject"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Enter subject"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email-body">Message *</Label>
+                <Textarea
+                  id="email-body"
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={8}
+                  placeholder="Enter your email message..."
+                  className="font-medium"
+                />
+                <p className="text-xs text-slate-500">
+                  You can customize this message before sending. The message will open in Gmail (or your default mail client).
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setSelectedLeadForEmail(null);
+                  setEmailSubject("");
+                  setEmailBody("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmail}
+                disabled={!emailSubject.trim() || !emailBody.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send Email
               </Button>
             </DialogFooter>
           </DialogContent>
