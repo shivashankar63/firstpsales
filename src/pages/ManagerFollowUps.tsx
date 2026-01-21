@@ -75,11 +75,11 @@ const ManagerFollowUps = () => {
           getProjects(),
         ]);
 
-        // Filter leads that have follow-up information AND exclude not_interested
+        // Filter leads that have follow-up information AND exclude done statuses
         const allLeads = leadsRes.data || [];
         const leadsWithFollowUps = allLeads.filter((lead: any) => 
           (lead.next_followup_date || lead.followup_notes) && 
-          lead.status !== 'not_interested'
+          !['not_interested', 'closed_won'].includes(lead.status)
         );
 
         setFollowUps(leadsWithFollowUps);
@@ -136,6 +136,28 @@ const ManagerFollowUps = () => {
     const diffTime = followUpDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const statusOptions = [
+    { value: "new", label: "New" },
+    { value: "qualified", label: "Qualified" },
+    { value: "proposal", label: "In Proposal" },
+    { value: "closed_won", label: "Closed Won" },
+    { value: "not_interested", label: "Not Interested" },
+  ];
+
+  const handleStatusChange = async (lead: any, newStatus: string) => {
+    try {
+      await updateLead(lead.id, { status: newStatus });
+      setFollowUps((prev) =>
+        newStatus === "not_interested"
+          ? prev.filter((l: any) => l.id !== lead.id)
+          : prev.map((l: any) => (l.id === lead.id ? { ...l, status: newStatus } : l))
+      );
+    } catch (error) {
+      console.error("Failed to update status from follow-ups", error);
+      alert("Failed to update status. Please try again.");
+    }
   };
 
   // WhatsApp helpers
@@ -298,7 +320,7 @@ const ManagerFollowUps = () => {
       const allLeads = leadsRes.data || [];
       const leadsWithFollowUps = allLeads.filter((lead: any) => 
         (lead.next_followup_date || lead.followup_notes) && 
-        lead.status !== 'not_interested'
+        !['not_interested', 'closed_won'].includes(lead.status)
       );
       setFollowUps(leadsWithFollowUps);
       
@@ -337,7 +359,7 @@ const ManagerFollowUps = () => {
       const allLeads = leadsRes.data || [];
       const leadsWithFollowUps = allLeads.filter((lead: any) => 
         (lead.next_followup_date || lead.followup_notes) && 
-        lead.status !== 'not_interested'
+        !['not_interested', 'closed_won'].includes(lead.status)
       );
       setFollowUps(leadsWithFollowUps);
       
@@ -386,12 +408,12 @@ const ManagerFollowUps = () => {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar role="manager" />
-      <main className="flex-1 p-2 sm:p-4 lg:p-6 pt-16 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
-        <div className="mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
+      <main className="flex-1 p-2 sm:p-3 lg:p-4 pt-16 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
+        <div className="mb-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">Follow-ups</h1>
-              <p className="text-sm sm:text-base text-slate-600">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5">Follow-ups</h1>
+              <p className="text-xs sm:text-sm text-slate-600">
                 {filteredFollowUps.length} follow-up{filteredFollowUps.length !== 1 ? 's' : ''} {filter !== 'all' ? `(${filter})` : ''}
               </p>
             </div>
@@ -435,21 +457,21 @@ const ManagerFollowUps = () => {
             </Button>
           </Card>
         ) : (
-          <Card className="overflow-hidden p-2">
+          <Card className="overflow-hidden p-1">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Company</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Contact</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Project</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Follow-up Date</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Status</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Salesman</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Value</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Notes</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Contact</TableHead>
-                    <TableHead className="font-semibold text-slate-900 py-2 px-3 text-xs">Actions</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Company</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Contact</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Project</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Follow-up Date</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Status</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Salesman</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Value</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Notes</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Contact</TableHead>
+                    <TableHead className="font-semibold text-slate-900 py-1 px-2 text-[10px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -463,43 +485,43 @@ const ManagerFollowUps = () => {
                     
                     return (
                       <TableRow key={followUp.id} className="hover:bg-slate-50/50">
-                        <TableCell className="font-medium text-slate-900 py-2 px-3">
-                          <div className="flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-sm">{followUp.company_name}</span>
+                        <TableCell className="font-medium text-slate-900 py-1 px-2">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-blue-500" />
+                            <span className="text-xs">{followUp.company_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-slate-700 py-2 px-3 text-sm">{followUp.contact_name || 'N/A'}</TableCell>
-                        <TableCell className="py-2 px-3">
+                        <TableCell className="text-slate-700 py-1 px-2 text-xs">{followUp.contact_name || 'N/A'}</TableCell>
+                        <TableCell className="py-1 px-2">
                           {project ? (
-                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs">
-                              <Briefcase className="w-3 h-3 mr-1" />
+                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] px-1.5 py-0">
+                              <Briefcase className="w-2.5 h-2.5 mr-0.5" />
                               {project.name}
                             </Badge>
                           ) : (
-                            <span className="text-slate-400 text-xs">-</span>
+                            <span className="text-slate-400 text-[10px]">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="py-2 px-3">
+                        <TableCell className="py-1 px-2">
                           {followUp.next_followup_date ? (
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-500' : isToday ? 'text-orange-500' : 'text-green-500'}`} />
+                            <div className="flex items-center gap-1">
+                              <Calendar className={`w-3 h-3 ${isOverdue ? 'text-red-500' : isToday ? 'text-orange-500' : 'text-green-500'}`} />
                               <div className="flex flex-col">
-                                <span className={`text-xs font-medium ${isOverdue ? 'text-red-700' : isToday ? 'text-orange-700' : 'text-green-700'}`}>
+                                <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-700' : isToday ? 'text-orange-700' : 'text-green-700'}`}>
                                   {new Date(followUp.next_followup_date).toLocaleDateString('en-US', {
                                     month: 'short',
                                     day: 'numeric',
                                     year: 'numeric'
                                   })}
                                 </span>
-                                <span className="text-[10px] text-slate-500">
+                                <span className="text-[9px] text-slate-500">
                                   {new Date(followUp.next_followup_date).toLocaleTimeString('en-US', {
                                     hour: '2-digit',
                                     minute: '2-digit'
                                   })}
                                 </span>
                                 {daysUntil !== null && (
-                                  <Badge className={`mt-0.5 w-fit text-[10px] px-1.5 py-0 ${
+                                  <Badge className={`mt-0.5 w-fit text-[9px] px-1 py-0 ${
                                     isOverdue 
                                       ? 'bg-red-100 text-red-700 border-red-200'
                                       : isToday
@@ -512,58 +534,65 @@ const ManagerFollowUps = () => {
                               </div>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs">Not scheduled</span>
+                            <span className="text-slate-400 text-[10px]">Not scheduled</span>
                           )}
                         </TableCell>
-                        <TableCell className="py-2 px-3">
-                          <Badge className={
-                            followUp.status === 'closed_won' ? 'bg-green-100 text-green-700 border-green-200' :
-                            followUp.status === 'proposal' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            followUp.status === 'qualified' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                            'bg-slate-100 text-slate-700 border-slate-200'
-                          }>
-                            {followUp.status?.replace('_', ' ').toUpperCase() || 'NEW'}
-                          </Badge>
+                        <TableCell className="py-1 px-2">
+                          <Select
+                            value={followUp.status || "new"}
+                            onValueChange={(value) => handleStatusChange(followUp, value)}
+                          >
+                            <SelectTrigger className="bg-white border-slate-200 text-slate-900 text-[10px] h-6 w-24">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
-                        <TableCell className="py-2 px-3">
+                        <TableCell className="py-1 px-2">
                           {assignedSalesman ? (
-                            <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-xs text-slate-700">
+                            <div className="flex items-center gap-1">
+                              <User className="w-3 h-3 text-slate-400" />
+                              <span className="text-[10px] text-slate-700">
                                 {assignedSalesman.full_name || assignedSalesman.email?.split('@')[0] || 'Unknown'}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs">Unassigned</span>
+                            <span className="text-slate-400 text-[10px]">Unassigned</span>
                           )}
                         </TableCell>
-                        <TableCell className="font-semibold text-green-700 py-2 px-3 text-sm">
+                        <TableCell className="font-semibold text-green-700 py-1 px-2 text-xs">
                           ${(followUp.value || 0).toLocaleString()}
                         </TableCell>
-                        <TableCell className="py-2 px-3">
+                        <TableCell className="py-1 px-2">
                           {followUp.followup_notes ? (
                             <div className="max-w-xs">
-                              <p className="text-xs text-slate-700 truncate" title={followUp.followup_notes}>
+                              <p className="text-[10px] text-slate-700 truncate" title={followUp.followup_notes}>
                                 {followUp.followup_notes}
                               </p>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs">-</span>
+                            <span className="text-slate-400 text-[10px]">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="py-2 px-3">
-                          <div className="flex items-center gap-1">
+                        <TableCell className="py-1 px-2">
+                          <div className="flex items-center gap-0.5">
                             {phoneNumbers.length > 0 ? (
                               phoneNumbers.length === 1 ? (
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  className="h-6 w-6 p-0 hover:bg-slate-100"
                                   title={`Call ${phoneNumbers[0]}`}
                                   asChild
                                 >
                                   <a href={`tel:${phoneNumbers[0]}`}>
-                                    <PhoneIcon className="w-3.5 h-3.5" />
+                                    <PhoneIcon className="w-3 h-3" />
                                   </a>
                                 </Button>
                               ) : (
@@ -572,10 +601,10 @@ const ManagerFollowUps = () => {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 w-7 p-0 hover:bg-slate-100"
+                                      className="h-6 w-6 p-0 hover:bg-slate-100"
                                       title={`${phoneNumbers.length} phone numbers`}
                                     >
-                                      <PhoneIcon className="w-3.5 h-3.5" />
+                                      <PhoneIcon className="w-3 h-3" />
                                       <ChevronDown className="w-2 h-2 ml-0.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -598,79 +627,79 @@ const ManagerFollowUps = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 hover:bg-slate-100"
+                                className="h-6 w-6 p-0 hover:bg-slate-100"
                                 title="No phone number"
                                 disabled
                               >
-                                <PhoneIcon className="w-3.5 h-3.5 text-slate-400" />
+                                <PhoneIcon className="w-3 h-3 text-slate-400" />
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-slate-100"
+                              className="h-6 w-6 p-0 hover:bg-slate-100"
                               title="Email"
                               onClick={() => handleEmail(followUp)}
                               disabled={!followUp.email && !followUp.contact_email}
                             >
-                              <Mail className="w-3.5 h-3.5" />
+                              <Mail className="w-3 h-3" />
                             </Button>
                             {phoneNumbers.length > 0 ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 hover:bg-green-100"
+                                className="h-6 w-6 p-0 hover:bg-green-100"
                                 title="WhatsApp"
                                 onClick={() => handleWhatsApp(followUp)}
                               >
-                                <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                                <MessageCircle className="w-3 h-3 text-green-600" />
                               </Button>
                             ) : (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 hover:bg-slate-100"
+                                className="h-6 w-6 p-0 hover:bg-slate-100"
                                 title="WhatsApp - No phone number"
                                 disabled
                               >
-                                <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                                <MessageCircle className="w-3 h-3 text-slate-400" />
                               </Button>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="py-2 px-3">
-                          <div className="flex items-center gap-1">
+                        <TableCell className="py-1 px-2">
+                          <div className="flex items-center gap-0.5">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-slate-100"
+                              className="h-6 w-6 p-0 hover:bg-slate-100"
                               title="Add Note"
                               onClick={() => handleAddNote(followUp)}
                             >
-                              <StickyNote className="w-3.5 h-3.5" />
+                              <StickyNote className="w-3 h-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-slate-100"
+                              className="h-6 w-6 p-0 hover:bg-slate-100"
                               title="Schedule Callback"
                               onClick={() => handleScheduleCallback(followUp)}
                             >
-                              <Calendar className="w-3.5 h-3.5" />
+                              <Calendar className="w-3 h-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-slate-100"
+                              className="h-6 w-6 p-0 hover:bg-slate-100"
                               title="View Details"
                               onClick={() => navigate(`/manager/leads?leadId=${followUp.id}`)}
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3 h-3" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                  <MoreHorizontal className="w-3.5 h-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <MoreHorizontal className="w-3 h-3" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
