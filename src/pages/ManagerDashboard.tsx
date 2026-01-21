@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
+import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, CheckCircle, XCircle, AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount } from "@/lib/supabase";
+import * as XLSX from "xlsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 type UserRole = "owner" | "manager" | "salesman";
 
@@ -158,6 +166,138 @@ const ManagerDashboard = () => {
   const totalPipeline = leads.filter(l => ['new', 'qualified', 'proposal'].includes(normalizeStatus(l.status))).reduce((sum, l) => sum + (l.value || 0), 0);
   const winRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
+  // Download Functions
+  const handleDownloadAllLeads = () => {
+    const exportData = leads.map((lead) => {
+      const phoneNumbers = (() => {
+        const phone = lead.phone || "";
+        if (!phone) return "";
+        return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p).join(", ");
+      })();
+
+      const assignedUser = salesTeam.find(u => u.id === lead.assigned_to);
+
+      return {
+        "Company Name": lead.company_name || "",
+        "Contact Name": lead.contact_name || "",
+        "Email": lead.email || "",
+        "Phone": phoneNumbers || "",
+        "Status": lead.status?.replace('_', ' ') || "",
+        "Value": lead.value || 0,
+        "Project": lead.projects?.name || "Unassigned",
+        "Assigned To": assignedUser ? (assignedUser.full_name || assignedUser.email?.split("@")[0] || "Unknown") : "Unassigned",
+        "Description": lead.description || "",
+        "Created At": lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "",
+        "Last Contacted": lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "All Leads");
+    XLSX.writeFile(wb, `all_leads_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleDownloadSalesTeam = () => {
+    const exportData = salesTeam.map((member: any) => {
+      const memberLeads = leads.filter(l => l.assigned_to === member.id);
+      const memberRevenue = memberLeads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0);
+      const memberWon = memberLeads.filter(l => normalizeStatus(l.status) === 'closed_won').length;
+      const memberActive = memberLeads.filter(l => ['new', 'qualified', 'proposal'].includes(normalizeStatus(l.status))).length;
+      
+      return {
+        "Full Name": member.full_name || "",
+        "Email": member.email || "",
+        "Total Leads": memberLeads.length,
+        "Active Leads": memberActive,
+        "Won Leads": memberWon,
+        "Total Revenue": memberRevenue,
+        "Win Rate": memberLeads.length > 0 ? `${Math.round((memberWon / memberLeads.length) * 100)}%` : "0%",
+        "Created At": member.created_at ? new Date(member.created_at).toLocaleDateString() : "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Team");
+    XLSX.writeFile(wb, `sales_team_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleDownloadProjects = () => {
+    const exportData = projects.map((project) => {
+      const projectLeads = leads.filter(l => l.project_id === project.id);
+      const projectRevenue = projectLeads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0);
+      const projectPipeline = projectLeads.filter(l => ['new', 'qualified', 'proposal'].includes(normalizeStatus(l.status))).reduce((sum, l) => sum + (l.value || 0), 0);
+      
+      return {
+        "Project Name": project.name || "",
+        "Description": project.description || "",
+        "Status": project.status || "Active",
+        "Budget": project.budget || 0,
+        "Total Leads": projectLeads.length,
+        "Pipeline Value": projectPipeline,
+        "Revenue": projectRevenue,
+        "Created At": project.created_at ? new Date(project.created_at).toLocaleDateString() : "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Projects");
+    XLSX.writeFile(wb, `projects_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleDownloadDashboardReport = () => {
+    const summaryData = [
+      { "Metric": "Total Leads", "Value": totalLeads },
+      { "Metric": "New Leads", "Value": newLeads },
+      { "Metric": "Qualified Leads", "Value": qualifiedLeads },
+      { "Metric": "In Proposal", "Value": negotiationLeads },
+      { "Metric": "Won Leads", "Value": wonLeads },
+      { "Metric": "Lost Leads", "Value": lostLeads },
+      { "Metric": "Total Revenue", "Value": `$${totalRevenue.toLocaleString()}` },
+      { "Metric": "Pipeline Value", "Value": `$${totalPipeline.toLocaleString()}` },
+      { "Metric": "Win Rate", "Value": `${winRate}%` },
+      { "Metric": "Active Projects", "Value": projects.length },
+      { "Metric": "Sales Team Size", "Value": salesTeam.length },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(summaryData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dashboard Summary");
+    XLSX.writeFile(wb, `dashboard_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleDownloadPipelineReport = () => {
+    const pipelineLeads = leads.filter(l => ['new', 'qualified', 'proposal'].includes(normalizeStatus(l.status)));
+    
+    const exportData = pipelineLeads.map((lead) => {
+      const assignedUser = salesTeam.find(u => u.id === lead.assigned_to);
+      const phoneNumbers = (() => {
+        const phone = lead.phone || "";
+        if (!phone) return "";
+        return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p).join(", ");
+      })();
+
+      return {
+        "Company Name": lead.company_name || "",
+        "Contact Name": lead.contact_name || "",
+        "Email": lead.email || "",
+        "Phone": phoneNumbers || "",
+        "Status": lead.status?.replace('_', ' ') || "",
+        "Value": lead.value || 0,
+        "Project": lead.projects?.name || "Unassigned",
+        "Assigned To": assignedUser ? (assignedUser.full_name || assignedUser.email?.split("@")[0] || "Unknown") : "Unassigned",
+        "Last Contacted": lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : "Never",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pipeline");
+    XLSX.writeFile(wb, `pipeline_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen bg-slate-50">
@@ -177,9 +317,43 @@ const ManagerDashboard = () => {
       <DashboardSidebar role="manager" />
       <main className="flex-1 p-2 sm:p-4 lg:p-8 pt-16 sm:pt-16 lg:pt-8 overflow-auto bg-slate-50">
         {/* Header */}
-        <div className="mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">Dashboard</h1>
-          <p className="text-sm sm:text-base text-slate-600">Welcome back! Here's what's happening today.</p>
+        <div className="mb-4 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">Dashboard</h1>
+            <p className="text-sm sm:text-base text-slate-600">Welcome back! Here's what's happening today.</p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Download Reports
+                <ChevronDown className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handleDownloadAllLeads}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                All Leads
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPipelineReport}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Pipeline Report
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadSalesTeam}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Sales Team
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadProjects}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Projects
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDownloadDashboardReport}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Dashboard Summary
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Key Metrics - Clean Cards (now clickable) */}
@@ -284,9 +458,21 @@ const ManagerDashboard = () => {
               <h2 className="text-lg font-semibold text-slate-900">Leads Overview</h2>
               <p className="text-sm text-slate-600 mt-1">Track your deals through each stage</p>
             </div>
-            <div className="text-left sm:text-right">
-              <p className="text-xs sm:text-sm text-slate-600">Total Pipeline Value</p>
-              <p className="text-xl sm:text-2xl font-semibold text-slate-900">${(totalPipeline / 1000).toFixed(0)}K</p>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={handleDownloadPipelineReport}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={totalPipeline === 0}
+              >
+                <Download className="w-4 h-4" />
+                Pipeline Report
+              </Button>
+              <div className="text-left sm:text-right">
+                <p className="text-xs sm:text-sm text-slate-600">Total Pipeline Value</p>
+                <p className="text-xl sm:text-2xl font-semibold text-slate-900">${(totalPipeline / 1000).toFixed(0)}K</p>
+              </div>
             </div>
           </div>
           
@@ -376,17 +562,29 @@ const ManagerDashboard = () => {
               <h2 className="text-lg font-semibold text-slate-900">Sales Team</h2>
               <p className="text-sm text-slate-600 mt-1">{salesTeam.length} team members</p>
             </div>
-            <Button 
-              onClick={() => {
-                setShowCreateSalesmanModal(true);
-                setCreatedSalesman(null);
-              }} 
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Salesman
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={handleDownloadSalesTeam}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={salesTeam.length === 0}
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowCreateSalesmanModal(true);
+                  setCreatedSalesman(null);
+                }} 
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Salesman
+              </Button>
+            </div>
           </div>
           {salesTeam.length > 0 ? (
             <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 sm:pr-2">
@@ -448,14 +646,26 @@ const ManagerDashboard = () => {
               <h2 className="text-lg font-semibold text-slate-900">Projects</h2>
               <p className="text-sm text-slate-600 mt-1">{projects.length} active projects</p>
             </div>
-            <Button 
-              onClick={() => setShowProjectModal(true)} 
-              size="sm"
-              className="bg-slate-900 hover:bg-slate-800 text-white"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New Project
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={handleDownloadProjects}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={projects.length === 0}
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+              <Button 
+                onClick={() => setShowProjectModal(true)} 
+                size="sm"
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Project
+              </Button>
+            </div>
           </div>
             {projects.length > 0 ? (
               <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 sm:pr-2">
@@ -510,6 +720,16 @@ const ManagerDashboard = () => {
         <Card className="p-4 sm:p-6 bg-white border-slate-200 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Recent Leads</h2>
+            <Button 
+              onClick={handleDownloadAllLeads}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={leads.length === 0}
+            >
+              <Download className="w-4 h-4" />
+              Download All Leads
+            </Button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">

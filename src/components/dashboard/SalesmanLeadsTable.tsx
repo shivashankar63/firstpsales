@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getLeads, getCurrentUser, supabase, subscribeToLeads, createActivity } from "@/lib/supabase";
 
 interface Lead {
@@ -142,6 +144,7 @@ const SalesmanLeadsTable = () => {
   const [editingValue, setEditingValue] = useState<string>("0");
   const [updateMessage, setUpdateMessage] = useState<{ type: string; text: string } | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>(null);
   const [noteText, setNoteText] = useState("");
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [updateLoadingId, setUpdateLoadingId] = useState<string | null>(null);
@@ -185,6 +188,11 @@ const SalesmanLeadsTable = () => {
     setSelectedLead(lead);
     setEditingStatus(lead.status);
     setEditingValue(String(lead.value || 0));
+    setEditFormData({
+      ...lead,
+      value: String(lead.value || 0),
+      tags: Array.isArray((lead as any).tags) ? (lead as any).tags.join(', ') : ((lead as any).tags || ''),
+    });
     setUpdateMessage(null);
     setShowEditModal(true);
   };
@@ -205,6 +213,11 @@ const SalesmanLeadsTable = () => {
     setSelectedLead(lead);
     setEditingStatus(lead.status);
     setEditingValue(String(lead.value || 0));
+    setEditFormData({
+      ...lead,
+      value: String(lead.value || 0),
+      tags: Array.isArray((lead as any).tags) ? (lead as any).tags.join(', ') : ((lead as any).tags || ''),
+    });
     setUpdateMessage(null);
     setShowEditModal(true);
   };
@@ -241,10 +254,10 @@ const SalesmanLeadsTable = () => {
   };
 
   const handleUpdateLead = async () => {
-    if (!selectedLead) return;
+    if (!selectedLead || !editFormData) return;
     
     // Validate value
-    const valueNum = Number(editingValue);
+    const valueNum = Number(editFormData.value || editingValue);
     if (isNaN(valueNum) || valueNum < 0) {
       setUpdateMessage({ type: "error", text: "Value must be a valid positive number." });
       return;
@@ -254,12 +267,52 @@ const SalesmanLeadsTable = () => {
     setUpdateMessage(null);
 
     try {
+      // Prepare update data with all fields
+      const updateData: any = {
+        status: editFormData.status || editingStatus,
+        value: valueNum,
+        company_name: editFormData.company_name,
+        contact_name: editFormData.contact_name,
+        email: editFormData.email?.trim() || null,
+        phone: editFormData.phone?.trim() || null,
+        description: editFormData.description?.trim() || null,
+        link: editFormData.link?.trim() || null,
+        // New comprehensive fields
+        designation: editFormData.designation?.trim() || null,
+        mobile_phone: editFormData.mobile_phone?.trim() || null,
+        direct_phone: editFormData.direct_phone?.trim() || null,
+        office_phone: editFormData.office_phone?.trim() || null,
+        linkedin: editFormData.linkedin?.trim() || null,
+        address_line1: editFormData.address_line1?.trim() || null,
+        address_line2: editFormData.address_line2?.trim() || null,
+        city: editFormData.city?.trim() || null,
+        state: editFormData.state?.trim() || null,
+        country: editFormData.country?.trim() || null,
+        zip: editFormData.zip?.trim() || null,
+        customer_group: editFormData.customer_group?.trim() || null,
+        product_group: editFormData.product_group?.trim() || null,
+        tags: editFormData.tags ? editFormData.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t) : null,
+        lead_source: editFormData.lead_source?.trim() || null,
+        data_source: editFormData.data_source?.trim() || null,
+        lead_score: editFormData.lead_score !== undefined && editFormData.lead_score !== null ? Number(editFormData.lead_score) : null,
+        next_followup_date: editFormData.next_followup_date || null,
+        followup_notes: editFormData.followup_notes?.trim() || null,
+        repeat_followup: editFormData.repeat_followup || false,
+        do_not_followup: editFormData.do_not_followup || false,
+        do_not_followup_reason: editFormData.do_not_followup_reason?.trim() || null,
+        lead_notes: editFormData.lead_notes?.trim() || null,
+        organization_notes: editFormData.organization_notes?.trim() || null,
+        date_of_birth: editFormData.date_of_birth || null,
+        special_event_date: editFormData.special_event_date || null,
+        reference_url1: editFormData.reference_url1?.trim() || null,
+        reference_url2: editFormData.reference_url2?.trim() || null,
+        reference_url3: editFormData.reference_url3?.trim() || null,
+        list_name: editFormData.list_name?.trim() || null,
+      };
+
       const { error } = await supabase
         .from("leads")
-        .update({
-          status: editingStatus,
-          value: valueNum,
-        })
+        .update(updateData)
         .eq("id", selectedLead.id);
 
       if (error) {
@@ -267,16 +320,17 @@ const SalesmanLeadsTable = () => {
       } else {
         setUpdateMessage({ type: "success", text: "Lead updated successfully!" });
         
-        // Update local state
+        // Update local state with all updated fields
         setLeads(leads.map(lead => 
           lead.id === selectedLead.id 
-            ? { ...lead, status: editingStatus as any, value: valueNum }
+            ? { ...lead, ...updateData }
             : lead
         ));
 
         setTimeout(() => {
           setShowEditModal(false);
           setSelectedLead(null);
+          setEditFormData(null);
         }, 1500);
       }
     } catch (error: any) {
@@ -727,71 +781,240 @@ const SalesmanLeadsTable = () => {
 
       {/* Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Lead Details</DialogTitle>
+            <DialogTitle>Lead Details - {selectedLead?.company_name}</DialogTitle>
           </DialogHeader>
           {selectedLead && (
             <div className="space-y-4">
+              {/* Basic Information */}
               <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Company Name</Label>
-                <p className="text-sm font-medium text-foreground mt-1">{selectedLead.company_name}</p>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Project</Label>
-                <p className="text-sm font-medium text-foreground mt-1">
-                  {selectedLead.projects?.name ? (
-                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                      {selectedLead.projects.name}
-                    </Badge>
-                  ) : (
-                    <span className="text-slate-400">No project assigned</span>
+                <h4 className="text-sm font-bold text-slate-900 mb-2">Basic Information</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Company Name</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">{selectedLead.company_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Contact Name</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">{selectedLead.contact_name}</p>
+                  </div>
+                  {(selectedLead as any).designation && (
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Designation</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).designation}</p>
+                    </div>
                   )}
-                </p>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Contact Name</Label>
-                <p className="text-sm font-medium text-foreground mt-1">{selectedLead.contact_name}</p>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
-                <p className="text-sm font-medium text-foreground mt-1">
-                  {selectedLead.contact_email || (selectedLead as any).email || "N/A"}
-                </p>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-muted-foreground">
-                  Phone{(() => {
-                    const phones = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
-                    return phones.length > 1 ? ` (${phones.length})` : '';
-                  })()}
-                </Label>
-                <div className="text-sm font-medium text-foreground mt-1 space-y-1">
-                  {(() => {
-                    const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
-                    if (phoneNumbers.length === 0) {
-                      return <span className="text-slate-400">N/A</span>;
-                    }
-                    return phoneNumbers.map((phone, idx) => (
-                      <a 
-                        key={idx}
-                        href={`tel:${phone}`} 
-                        className="block text-blue-600 hover:text-blue-800"
-                      >
-                        {phone}
-                      </a>
-                    ));
-                  })()}
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Project</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">
+                      {selectedLead.projects?.name ? (
+                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                          {selectedLead.projects.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400">No project assigned</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">{statusLabel[selectedLead.status] || selectedLead.status}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
+                  </div>
                 </div>
               </div>
+
+              {/* Contact Information */}
               <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
-                <p className="text-sm font-medium text-foreground mt-1">{statusLabel[selectedLead.status] || selectedLead.status}</p>
+                <h4 className="text-sm font-bold text-slate-900 mb-2">Contact Information</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
+                    <p className="text-sm font-medium text-foreground mt-1">
+                      {selectedLead.contact_email || (selectedLead as any).email ? (
+                        <a href={`mailto:${selectedLead.contact_email || (selectedLead as any).email}`} className="text-blue-600 hover:text-blue-800">
+                          {selectedLead.contact_email || (selectedLead as any).email}
+                        </a>
+                      ) : (
+                        "N/A"
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">
+                      Phone{(() => {
+                        const phones = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
+                        return phones.length > 1 ? ` (${phones.length})` : '';
+                      })()}
+                    </Label>
+                    <div className="text-sm font-medium text-foreground mt-1 space-y-1">
+                      {(() => {
+                        const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
+                        if (phoneNumbers.length === 0) {
+                          return <span className="text-slate-400">N/A</span>;
+                        }
+                        return phoneNumbers.map((phone, idx) => (
+                          <a 
+                            key={idx}
+                            href={`tel:${phone}`} 
+                            className="block text-blue-600 hover:text-blue-800"
+                          >
+                            {phone}
+                          </a>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                  {(selectedLead as any).mobile_phone && (
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Mobile Phone</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        <a href={`tel:${(selectedLead as any).mobile_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).mobile_phone}</a>
+                      </p>
+                    </div>
+                  )}
+                  {(selectedLead as any).direct_phone && (
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Direct Phone</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        <a href={`tel:${(selectedLead as any).direct_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).direct_phone}</a>
+                      </p>
+                    </div>
+                  )}
+                  {(selectedLead as any).office_phone && (
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Office Phone</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        <a href={`tel:${(selectedLead as any).office_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).office_phone}</a>
+                      </p>
+                    </div>
+                  )}
+                  {(selectedLead as any).linkedin && (
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">LinkedIn</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        <a href={(selectedLead as any).linkedin.startsWith('http') ? (selectedLead as any).linkedin : `https://${(selectedLead as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">View Profile</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
-                <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
-              </div>
+
+              {/* Address Information */}
+              {((selectedLead as any).address_line1 || (selectedLead as any).city || (selectedLead as any).state) && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Address</h4>
+                  <div className="bg-slate-50 p-3 rounded-lg">
+                    {(selectedLead as any).address_line1 && <p className="text-sm text-slate-900">{(selectedLead as any).address_line1}</p>}
+                    {(selectedLead as any).address_line2 && <p className="text-sm text-slate-900">{(selectedLead as any).address_line2}</p>}
+                    <p className="text-sm text-slate-700">
+                      {[
+                        (selectedLead as any).city,
+                        (selectedLead as any).state,
+                        (selectedLead as any).zip,
+                        (selectedLead as any).country
+                      ].filter(Boolean).join(', ')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Classification */}
+              {((selectedLead as any).customer_group || (selectedLead as any).product_group || (selectedLead as any).lead_source || (selectedLead as any).lead_score) && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Classification</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(selectedLead as any).customer_group && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Customer Group</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).customer_group}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).product_group && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Product Group</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).product_group}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).lead_source && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Lead Source</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).lead_source}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).lead_score !== undefined && (selectedLead as any).lead_score !== null && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Lead Score</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).lead_score}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).tags && Array.isArray((selectedLead as any).tags) && (selectedLead as any).tags.length > 0 && (
+                      <div className="col-span-2">
+                        <Label className="text-xs font-semibold text-muted-foreground">Tags</Label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {(selectedLead as any).tags.map((tag: string, idx: number) => (
+                            <Badge key={idx} variant="outline">{tag}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Follow-up Information */}
+              {((selectedLead as any).next_followup_date || (selectedLead as any).followup_notes) && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Follow-up</h4>
+                  <div className="space-y-2">
+                    {(selectedLead as any).next_followup_date && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Next Follow-up Date</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{new Date((selectedLead as any).next_followup_date).toLocaleString()}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).followup_notes && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Follow-up Notes</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).followup_notes}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).do_not_followup && (
+                      <div className="bg-red-50 p-2 rounded">
+                        <Label className="text-xs font-semibold text-red-700">Do Not Follow-up</Label>
+                        {(selectedLead as any).do_not_followup_reason && (
+                          <p className="text-xs text-red-600 mt-1">Reason: {(selectedLead as any).do_not_followup_reason}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Notes */}
+              {((selectedLead as any).lead_notes || (selectedLead as any).organization_notes) && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Notes</h4>
+                  <div className="space-y-2">
+                    {(selectedLead as any).lead_notes && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Lead Notes</Label>
+                        <p className="text-sm text-slate-700 mt-1">{(selectedLead as any).lead_notes}</p>
+                      </div>
+                    )}
+                    {(selectedLead as any).organization_notes && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Organization Notes</Label>
+                        <p className="text-sm text-slate-700 mt-1">{(selectedLead as any).organization_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
@@ -802,14 +1025,14 @@ const SalesmanLeadsTable = () => {
 
       {/* Edit Lead Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Lead - {selectedLead?.company_name}</DialogTitle>
             <DialogDescription>
-              Update the status and value of this lead. Click "Update Lead" to save changes.
+              Update lead information. Use the tabs to navigate between different sections.
             </DialogDescription>
           </DialogHeader>
-          {selectedLead && (
+          {selectedLead && editFormData && (
             <div className="space-y-4">
               {updateMessage && (
                 <Alert className={updateMessage.type === "success" ? "bg-success/10 border-success/20" : "bg-destructive/10 border-destructive/20"}>
@@ -818,40 +1041,420 @@ const SalesmanLeadsTable = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  value={editingStatus}
-                  onChange={(e) => setEditingStatus(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
-                >
-                  <option value="new">New</option>
-                  <option value="qualified">Qualified</option>
-                  <option value="proposal">Proposal</option>
-                  <option value="closed_won">Closed Won</option>
-                  <option value="not_interested">Not Interested</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="value">Value ($)</Label>
-                <Input
-                  id="value"
-                  type="number"
-                  value={editingValue}
-                  onChange={(e) => setEditingValue(e.target.value)}
-                  placeholder="Enter lead value"
-                  className="w-full mt-1"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="basic">Basic</TabsTrigger>
+                  <TabsTrigger value="contact">Contact</TabsTrigger>
+                  <TabsTrigger value="address">Address</TabsTrigger>
+                  <TabsTrigger value="classification">Classification</TabsTrigger>
+                  <TabsTrigger value="followup">Follow-up</TabsTrigger>
+                </TabsList>
+                
+                {/* Basic Information Tab */}
+                <TabsContent value="basic" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-company">Company Name *</Label>
+                      <Input
+                        id="edit-company"
+                        value={editFormData.company_name || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, company_name: e.target.value })}
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-contact">Contact Name *</Label>
+                      <Input
+                        id="edit-contact"
+                        value={editFormData.contact_name || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, contact_name: e.target.value })}
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-designation">Designation / Title</Label>
+                      <Input
+                        id="edit-designation"
+                        value={editFormData.designation || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
+                        placeholder="CEO, Manager, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-status">Status</Label>
+                      <select
+                        id="edit-status"
+                        value={editFormData.status || editingStatus}
+                        onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
+                      >
+                        <option value="new">New</option>
+                        <option value="qualified">Qualified</option>
+                        <option value="proposal">Proposal</option>
+                        <option value="closed_won">Closed Won</option>
+                        <option value="not_interested">Not Interested</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-value">Value ($) *</Label>
+                      <Input
+                        id="edit-value"
+                        type="number"
+                        value={editFormData.value || editingValue}
+                        onChange={(e) => setEditFormData({ ...editFormData, value: e.target.value })}
+                        placeholder="Enter lead value"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-list-name">List Name</Label>
+                      <Input
+                        id="edit-list-name"
+                        value={editFormData.list_name || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, list_name: e.target.value })}
+                        placeholder="List name"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-link">Company Website / Link</Label>
+                      <Input
+                        id="edit-link"
+                        type="url"
+                        value={editFormData.link || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, link: e.target.value })}
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-description">Description / Notes</Label>
+                      <Textarea
+                        id="edit-description"
+                        value={editFormData.description || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                        placeholder="Add any additional notes..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Contact Information Tab */}
+                <TabsContent value="contact" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={editFormData.email || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                        placeholder="john@acme.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-phone">Phone (Primary)</Label>
+                      <Input
+                        id="edit-phone"
+                        value={editFormData.phone || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-mobile-phone">Mobile Phone</Label>
+                      <Input
+                        id="edit-mobile-phone"
+                        value={editFormData.mobile_phone || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, mobile_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-direct-phone">Direct Phone</Label>
+                      <Input
+                        id="edit-direct-phone"
+                        value={editFormData.direct_phone || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, direct_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-office-phone">Office Phone</Label>
+                      <Input
+                        id="edit-office-phone"
+                        value={editFormData.office_phone || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, office_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-linkedin">LinkedIn</Label>
+                      <Input
+                        id="edit-linkedin"
+                        type="url"
+                        value={editFormData.linkedin || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/in/..."
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Address Information Tab */}
+                <TabsContent value="address" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-address-line1">Address Line 1</Label>
+                      <Input
+                        id="edit-address-line1"
+                        value={editFormData.address_line1 || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, address_line1: e.target.value })}
+                        placeholder="Street address"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-address-line2">Address Line 2</Label>
+                      <Input
+                        id="edit-address-line2"
+                        value={editFormData.address_line2 || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, address_line2: e.target.value })}
+                        placeholder="Apartment, suite, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-city">City</Label>
+                      <Input
+                        id="edit-city"
+                        value={editFormData.city || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-state">State</Label>
+                      <Input
+                        id="edit-state"
+                        value={editFormData.state || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                        placeholder="State"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-zip">Zip / Postal Code</Label>
+                      <Input
+                        id="edit-zip"
+                        value={editFormData.zip || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, zip: e.target.value })}
+                        placeholder="12345"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-country">Country</Label>
+                      <Input
+                        id="edit-country"
+                        value={editFormData.country || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, country: e.target.value })}
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Classification Tab */}
+                <TabsContent value="classification" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-customer-group">Customer Group</Label>
+                      <Input
+                        id="edit-customer-group"
+                        value={editFormData.customer_group || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, customer_group: e.target.value })}
+                        placeholder="Customer group"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-product-group">Product Group</Label>
+                      <Input
+                        id="edit-product-group"
+                        value={editFormData.product_group || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, product_group: e.target.value })}
+                        placeholder="Product group"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-lead-source">Lead Source</Label>
+                      <Input
+                        id="edit-lead-source"
+                        value={editFormData.lead_source || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, lead_source: e.target.value })}
+                        placeholder="Website, LinkedIn, Referral, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-data-source">Data Source</Label>
+                      <Input
+                        id="edit-data-source"
+                        value={editFormData.data_source || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, data_source: e.target.value })}
+                        placeholder="Data source"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-lead-score">Lead Score (0-100)</Label>
+                      <Input
+                        id="edit-lead-score"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={editFormData.lead_score || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, lead_score: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-tags">Tags (comma-separated)</Label>
+                      <Input
+                        id="edit-tags"
+                        value={editFormData.tags || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, tags: e.target.value })}
+                        placeholder="tag1, tag2, tag3"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-lead-notes">Lead Notes</Label>
+                      <Textarea
+                        id="edit-lead-notes"
+                        value={editFormData.lead_notes || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, lead_notes: e.target.value })}
+                        placeholder="Additional notes about the lead..."
+                        rows={3}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-organization-notes">Organization Notes</Label>
+                      <Textarea
+                        id="edit-organization-notes"
+                        value={editFormData.organization_notes || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, organization_notes: e.target.value })}
+                        placeholder="Notes about the organization..."
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-date-of-birth">Date of Birth</Label>
+                      <Input
+                        id="edit-date-of-birth"
+                        type="date"
+                        value={editFormData.date_of_birth || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, date_of_birth: e.target.value || null })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-special-event-date">Special Event Date</Label>
+                      <Input
+                        id="edit-special-event-date"
+                        type="date"
+                        value={editFormData.special_event_date || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, special_event_date: e.target.value || null })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-reference-url1">Reference URL 1</Label>
+                      <Input
+                        id="edit-reference-url1"
+                        type="url"
+                        value={editFormData.reference_url1 || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, reference_url1: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-reference-url2">Reference URL 2</Label>
+                      <Input
+                        id="edit-reference-url2"
+                        type="url"
+                        value={editFormData.reference_url2 || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, reference_url2: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-reference-url3">Reference URL 3</Label>
+                      <Input
+                        id="edit-reference-url3"
+                        type="url"
+                        value={editFormData.reference_url3 || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, reference_url3: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Follow-up Tab */}
+                <TabsContent value="followup" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-next-followup-date">Next Follow-up Date</Label>
+                      <Input
+                        id="edit-next-followup-date"
+                        type="datetime-local"
+                        value={editFormData.next_followup_date ? new Date(editFormData.next_followup_date).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, next_followup_date: e.target.value || null })}
+                      />
+                    </div>
+                    <div className="flex items-end gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="edit-repeat-followup"
+                          checked={editFormData.repeat_followup || false}
+                          onCheckedChange={(checked) => setEditFormData({ ...editFormData, repeat_followup: checked as boolean })}
+                        />
+                        <Label htmlFor="edit-repeat-followup" className="cursor-pointer">Repeat Follow-up</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="edit-do-not-followup"
+                          checked={editFormData.do_not_followup || false}
+                          onCheckedChange={(checked) => setEditFormData({ ...editFormData, do_not_followup: checked as boolean })}
+                        />
+                        <Label htmlFor="edit-do-not-followup" className="cursor-pointer">Do Not Follow-up</Label>
+                      </div>
+                    </div>
+                    {editFormData.do_not_followup && (
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-do-not-followup-reason">Do Not Follow-up Reason</Label>
+                        <Input
+                          id="edit-do-not-followup-reason"
+                          value={editFormData.do_not_followup_reason || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, do_not_followup_reason: e.target.value })}
+                          placeholder="Reason for not following up"
+                        />
+                      </div>
+                    )}
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-followup-notes">Follow-up Notes</Label>
+                      <Textarea
+                        id="edit-followup-notes"
+                        value={editFormData.followup_notes || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, followup_notes: e.target.value })}
+                        placeholder="Notes for follow-up..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setShowEditModal(false)}
+              onClick={() => {
+                setShowEditModal(false);
+                setEditFormData(null);
+              }}
               disabled={updateLoadingId === selectedLead?.id}
             >
               Cancel

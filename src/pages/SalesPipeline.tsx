@@ -40,6 +40,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects, subscribeToLeads } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type UserRole = "owner" | "manager" | "salesman";
 import { formatDistanceToNow } from "date-fns";
@@ -91,6 +94,38 @@ const SalesPipeline = () => {
     status: "new",
     description: "",
     project_id: "",
+    // New comprehensive fields
+    designation: "",
+    mobile_phone: "",
+    direct_phone: "",
+    office_phone: "",
+    linkedin: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    country: "",
+    zip: "",
+    customer_group: "",
+    product_group: "",
+    tags: "",
+    lead_source: "",
+    data_source: "",
+    lead_score: "",
+    next_followup_date: "",
+    followup_notes: "",
+    repeat_followup: false,
+    do_not_followup: false,
+    do_not_followup_reason: "",
+    lead_notes: "",
+    organization_notes: "",
+    date_of_birth: "",
+    special_event_date: "",
+    reference_url1: "",
+    reference_url2: "",
+    reference_url3: "",
+    list_name: "",
+    link: "",
   });
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -432,7 +467,38 @@ const SalesPipeline = () => {
         status: formData.status as 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested',
         project_id: formData.project_id,
         description: formData.description || undefined,
-        link: undefined,
+        link: formData.link || undefined,
+        // New comprehensive fields
+        designation: formData.designation?.trim() || null,
+        mobile_phone: formData.mobile_phone?.trim() || null,
+        direct_phone: formData.direct_phone?.trim() || null,
+        office_phone: formData.office_phone?.trim() || null,
+        linkedin: formData.linkedin?.trim() || null,
+        address_line1: formData.address_line1?.trim() || null,
+        address_line2: formData.address_line2?.trim() || null,
+        city: formData.city?.trim() || null,
+        state: formData.state?.trim() || null,
+        country: formData.country?.trim() || null,
+        zip: formData.zip?.trim() || null,
+        customer_group: formData.customer_group?.trim() || null,
+        product_group: formData.product_group?.trim() || null,
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : null,
+        lead_source: formData.lead_source?.trim() || formData.source?.trim() || null,
+        data_source: formData.data_source?.trim() || null,
+        lead_score: formData.lead_score ? parseInt(formData.lead_score) : null,
+        next_followup_date: formData.next_followup_date || null,
+        followup_notes: formData.followup_notes?.trim() || null,
+        repeat_followup: formData.repeat_followup || false,
+        do_not_followup: formData.do_not_followup || false,
+        do_not_followup_reason: formData.do_not_followup_reason?.trim() || null,
+        lead_notes: formData.lead_notes?.trim() || null,
+        organization_notes: formData.organization_notes?.trim() || null,
+        date_of_birth: formData.date_of_birth || null,
+        special_event_date: formData.special_event_date || null,
+        reference_url1: formData.reference_url1?.trim() || null,
+        reference_url2: formData.reference_url2?.trim() || null,
+        reference_url3: formData.reference_url3?.trim() || null,
+        list_name: formData.list_name?.trim() || null,
       };
       if (currentUser) {
         leadData.assigned_to = currentUser.id; // Automatically assign to current salesman
@@ -451,6 +517,37 @@ const SalesPipeline = () => {
           status: "new",
           description: "",
           project_id: "",
+          designation: "",
+          mobile_phone: "",
+          direct_phone: "",
+          office_phone: "",
+          linkedin: "",
+          address_line1: "",
+          address_line2: "",
+          city: "",
+          state: "",
+          country: "",
+          zip: "",
+          customer_group: "",
+          product_group: "",
+          tags: "",
+          lead_source: "",
+          data_source: "",
+          lead_score: "",
+          next_followup_date: "",
+          followup_notes: "",
+          repeat_followup: false,
+          do_not_followup: false,
+          do_not_followup_reason: "",
+          lead_notes: "",
+          organization_notes: "",
+          date_of_birth: "",
+          special_event_date: "",
+          reference_url1: "",
+          reference_url2: "",
+          reference_url3: "",
+          list_name: "",
+          link: "",
         });
         // Refresh leads
         const { data: leadsData } = await getLeads(currentUser ? { assignedTo: currentUser.id } : undefined);
@@ -565,81 +662,244 @@ const SalesPipeline = () => {
               
               {/* Add Lead Modal */}
               <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-                              <DialogContent className="bg-white max-w-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Add New Lead</DialogTitle>
-                                  <DialogDescription>Enter the details for the new lead</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-2">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label>Company Name</Label>
-                                      <Input value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} />
-                                    </div>
-                                    <div>
-                                      <Label>Contact Name</Label>
-                                      <Input value={formData.contact_name} onChange={e => setFormData({ ...formData, contact_name: e.target.value })} />
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label>Email</Label>
-                                      <Input type="email" value={formData.contact_email} onChange={e => setFormData({ ...formData, contact_email: e.target.value })} />
-                                    </div>
-                                    <div>
-                                      <Label>Phone</Label>
-                                      <Input value={formData.contact_phone} onChange={e => setFormData({ ...formData, contact_phone: e.target.value })} />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <Label>Project *</Label>
-                                    <Select value={formData.project_id} onValueChange={value => setFormData({ ...formData, project_id: value })}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select a project" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {projects.map((project) => (
-                                          <SelectItem key={project.id} value={project.id}>
-                                            {project.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label>Value</Label>
-                                      <Input type="number" value={formData.value} onChange={e => setFormData({ ...formData, value: parseInt(e.target.value) || 0 })} />
-                                    </div>
-                                    <div>
-                                      <Label>Source</Label>
-                                      <Input value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} placeholder="Website, Referral, etc." />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <Label>Status</Label>
-                                    <Select value={formData.status} onValueChange={value => setFormData({ ...formData, status: value })}>
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="new">New</SelectItem>
-                                        <SelectItem value="qualified">Qualified</SelectItem>
-                                        <SelectItem value="proposal">Proposal Sent</SelectItem>
-                                        <SelectItem value="closed_won">Closed</SelectItem>
-                                        <SelectItem value="not_interested">Archived</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div>
-                                    <Label>Description</Label>
-                                    <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                                  </div>
-                                  <div className="flex justify-end pt-2">
-                                    <Button className="bg-slate-900 hover:bg-slate-800 text-white font-medium" onClick={handleAddLead}>Add Lead</Button>
-                                  </div>
-                                </div>
-                              </DialogContent>
+                <DialogContent className="bg-white max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Add New Lead</DialogTitle>
+                    <DialogDescription>Enter the details for the new lead. Use tabs to navigate between sections.</DialogDescription>
+                  </DialogHeader>
+                  <Tabs defaultValue="basic" className="w-full">
+                    <TabsList className="grid w-full grid-cols-5">
+                      <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                      <TabsTrigger value="contact">Contact</TabsTrigger>
+                      <TabsTrigger value="address">Address</TabsTrigger>
+                      <TabsTrigger value="classification">Classification</TabsTrigger>
+                      <TabsTrigger value="followup">Follow-up</TabsTrigger>
+                    </TabsList>
+                    
+                    {/* Basic Information Tab */}
+                    <TabsContent value="basic" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Company Name *</Label>
+                          <Input value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} placeholder="Acme Corp" />
+                        </div>
+                        <div>
+                          <Label>Contact Name *</Label>
+                          <Input value={formData.contact_name} onChange={e => setFormData({ ...formData, contact_name: e.target.value })} placeholder="John Doe" />
+                        </div>
+                        <div>
+                          <Label>Designation / Title</Label>
+                          <Input value={formData.designation} onChange={e => setFormData({ ...formData, designation: e.target.value })} placeholder="CEO, Manager, etc." />
+                        </div>
+                        <div>
+                          <Label>Project *</Label>
+                          <Select value={formData.project_id} onValueChange={value => setFormData({ ...formData, project_id: value })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {projects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                  {project.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Value (USD) *</Label>
+                          <Input type="number" value={formData.value} onChange={e => setFormData({ ...formData, value: parseInt(e.target.value) || 0 })} placeholder="50000" />
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <Select value={formData.status} onValueChange={value => setFormData({ ...formData, status: value })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="qualified">Qualified</SelectItem>
+                              <SelectItem value="proposal">Proposal Sent</SelectItem>
+                              <SelectItem value="closed_won">Closed</SelectItem>
+                              <SelectItem value="not_interested">Archived</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>List Name</Label>
+                          <Input value={formData.list_name} onChange={e => setFormData({ ...formData, list_name: e.target.value })} placeholder="List name" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Company Website / Link</Label>
+                          <Input type="url" value={formData.link} onChange={e => setFormData({ ...formData, link: e.target.value })} placeholder="https://example.com" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Description</Label>
+                          <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Add any additional notes..." rows={3} />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Contact Information Tab */}
+                    <TabsContent value="contact" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Email</Label>
+                          <Input type="email" value={formData.contact_email} onChange={e => setFormData({ ...formData, contact_email: e.target.value })} placeholder="john@acme.com" />
+                        </div>
+                        <div>
+                          <Label>Phone (Primary)</Label>
+                          <Input value={formData.contact_phone} onChange={e => setFormData({ ...formData, contact_phone: e.target.value })} placeholder="+1-555-0000" />
+                        </div>
+                        <div>
+                          <Label>Mobile Phone</Label>
+                          <Input value={formData.mobile_phone} onChange={e => setFormData({ ...formData, mobile_phone: e.target.value })} placeholder="+1-555-0000" />
+                        </div>
+                        <div>
+                          <Label>Direct Phone</Label>
+                          <Input value={formData.direct_phone} onChange={e => setFormData({ ...formData, direct_phone: e.target.value })} placeholder="+1-555-0000" />
+                        </div>
+                        <div>
+                          <Label>Office Phone</Label>
+                          <Input value={formData.office_phone} onChange={e => setFormData({ ...formData, office_phone: e.target.value })} placeholder="+1-555-0000" />
+                        </div>
+                        <div>
+                          <Label>LinkedIn</Label>
+                          <Input type="url" value={formData.linkedin} onChange={e => setFormData({ ...formData, linkedin: e.target.value })} placeholder="https://linkedin.com/in/..." />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Address Information Tab */}
+                    <TabsContent value="address" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <Label>Address Line 1</Label>
+                          <Input value={formData.address_line1} onChange={e => setFormData({ ...formData, address_line1: e.target.value })} placeholder="Street address" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Address Line 2</Label>
+                          <Input value={formData.address_line2} onChange={e => setFormData({ ...formData, address_line2: e.target.value })} placeholder="Apartment, suite, etc." />
+                        </div>
+                        <div>
+                          <Label>City</Label>
+                          <Input value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="City" />
+                        </div>
+                        <div>
+                          <Label>State</Label>
+                          <Input value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="State" />
+                        </div>
+                        <div>
+                          <Label>Zip / Postal Code</Label>
+                          <Input value={formData.zip} onChange={e => setFormData({ ...formData, zip: e.target.value })} placeholder="12345" />
+                        </div>
+                        <div>
+                          <Label>Country</Label>
+                          <Input value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} placeholder="Country" />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Classification Tab */}
+                    <TabsContent value="classification" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Customer Group</Label>
+                          <Input value={formData.customer_group} onChange={e => setFormData({ ...formData, customer_group: e.target.value })} placeholder="Customer group" />
+                        </div>
+                        <div>
+                          <Label>Product Group</Label>
+                          <Input value={formData.product_group} onChange={e => setFormData({ ...formData, product_group: e.target.value })} placeholder="Product group" />
+                        </div>
+                        <div>
+                          <Label>Lead Source</Label>
+                          <Input value={formData.lead_source || formData.source} onChange={e => setFormData({ ...formData, lead_source: e.target.value, source: e.target.value })} placeholder="Website, LinkedIn, Referral, etc." />
+                        </div>
+                        <div>
+                          <Label>Data Source</Label>
+                          <Input value={formData.data_source} onChange={e => setFormData({ ...formData, data_source: e.target.value })} placeholder="Data source" />
+                        </div>
+                        <div>
+                          <Label>Lead Score (0-100)</Label>
+                          <Input type="number" min="0" max="100" value={formData.lead_score} onChange={e => setFormData({ ...formData, lead_score: e.target.value })} placeholder="0" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Tags (comma-separated)</Label>
+                          <Input value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="tag1, tag2, tag3" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Lead Notes</Label>
+                          <Textarea value={formData.lead_notes} onChange={e => setFormData({ ...formData, lead_notes: e.target.value })} placeholder="Additional notes about the lead..." rows={3} />
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Organization Notes</Label>
+                          <Textarea value={formData.organization_notes} onChange={e => setFormData({ ...formData, organization_notes: e.target.value })} placeholder="Notes about the organization..." rows={3} />
+                        </div>
+                        <div>
+                          <Label>Date of Birth</Label>
+                          <Input type="date" value={formData.date_of_birth} onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label>Special Event Date</Label>
+                          <Input type="date" value={formData.special_event_date} onChange={e => setFormData({ ...formData, special_event_date: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label>Reference URL 1</Label>
+                          <Input type="url" value={formData.reference_url1} onChange={e => setFormData({ ...formData, reference_url1: e.target.value })} placeholder="https://..." />
+                        </div>
+                        <div>
+                          <Label>Reference URL 2</Label>
+                          <Input type="url" value={formData.reference_url2} onChange={e => setFormData({ ...formData, reference_url2: e.target.value })} placeholder="https://..." />
+                        </div>
+                        <div>
+                          <Label>Reference URL 3</Label>
+                          <Input type="url" value={formData.reference_url3} onChange={e => setFormData({ ...formData, reference_url3: e.target.value })} placeholder="https://..." />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Follow-up Tab */}
+                    <TabsContent value="followup" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Next Follow-up Date</Label>
+                          <Input type="datetime-local" value={formData.next_followup_date} onChange={e => setFormData({ ...formData, next_followup_date: e.target.value })} />
+                        </div>
+                        <div className="flex items-end gap-4">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="repeat-followup"
+                              checked={formData.repeat_followup}
+                              onCheckedChange={(checked) => setFormData({ ...formData, repeat_followup: checked as boolean })}
+                            />
+                            <Label htmlFor="repeat-followup" className="cursor-pointer">Repeat Follow-up</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="do-not-followup"
+                              checked={formData.do_not_followup}
+                              onCheckedChange={(checked) => setFormData({ ...formData, do_not_followup: checked as boolean })}
+                            />
+                            <Label htmlFor="do-not-followup" className="cursor-pointer">Do Not Follow-up</Label>
+                          </div>
+                        </div>
+                        {formData.do_not_followup && (
+                          <div className="col-span-2">
+                            <Label>Do Not Follow-up Reason</Label>
+                            <Input value={formData.do_not_followup_reason} onChange={e => setFormData({ ...formData, do_not_followup_reason: e.target.value })} placeholder="Reason for not following up" />
+                          </div>
+                        )}
+                        <div className="col-span-2">
+                          <Label>Follow-up Notes</Label>
+                          <Textarea value={formData.followup_notes} onChange={e => setFormData({ ...formData, followup_notes: e.target.value })} placeholder="Notes for follow-up..." rows={3} />
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button className="bg-slate-900 hover:bg-slate-800 text-white font-medium" onClick={handleAddLead}>Add Lead</Button>
+                  </div>
+                </DialogContent>
               </Dialog>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

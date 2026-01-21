@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Loader, CheckCircle, Clock, XCircle, AlertCircle, Filter, Search, Mail, Phone as PhoneIcon, Briefcase, Upload, FileSpreadsheet, UserPlus, MoreHorizontal, Edit, Trash2, ChevronDown, Download, X, StickyNote, Calendar } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities, createBulkLeads } from "@/lib/supabase";
+import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities, createBulkLeads, createLeadActivity } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Helper function to parse phone numbers from string (handles comma, semicolon, pipe separated)
 const parsePhoneNumbers = (phoneString: string | null | undefined): string[] => {
@@ -43,6 +44,21 @@ const ManagerLeads = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [countryFilter, setCountryFilter] = useState<string>("");
+  const [stateFilter, setStateFilter] = useState<string>("");
+  const [cityFilter, setCityFilter] = useState<string>("");
+  const [valueMin, setValueMin] = useState<string>("");
+  const [valueMax, setValueMax] = useState<string>("");
+  const [scoreMin, setScoreMin] = useState<string>("");
+  const [scoreMax, setScoreMax] = useState<string>("");
+  const [followupAfter, setFollowupAfter] = useState<string>("");
+  const [followupBefore, setFollowupBefore] = useState<string>("");
+  const [doNotFollowupOnly, setDoNotFollowupOnly] = useState<boolean>(false);
+  const [hasTags, setHasTags] = useState<boolean>(false);
+  const [tagQuery, setTagQuery] = useState<string>("");
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -53,6 +69,13 @@ const ManagerLeads = () => {
   const [editLeadForm, setEditLeadForm] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [editMessage, setEditMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
+  const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [callbackDate, setCallbackDate] = useState("");
+  const [callbackNotes, setCallbackNotes] = useState("");
+  const [submittingActivity, setSubmittingActivity] = useState(false);
     // Open Edit Lead modal with selected lead's data
     const openEditLeadModal = () => {
       if (!selectedLead) return;
@@ -64,13 +87,16 @@ const ManagerLeads = () => {
     // Handle Edit Lead form submission
     const handleEditLead = async () => {
       setEditMessage(null);
-      if (!editLeadForm.company_name || !editLeadForm.contact_name || !editLeadForm.value) {
-        setEditMessage({ type: "error", text: "Company, contact, and value are required." });
+      if (!editLeadForm.company_name || !editLeadForm.contact_name) {
+        setEditMessage({ type: "error", text: "Company and contact are required." });
         return;
       }
-      const valueNum = Number(editLeadForm.value);
-      if (isNaN(valueNum) || valueNum <= 0) {
-        setEditMessage({ type: "error", text: "Value must be a positive number." });
+      const valueNum =
+        editLeadForm.value === "" || editLeadForm.value === null || editLeadForm.value === undefined
+          ? 0
+          : Number(editLeadForm.value);
+      if (isNaN(valueNum) || valueNum < 0) {
+        setEditMessage({ type: "error", text: "Value must be zero or a positive number." });
         return;
       }
       setEditing(true);
@@ -85,6 +111,37 @@ const ManagerLeads = () => {
           assigned_to: editLeadForm.assigned_to || null,
           description: editLeadForm.description,
           link: editLeadForm.link,
+          // New comprehensive fields
+          designation: editLeadForm.designation?.trim() || null,
+          mobile_phone: editLeadForm.mobile_phone?.trim() || null,
+          direct_phone: editLeadForm.direct_phone?.trim() || null,
+          office_phone: editLeadForm.office_phone?.trim() || null,
+          linkedin: editLeadForm.linkedin?.trim() || null,
+          address_line1: editLeadForm.address_line1?.trim() || null,
+          address_line2: editLeadForm.address_line2?.trim() || null,
+          city: editLeadForm.city?.trim() || null,
+          state: editLeadForm.state?.trim() || null,
+          country: editLeadForm.country?.trim() || null,
+          zip: editLeadForm.zip?.trim() || null,
+          customer_group: editLeadForm.customer_group?.trim() || null,
+          product_group: editLeadForm.product_group?.trim() || null,
+          tags: Array.isArray(editLeadForm.tags) ? editLeadForm.tags : null,
+          lead_source: editLeadForm.lead_source?.trim() || null,
+          data_source: editLeadForm.data_source?.trim() || null,
+          lead_score: editLeadForm.lead_score !== undefined && editLeadForm.lead_score !== null ? Number(editLeadForm.lead_score) : null,
+          next_followup_date: editLeadForm.next_followup_date || null,
+          followup_notes: editLeadForm.followup_notes?.trim() || null,
+          repeat_followup: editLeadForm.repeat_followup || false,
+          do_not_followup: editLeadForm.do_not_followup || false,
+          do_not_followup_reason: editLeadForm.do_not_followup_reason?.trim() || null,
+          lead_notes: editLeadForm.lead_notes?.trim() || null,
+          organization_notes: editLeadForm.organization_notes?.trim() || null,
+          date_of_birth: editLeadForm.date_of_birth || null,
+          special_event_date: editLeadForm.special_event_date || null,
+          reference_url1: editLeadForm.reference_url1?.trim() || null,
+          reference_url2: editLeadForm.reference_url2?.trim() || null,
+          reference_url3: editLeadForm.reference_url3?.trim() || null,
+          list_name: editLeadForm.list_name?.trim() || null,
         });
         setEditMessage({ type: "success", text: "Lead updated successfully." });
         // Refresh leads after update
@@ -111,6 +168,37 @@ const ManagerLeads = () => {
     status: "new" as "new" | "qualified" | "proposal" | "closed_won" | "not_interested",
     description: "",
     link: "",
+    // New comprehensive fields
+    designation: "",
+    mobile_phone: "",
+    direct_phone: "",
+    office_phone: "",
+    linkedin: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    country: "",
+    zip: "",
+    customer_group: "",
+    product_group: "",
+    tags: "",
+    lead_source: "",
+    data_source: "",
+    lead_score: "",
+    next_followup_date: "",
+    followup_notes: "",
+    repeat_followup: false,
+    do_not_followup: false,
+    do_not_followup_reason: "",
+    lead_notes: "",
+    organization_notes: "",
+    date_of_birth: "",
+    special_event_date: "",
+    reference_url1: "",
+    reference_url2: "",
+    reference_url3: "",
+    list_name: "",
   });
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -299,6 +387,37 @@ const ManagerLeads = () => {
         project_id: selectedProject.id,
         description: leadForm.description || `Created on ${new Date().toLocaleDateString()}`,
         link: leadForm.link || undefined,
+        // New comprehensive fields
+        designation: leadForm.designation?.trim() || null,
+        mobile_phone: leadForm.mobile_phone?.trim() || null,
+        direct_phone: leadForm.direct_phone?.trim() || null,
+        office_phone: leadForm.office_phone?.trim() || null,
+        linkedin: leadForm.linkedin?.trim() || null,
+        address_line1: leadForm.address_line1?.trim() || null,
+        address_line2: leadForm.address_line2?.trim() || null,
+        city: leadForm.city?.trim() || null,
+        state: leadForm.state?.trim() || null,
+        country: leadForm.country?.trim() || null,
+        zip: leadForm.zip?.trim() || null,
+        customer_group: leadForm.customer_group?.trim() || null,
+        product_group: leadForm.product_group?.trim() || null,
+        tags: leadForm.tags ? leadForm.tags.split(',').map(t => t.trim()).filter(t => t) : null,
+        lead_source: leadForm.lead_source?.trim() || null,
+        data_source: leadForm.data_source?.trim() || null,
+        lead_score: leadForm.lead_score ? parseInt(leadForm.lead_score) : null,
+        next_followup_date: leadForm.next_followup_date || null,
+        followup_notes: leadForm.followup_notes?.trim() || null,
+        repeat_followup: leadForm.repeat_followup || false,
+        do_not_followup: leadForm.do_not_followup || false,
+        do_not_followup_reason: leadForm.do_not_followup_reason?.trim() || null,
+        lead_notes: leadForm.lead_notes?.trim() || null,
+        organization_notes: leadForm.organization_notes?.trim() || null,
+        date_of_birth: leadForm.date_of_birth || null,
+        special_event_date: leadForm.special_event_date || null,
+        reference_url1: leadForm.reference_url1?.trim() || null,
+        reference_url2: leadForm.reference_url2?.trim() || null,
+        reference_url3: leadForm.reference_url3?.trim() || null,
+        list_name: leadForm.list_name?.trim() || null,
       });
       setCreateMessage({ type: "success", text: "Lead created successfully." });
       // Always refresh all leads after add
@@ -619,11 +738,30 @@ const ManagerLeads = () => {
       return "";
     };
 
-    // Map Excel columns to lead fields (flexible mapping)
+    // Helper function to find value by multiple possible column names
+    const findValue = (row: any, possibleNames: string[]): string => {
+      for (const name of possibleNames) {
+        if (row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== "") {
+          return String(row[name]).trim();
+        }
+      }
+      return "";
+    };
+
+    // Helper function to find phone by specific column name
+    const findPhoneByColumn = (row: any, columnName: string): string => {
+      const value = row[columnName];
+      if (value === null || value === undefined) return "";
+      return String(value).trim();
+    };
+
+    // Map Excel columns to lead fields (comprehensive mapping)
     const leadsToImport = excelData.map((row: any, index: number) => {
       // Try to find company name in various column names
-      const companyName = row["Company Name"] || row["Company"] || row["company_name"] || row["CompanyName"] || 
-                         row["COMPANY"] || row["company"] || Object.values(row)[0] || "";
+      const companyName = findValue(row, [
+        "Company / Organization", "Company", "company_name", "CompanyName", "COMPANY", "company",
+        "Organization", "organization", "Org", "org"
+      ]) || Object.values(row)[0] || "";
       
       if (!companyName || companyName.trim() === "") {
         return null; // Skip rows without company name
@@ -633,20 +771,125 @@ const ManagerLeads = () => {
       const phoneNumbers = findAllPhoneNumbers(row);
       const phoneValue = phoneNumbers.length > 0 ? phoneNumbers.join(', ') : undefined;
       
+      // Extract specific phone numbers
+      const mobilePhone = findPhoneByColumn(row, "Mobile Phone Number") || 
+                         findPhoneByColumn(row, "Mobile") || 
+                         findPhoneByColumn(row, "mobile_phone") || undefined;
+      const directPhone = findPhoneByColumn(row, "Direct Phone Number") || 
+                         findPhoneByColumn(row, "Direct Phone") || 
+                         findPhoneByColumn(row, "direct_phone") || undefined;
+      const officePhone = findPhoneByColumn(row, "Office Phone Number") || 
+                         findPhoneByColumn(row, "Office Phone") || 
+                         findPhoneByColumn(row, "office_phone") || undefined;
+      
       // Extract email using comprehensive search
       const emailValue = findEmail(row);
 
-      const leadData = {
+      // Extract contact name
+      const contactName = findValue(row, [
+        "Lead or Customer Full Name", "Contact Name", "Contact", "contact_name", "ContactName",
+        "CONTACT", "contact", "Name", "name", "Full Name", "full_name"
+      ]);
+
+      // Extract designation
+      const designation = findValue(row, [
+        "Designation / Title", "Designation", "designation", "Title", "title", "Job Title", "job_title"
+      ]);
+
+      // Extract address fields
+      const addressLine1 = findValue(row, ["Address Line 1", "Address", "address", "address_line1"]);
+      const addressLine2 = findValue(row, ["Address Line 2", "address_line2"]);
+      const city = findValue(row, ["City", "city"]);
+      const state = findValue(row, ["State", "state"]);
+      const country = findValue(row, ["Country", "country"]);
+      const zip = findValue(row, ["Zip", "zip", "ZIP", "Postal Code", "postal_code"]);
+
+      // Extract classification fields
+      const customerGroup = findValue(row, ["Customer Group", "customer_group"]);
+      const productGroup = findValue(row, ["Product Group", "product_group"]);
+      const leadSource = findValue(row, ["Lead Source", "lead_source", "Data Source", "data_source"]);
+      const dataSource = findValue(row, ["Data Source", "data_source"]);
+      
+      // Extract tags (comma-separated)
+      const tagsStr = findValue(row, ["Tags", "tags", "Tag", "tag"]);
+      const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : undefined;
+
+      // Extract lead score
+      const leadScoreStr = findValue(row, ["Lead Score", "lead_score"]);
+      const leadScore = leadScoreStr ? parseInt(leadScoreStr) : undefined;
+
+      // Extract follow-up fields
+      const nextFollowupDate = findValue(row, ["Next Follow-up Date", "next_followup_date", "Follow-up Date"]);
+      const followupNotes = findValue(row, ["Follow-up Notes", "followup_notes"]);
+      const repeatFollowup = findValue(row, ["Repeat Follow-up", "repeat_followup"]).toLowerCase() === 'yes' || 
+                           findValue(row, ["Repeat Follow-up", "repeat_followup"]).toLowerCase() === 'true';
+      const doNotFollowup = findValue(row, ["Do not Follow-up", "do_not_followup"]).toLowerCase() === 'yes' || 
+                          findValue(row, ["Do not Follow-up", "do_not_followup"]).toLowerCase() === 'true';
+      const doNotFollowupReason = findValue(row, ["Do not Follow-up Reason", "do_not_followup_reason"]);
+
+      // Extract notes
+      const leadNotes = findValue(row, ["Lead Notes", "lead_notes", "Notes", "notes", "Note", "note"]);
+      const organizationNotes = findValue(row, ["Organization Notes", "organization_notes"]);
+
+      // Extract personal information
+      const dateOfBirth = findValue(row, ["Date of Birth", "date_of_birth", "DOB", "dob"]);
+      const specialEventDate = findValue(row, ["Special Event Date", "special_event_date"]);
+
+      // Extract reference URLs
+      const referenceUrl1 = findValue(row, ["Reference URL1", "reference_url1", "Reference URL 1"]);
+      const referenceUrl2 = findValue(row, ["Reference URL2", "reference_url2", "Reference URL 2"]);
+      const referenceUrl3 = findValue(row, ["Reference URL3", "reference_url3", "Reference URL 3"]);
+
+      // Extract list name
+      const listName = findValue(row, ["List Name", "list_name"]);
+
+      // Extract LinkedIn
+      const linkedin = findValue(row, ["LinkedIn", "linkedin", "Linked In"]);
+
+      // Extract website
+      const website = findValue(row, ["Website", "website", "URL", "url", "Link", "link"]);
+
+      const leadData: any = {
         company_name: String(companyName).trim(),
-        contact_name: (row["Contact Name"] || row["Contact"] || row["contact_name"] || row["ContactName"] || 
-                     row["CONTACT"] || row["contact"] || row["Name"] || row["name"] || "").toString().trim(),
-        email: emailValue || undefined, // Use undefined instead of empty string
-        phone: phoneValue || undefined, // Store multiple phone numbers as comma-separated string
+        contact_name: contactName || undefined,
+        email: emailValue || undefined,
+        phone: phoneValue || undefined,
+        mobile_phone: mobilePhone || undefined,
+        direct_phone: directPhone || undefined,
+        office_phone: officePhone || undefined,
         project_id: selectedImportProject,
-        description: (row["Description"] || row["description"] || row["Notes"] || row["notes"] || row["Note"] || row["note"] || "").toString().trim() || undefined,
-        link: (row["Link"] || row["link"] || row["Website"] || row["website"] || row["URL"] || row["url"] || "").toString().trim() || undefined,
+        description: leadNotes || undefined,
+        link: website || undefined,
+        designation: designation || undefined,
+        address_line1: addressLine1 || undefined,
+        address_line2: addressLine2 || undefined,
+        city: city || undefined,
+        state: state || undefined,
+        country: country || undefined,
+        zip: zip || undefined,
+        customer_group: customerGroup || undefined,
+        product_group: productGroup || undefined,
+        tags: tags || undefined,
+        lead_source: leadSource || undefined,
+        data_source: dataSource || undefined,
+        lead_score: leadScore || undefined,
+        next_followup_date: nextFollowupDate || undefined,
+        followup_notes: followupNotes || undefined,
+        repeat_followup: repeatFollowup || undefined,
+        do_not_followup: doNotFollowup || undefined,
+        do_not_followup_reason: doNotFollowupReason || undefined,
+        lead_notes: leadNotes || undefined,
+        organization_notes: organizationNotes || undefined,
+        date_of_birth: dateOfBirth || undefined,
+        special_event_date: specialEventDate || undefined,
+        reference_url1: referenceUrl1 || undefined,
+        reference_url2: referenceUrl2 || undefined,
+        reference_url3: referenceUrl3 || undefined,
+        list_name: listName || undefined,
+        linkedin: linkedin || undefined,
         value: (() => {
-          const val = row["Value"] || row["value"] || row["Deal Value"] || row["deal_value"] || row["Amount"] || row["amount"] || 0;
+          const val = row["Deal Size - INR"] || row["Deal Size"] || row["Value"] || row["value"] || 
+                     row["deal_value"] || row["Amount"] || row["amount"] || row["Potential"] || 0;
           const numVal = typeof val === "string" ? parseFloat(val.replace(/[^0-9.-]/g, "")) : Number(val);
           return isNaN(numVal) ? 0 : numVal;
         })(),
@@ -722,6 +965,101 @@ const ManagerLeads = () => {
     }
   };
 
+  // Handler functions for Add Note and Schedule Callback
+  const handleAddNote = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setNoteText("");
+    setShowNoteModal(true);
+  };
+
+  const handleScheduleCallback = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setCallbackDate("");
+    setCallbackNotes("");
+    setShowCallbackModal(true);
+  };
+
+  const handleSubmitNote = async () => {
+    if (!selectedLeadForActivity || !noteText.trim()) return;
+    
+    setSubmittingActivity(true);
+    try {
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: noteText.trim(),
+      });
+      
+      // Update last_contacted_at for the lead
+      await updateLead(selectedLeadForActivity.id, {
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads and keep selection in sync
+      const leadsRes = await getLeads();
+      const updatedLeads = leadsRes.data || [];
+      setLeads(updatedLeads);
+      const updated = updatedLeads.find((l) => l.id === selectedLeadForActivity.id);
+      if (updated) {
+        setSelectedLead(updated);
+        setEditLeadForm((prev: any) => (prev && prev.id === updated.id ? { ...prev, ...updated, value: String(updated.value ?? "") } : prev));
+      }
+      
+      setShowNoteModal(false);
+      setNoteText("");
+      setSelectedLeadForActivity(null);
+    } catch (error) {
+      console.error("Failed to add note", error);
+      alert("Failed to add note. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
+    }
+  };
+
+  const handleSubmitCallback = async () => {
+    if (!selectedLeadForActivity || !callbackDate || !callbackNotes.trim()) return;
+    
+    setSubmittingActivity(true);
+    try {
+      // Create activity with callback information
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: `Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}. Notes: ${callbackNotes.trim()}`,
+      });
+      
+      // Update lead with callback date and notes
+      const callbackDateTime = new Date(callbackDate);
+      callbackDateTime.setHours(9, 0, 0, 0); // Set to 9 AM by default
+      
+      await updateLead(selectedLeadForActivity.id, {
+        next_followup_date: callbackDateTime.toISOString(),
+        followup_notes: callbackNotes.trim(),
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads and keep selection in sync
+      const leadsRes = await getLeads();
+      const updatedLeads = leadsRes.data || [];
+      setLeads(updatedLeads);
+      const updated = updatedLeads.find((l) => l.id === selectedLeadForActivity.id);
+      if (updated) {
+        setSelectedLead(updated);
+        setEditLeadForm((prev: any) => (prev && prev.id === updated.id ? { ...prev, ...updated, value: String(updated.value ?? "") } : prev));
+      }
+      
+      setShowCallbackModal(false);
+      setCallbackDate("");
+      setCallbackNotes("");
+      setSelectedLeadForActivity(null);
+    } catch (error) {
+      console.error("Failed to schedule callback", error);
+      alert("Failed to schedule callback. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
+    }
+  };
+
   // Helper function to normalize status values (handle both old and new formats)
   const normalizeStatus = (status: string): string => {
     const statusMap: { [key: string]: string } = {
@@ -743,12 +1081,161 @@ const ManagerLeads = () => {
   // Fix: filteredLeads should show all leads when selectedProject is null
   const filteredLeads = leads.filter((lead) => {
     const matchesStatus = statusFilter === 'all' || normalizeStatus(lead.status) === statusFilter;
-    const matchesAssignee = assigneeFilter === 'all' || lead.assigned_to === assigneeFilter;
-    const matchesSearch = !searchTerm || lead.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAssignee = assigneeFilter === 'all' || lead.assigned_to === assigneeFilter || (assigneeFilter === 'unassigned' && !lead.assigned_to);
+    const matchesSearch = !searchTerm || 
+      lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email?.toLowerCase().includes(searchTerm.toLowerCase());
     // If selectedProject is null, show all leads
     const matchesProject = selectedProject ? lead.project_id === selectedProject.id : true;
-    return matchesStatus && matchesAssignee && matchesSearch && matchesProject;
+    
+    // Source filter
+    const leadSource = (lead as any).lead_source || (lead as any).source || "Direct";
+    const matchesSource = sourceFilter === "all" || leadSource === sourceFilter;
+    
+    // Priority filter (based on lead_score)
+    const priority = (lead as any).lead_score || "warm";
+    const priorityStr = typeof priority === 'number' ? (priority >= 70 ? "hot" : priority >= 40 ? "warm" : "cold") : String(priority).toLowerCase();
+    const matchesPriority = priorityFilter === "all" || priorityStr === priorityFilter;
+
+    // Location filters
+    const matchesCountry = !countryFilter || ((lead as any).country || "").toLowerCase().includes(countryFilter.toLowerCase());
+    const matchesState = !stateFilter || ((lead as any).state || "").toLowerCase().includes(stateFilter.toLowerCase());
+    const matchesCity = !cityFilter || ((lead as any).city || "").toLowerCase().includes(cityFilter.toLowerCase());
+
+    // Value range
+    const val = Number(lead.value || 0);
+    const minVal = valueMin ? Number(valueMin) : undefined;
+    const maxVal = valueMax ? Number(valueMax) : undefined;
+    const matchesValueMin = minVal === undefined || (!Number.isNaN(minVal) && val >= minVal);
+    const matchesValueMax = maxVal === undefined || (!Number.isNaN(maxVal) && val <= maxVal);
+
+    // Lead score range
+    const scoreVal = Number((lead as any).lead_score || 0);
+    const minScore = scoreMin ? Number(scoreMin) : undefined;
+    const maxScore = scoreMax ? Number(scoreMax) : undefined;
+    const matchesScoreMin = minScore === undefined || (!Number.isNaN(minScore) && scoreVal >= minScore);
+    const matchesScoreMax = maxScore === undefined || (!Number.isNaN(maxScore) && scoreVal <= maxScore);
+
+    // Follow-up date range
+    const followupDate = (lead as any).next_followup_date ? new Date((lead as any).next_followup_date) : null;
+    const afterDate = followupAfter ? new Date(followupAfter) : null;
+    const beforeDate = followupBefore ? new Date(followupBefore) : null;
+    const matchesAfter = !afterDate || (followupDate && followupDate >= afterDate);
+    const matchesBefore = !beforeDate || (followupDate && followupDate <= beforeDate);
+
+    // Do not follow up
+    const matchesDnf = !doNotFollowupOnly || (lead as any).do_not_followup === true;
+
+    // Tags
+    const tags = (lead as any).tags;
+    const hasTagsFlag = Array.isArray(tags) ? tags.length > 0 : Boolean(tags);
+    const matchesHasTags = !hasTags || hasTagsFlag;
+    const matchesTagQuery = !tagQuery || (Array.isArray(tags)
+      ? tags.some((t: string) => t?.toLowerCase().includes(tagQuery.toLowerCase()))
+      : String(tags || "").toLowerCase().includes(tagQuery.toLowerCase()));
+    
+    return (
+      matchesStatus &&
+      matchesAssignee &&
+      matchesSearch &&
+      matchesProject &&
+      matchesSource &&
+      matchesPriority &&
+      matchesCountry &&
+      matchesState &&
+      matchesCity &&
+      matchesValueMin &&
+      matchesValueMax &&
+      matchesScoreMin &&
+      matchesScoreMax &&
+      matchesAfter &&
+      matchesBefore &&
+      matchesDnf &&
+      matchesHasTags &&
+      matchesTagQuery
+    );
   });
+
+  // Status label mapping
+  const statusLabel: Record<string, string> = {
+    new: "New",
+    qualified: "Qualified",
+    proposal: "In Proposal",
+    closed_won: "Closed Won",
+    not_interested: "Not Interested",
+  };
+
+  // Export leads to Excel
+  const handleExportToExcel = () => {
+    if (filteredLeads.length === 0) {
+      alert("No leads to export.");
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredLeads.map((lead) => {
+      const phoneNumbers = (() => {
+        const phone = lead.phone || "";
+        if (!phone) return "";
+        return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p).join(", ");
+      })();
+
+      const assignedUser = salesUsers.find(u => u.id === lead.assigned_to);
+
+      return {
+        "Company Name": lead.company_name || "",
+        "Contact Name": lead.contact_name || "",
+        "Designation": (lead as any).designation || "",
+        "Email": lead.email || "",
+        "Phone": phoneNumbers || "",
+        "Mobile Phone": (lead as any).mobile_phone || "",
+        "Direct Phone": (lead as any).direct_phone || "",
+        "Office Phone": (lead as any).office_phone || "",
+        "LinkedIn": (lead as any).linkedin || "",
+        "Address Line 1": (lead as any).address_line1 || "",
+        "Address Line 2": (lead as any).address_line2 || "",
+        "City": (lead as any).city || "",
+        "State": (lead as any).state || "",
+        "Country": (lead as any).country || "",
+        "Zip": (lead as any).zip || "",
+        "Status": statusLabel[lead.status] || lead.status || "",
+        "Value": lead.value || 0,
+        "Project": lead.projects?.name || "Unassigned",
+        "Assigned To": assignedUser ? (assignedUser.full_name || assignedUser.email?.split("@")[0] || "Unknown") : "Unassigned",
+        "Customer Group": (lead as any).customer_group || "",
+        "Product Group": (lead as any).product_group || "",
+        "Lead Source": (lead as any).lead_source || "",
+        "Data Source": (lead as any).data_source || "",
+        "Lead Score": (lead as any).lead_score || "",
+        "Next Follow-up Date": (lead as any).next_followup_date ? new Date((lead as any).next_followup_date).toLocaleDateString() : "",
+        "Follow-up Notes": (lead as any).followup_notes || "",
+        "Lead Notes": (lead as any).lead_notes || "",
+        "Organization Notes": (lead as any).organization_notes || "",
+        "Date of Birth": (lead as any).date_of_birth || "",
+        "Special Event Date": (lead as any).special_event_date || "",
+        "Reference URL 1": (lead as any).reference_url1 || "",
+        "Reference URL 2": (lead as any).reference_url2 || "",
+        "Reference URL 3": (lead as any).reference_url3 || "",
+        "List Name": (lead as any).list_name || "",
+        "Description": lead.description || "",
+        "Website": lead.link || "",
+        "Created At": lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "",
+        "Last Contacted": lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : "",
+      };
+  });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+
+    // Generate filename with current date
+    const filename = `leads_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Download file
+    XLSX.writeFile(wb, filename);
+  };
 
   // Check if all filtered leads are selected
   const allFilteredSelected = filteredLeads.length > 0 && filteredLeads.every(lead => selectedLeadIds.has(lead.id));
@@ -901,6 +1388,7 @@ const ManagerLeads = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex-none min-w-[150px] max-w-[200px]">
               <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
                 <SelectTrigger className="h-9 bg-white border-slate-300 text-slate-900 hover:bg-slate-50 font-medium">
@@ -917,6 +1405,7 @@ const ManagerLeads = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -928,32 +1417,271 @@ const ManagerLeads = () => {
                 />
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              {/* Advanced Filter Dropdown */}
+              <DropdownMenu open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 h-9"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Advanced Filters
+                    {(statusFilter !== "all" || assigneeFilter !== "all" || sourceFilter !== "all" || priorityFilter !== "all") && (
+                      <Badge className="bg-indigo-100 text-indigo-700 border-0 text-xs px-1.5 py-0.5 ml-1">Active</Badge>
+                    )}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 p-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-3">
+                    {/* Source Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 mb-1.5 block">Lead Source</label>
+                      <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="All Sources" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sources</SelectItem>
+                          <SelectItem value="Direct">Direct</SelectItem>
+                          <SelectItem value="Referral">Referral</SelectItem>
+                          <SelectItem value="Website">Website</SelectItem>
+                          <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                          <SelectItem value="Cold Call">Cold Call</SelectItem>
+                          <SelectItem value="Event">Event</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Priority Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 mb-1.5 block">Priority</label>
+                      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="All Priorities" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Priorities</SelectItem>
+                          <SelectItem value="hot">Hot</SelectItem>
+                          <SelectItem value="warm">Warm</SelectItem>
+                          <SelectItem value="cold">Cold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Location Filters */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Country</label>
+                        <Input
+                          value={countryFilter}
+                          onChange={(e) => setCountryFilter(e.target.value)}
+                          placeholder="e.g., US, India"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1 block">State</label>
+                          <Input
+                            value={stateFilter}
+                            onChange={(e) => setStateFilter(e.target.value)}
+                            placeholder="State"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1 block">City</label>
+                          <Input
+                            value={cityFilter}
+                            onChange={(e) => setCityFilter(e.target.value)}
+                            placeholder="City"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Value Range */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Min Value</label>
+                        <Input
+                          type="number"
+                          value={valueMin}
+                          onChange={(e) => setValueMin(e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Max Value</label>
+                        <Input
+                          type="number"
+                          value={valueMax}
+                          onChange={(e) => setValueMax(e.target.value)}
+                          placeholder="100000"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Lead Score Range */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Min Score</label>
+                        <Input
+                          type="number"
+                          value={scoreMin}
+                          onChange={(e) => setScoreMin(e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Max Score</label>
+                        <Input
+                          type="number"
+                          value={scoreMax}
+                          onChange={(e) => setScoreMax(e.target.value)}
+                          placeholder="100"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Follow-up Date Range */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Follow-up After</label>
+                        <Input
+                          type="date"
+                          value={followupAfter}
+                          onChange={(e) => setFollowupAfter(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Follow-up Before</label>
+                        <Input
+                          type="date"
+                          value={followupBefore}
+                          onChange={(e) => setFollowupBefore(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Flags and Tags */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={doNotFollowupOnly}
+                          onCheckedChange={(c) => setDoNotFollowupOnly(Boolean(c))}
+                        />
+                        <span className="text-xs text-slate-700">Do Not Follow-up only</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={hasTags}
+                          onCheckedChange={(c) => setHasTags(Boolean(c))}
+                        />
+                        <span className="text-xs text-slate-700">Has tags</span>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 mb-1 block">Tag contains</label>
+                        <Input
+                          value={tagQuery}
+                          onChange={(e) => setTagQuery(e.target.value)}
+                          placeholder="e.g., priority, hrms"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Clear Filters */}
+                    <div className="pt-2 border-t border-slate-200">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm("");
+                          setStatusFilter("all");
+                          setAssigneeFilter("all");
+                          setSourceFilter("all");
+                          setPriorityFilter("all");
+                          setCountryFilter("");
+                          setStateFilter("");
+                          setCityFilter("");
+                          setValueMin("");
+                          setValueMax("");
+                          setScoreMin("");
+                          setScoreMax("");
+                          setFollowupAfter("");
+                          setFollowupBefore("");
+                          setDoNotFollowupOnly(false);
+                          setHasTags(false);
+                          setTagQuery("");
+                          setShowAdvancedFilters(false);
+                          // Clear URL params
+                          const next = new URLSearchParams(searchParams);
+                          next.delete("status");
+                          setSearchParams(next, { replace: true });
+                        }}
+                        className="w-full h-8 text-xs gap-2"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Clear All Filters
+                      </Button>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Export to Excel Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportToExcel}
+                className="gap-2 h-9"
+                disabled={filteredLeads.length === 0}
+              >
+                <Download className="w-4 h-4" />
+                Export Excel
+              </Button>
+
+              {/* Add Lead Button */}
             <Button 
               onClick={() => setShowAddLeadModal(true)} 
               disabled={!selectedProject}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9"
               title={!selectedProject ? "Select a project to add a lead. Switch to a specific project above." : "Add a new lead"}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Lead
             </Button>
-            <Button 
-              onClick={() => {
-                setShowBulkImportModal(true);
-                setExcelData([]);
-                setExcelHeaders([]);
-                setImportMessage(null);
-                if (selectedProject) {
-                  setSelectedImportProject(selectedProject.id);
-                }
-              }}
-              disabled={projects.length === 0}
-              className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              title={projects.length === 0 ? "Create a project first to import leads" : "Import leads from Excel file"}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Bulk Import
-            </Button>
+
+              {/* Bulk Import Button */}
+              <Button 
+                onClick={() => {
+                  setShowBulkImportModal(true);
+                  setExcelData([]);
+                  setExcelHeaders([]);
+                  setImportMessage(null);
+                  if (selectedProject) {
+                    setSelectedImportProject(selectedProject.id);
+                  }
+                }}
+                disabled={projects.length === 0}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed h-9"
+                title={projects.length === 0 ? "Create a project first to import leads" : "Import leads from Excel file"}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Bulk Import
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -1068,7 +1796,7 @@ const ManagerLeads = () => {
                   <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-500">No leads found for any project.</p>
                 </div>
-              )}
+                )}
 
               {filteredLeads.length > 0 && (
                 <div className="overflow-x-auto">
@@ -1269,6 +1997,24 @@ const ManagerLeads = () => {
                                   <a href={`mailto:${lead.contact_email || lead.email || ''}`}>
                                     <Mail className="w-3.5 h-3.5" />
                                   </a>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Add Note"
+                                  onClick={() => handleAddNote(lead)}
+                                >
+                                  <StickyNote className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Schedule Callback"
+                                  onClick={() => handleScheduleCallback(lead)}
+                                >
+                                  <Calendar className="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -1600,7 +2346,7 @@ const ManagerLeads = () => {
                                         className="h-7 w-7 p-0 hover:bg-slate-100"
                                         title="No phone number"
                                         disabled
-                                      >
+                            >
                                         <PhoneIcon className="w-3.5 h-3.5 text-slate-400" />
                                       </Button>
                                     );
@@ -1635,7 +2381,7 @@ const ManagerLeads = () => {
                                         <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
                                           <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
                                             {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
-                                          </div>
+                        </div>
                                           {phoneNumbers.map((phone, idx) => (
                                             <DropdownMenuItem key={idx} asChild>
                                               <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
@@ -1649,7 +2395,7 @@ const ManagerLeads = () => {
                                     );
                                   }
                                 })()}
-                                <Button
+                                <Button 
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
@@ -1660,18 +2406,36 @@ const ManagerLeads = () => {
                                     <Mail className="w-3.5 h-3.5" />
                                   </a>
                                 </Button>
-                    <Button 
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Add Note"
+                                  onClick={() => handleAddNote(lead)}
+                                >
+                                  <StickyNote className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Schedule Callback"
+                                  onClick={() => handleScheduleCallback(lead)}
+                                >
+                                  <Calendar className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button 
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Edit"
-                      onClick={() => {
+                                  onClick={() => {
                                     setSelectedLead(lead);
                                     openEditLeadModal();
-                      }}
-                    >
+                                  }}
+                                >
                                   <Edit className="w-3.5 h-3.5" />
-                    </Button>
+                                </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
@@ -1725,7 +2489,7 @@ const ManagerLeads = () => {
 
         {/* Add Lead Modal */}
         <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Lead</DialogTitle>
             </DialogHeader>
@@ -1737,6 +2501,17 @@ const ManagerLeads = () => {
                   </AlertDescription>
                 </Alert>
               )}
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                  <TabsTrigger value="contact">Contact</TabsTrigger>
+                  <TabsTrigger value="address">Address</TabsTrigger>
+                  <TabsTrigger value="classification">Classification</TabsTrigger>
+                  <TabsTrigger value="followup">Follow-up</TabsTrigger>
+                </TabsList>
+                
+                {/* Basic Information Tab */}
+                <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="company">Company Name *</Label>
@@ -1757,22 +2532,12 @@ const ManagerLeads = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="designation">Designation / Title</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={leadForm.email}
-                    onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                    placeholder="john@acme.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={leadForm.phone}
-                    onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                    placeholder="+1-555-0000"
+                        id="designation"
+                        value={leadForm.designation}
+                        onChange={(e) => setLeadForm({ ...leadForm, designation: e.target.value })}
+                        placeholder="CEO, Manager, etc."
                   />
                 </div>
                 <div>
@@ -1785,6 +2550,21 @@ const ManagerLeads = () => {
                     placeholder="50000"
                   />
                 </div>
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={leadForm.status} onValueChange={(value) => setLeadForm({ ...leadForm, status: value as any })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">New</SelectItem>
+                          <SelectItem value="qualified">Qualified</SelectItem>
+                          <SelectItem value="proposal">Proposal</SelectItem>
+                          <SelectItem value="closed_won">Closed Won</SelectItem>
+                          <SelectItem value="not_interested">Not Interested</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                 <div>
                   <Label htmlFor="assign">Assign To</Label>
                   <Select value={leadForm.assigned_to || "unassigned"} onValueChange={(value) => setLeadForm({ ...leadForm, assigned_to: value === "unassigned" ? "" : value })}>
@@ -1801,6 +2581,25 @@ const ManagerLeads = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                    <div>
+                      <Label htmlFor="list-name">List Name</Label>
+                      <Input
+                        id="list-name"
+                        value={leadForm.list_name}
+                        onChange={(e) => setLeadForm({ ...leadForm, list_name: e.target.value })}
+                        placeholder="List name"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="link">Company Website / Link</Label>
+                      <Input
+                        id="link"
+                        type="url"
+                        value={leadForm.link}
+                        onChange={(e) => setLeadForm({ ...leadForm, link: e.target.value })}
+                        placeholder="https://example.com"
+                      />
+                    </div>
                 <div className="col-span-2">
                   <Label htmlFor="description">Notes / Description</Label>
                   <Textarea
@@ -1811,21 +2610,362 @@ const ManagerLeads = () => {
                     rows={3}
                   />
                 </div>
+                  </div>
+                </TabsContent>
+
+                {/* Contact Information Tab */}
+                <TabsContent value="contact" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={leadForm.email}
+                        onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                        placeholder="john@acme.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Phone (Primary)</Label>
+                      <Input
+                        id="phone"
+                        value={leadForm.phone}
+                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="mobile-phone">Mobile Phone</Label>
+                      <Input
+                        id="mobile-phone"
+                        value={leadForm.mobile_phone}
+                        onChange={(e) => setLeadForm({ ...leadForm, mobile_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="direct-phone">Direct Phone</Label>
+                      <Input
+                        id="direct-phone"
+                        value={leadForm.direct_phone}
+                        onChange={(e) => setLeadForm({ ...leadForm, direct_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="office-phone">Office Phone</Label>
+                      <Input
+                        id="office-phone"
+                        value={leadForm.office_phone}
+                        onChange={(e) => setLeadForm({ ...leadForm, office_phone: e.target.value })}
+                        placeholder="+1-555-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="linkedin">LinkedIn</Label>
+                      <Input
+                        id="linkedin"
+                        type="url"
+                        value={leadForm.linkedin}
+                        onChange={(e) => setLeadForm({ ...leadForm, linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/in/..."
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Address Information Tab */}
+                <TabsContent value="address" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="link">Company Website / Link</Label>
+                      <Label htmlFor="address-line1">Address Line 1</Label>
                   <Input
-                    id="link"
+                        id="address-line1"
+                        value={leadForm.address_line1}
+                        onChange={(e) => setLeadForm({ ...leadForm, address_line1: e.target.value })}
+                        placeholder="Street address"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="address-line2">Address Line 2</Label>
+                      <Input
+                        id="address-line2"
+                        value={leadForm.address_line2}
+                        onChange={(e) => setLeadForm({ ...leadForm, address_line2: e.target.value })}
+                        placeholder="Apartment, suite, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={leadForm.city}
+                        onChange={(e) => setLeadForm({ ...leadForm, city: e.target.value })}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        value={leadForm.state}
+                        onChange={(e) => setLeadForm({ ...leadForm, state: e.target.value })}
+                        placeholder="State"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zip">Zip / Postal Code</Label>
+                      <Input
+                        id="zip"
+                        value={leadForm.zip}
+                        onChange={(e) => setLeadForm({ ...leadForm, zip: e.target.value })}
+                        placeholder="12345"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={leadForm.country}
+                        onChange={(e) => setLeadForm({ ...leadForm, country: e.target.value })}
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Classification Tab */}
+                <TabsContent value="classification" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="customer-group">Customer Group</Label>
+                      <Input
+                        id="customer-group"
+                        value={leadForm.customer_group}
+                        onChange={(e) => setLeadForm({ ...leadForm, customer_group: e.target.value })}
+                        placeholder="Customer group"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="product-group">Product Group</Label>
+                      <Input
+                        id="product-group"
+                        value={leadForm.product_group}
+                        onChange={(e) => setLeadForm({ ...leadForm, product_group: e.target.value })}
+                        placeholder="Product group"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead-source">Lead Source</Label>
+                      <Input
+                        id="lead-source"
+                        value={leadForm.lead_source}
+                        onChange={(e) => setLeadForm({ ...leadForm, lead_source: e.target.value })}
+                        placeholder="Website, LinkedIn, Referral, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="data-source">Data Source</Label>
+                      <Input
+                        id="data-source"
+                        value={leadForm.data_source}
+                        onChange={(e) => setLeadForm({ ...leadForm, data_source: e.target.value })}
+                        placeholder="Data source"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead-score">Lead Score (0-100)</Label>
+                      <Input
+                        id="lead-score"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={leadForm.lead_score}
+                        onChange={(e) => setLeadForm({ ...leadForm, lead_score: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="tags">Tags (comma-separated)</Label>
+                      <Input
+                        id="tags"
+                        value={leadForm.tags}
+                        onChange={(e) => setLeadForm({ ...leadForm, tags: e.target.value })}
+                        placeholder="tag1, tag2, tag3"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="lead-notes">Lead Notes</Label>
+                      <Textarea
+                        id="lead-notes"
+                        value={leadForm.lead_notes}
+                        onChange={(e) => setLeadForm({ ...leadForm, lead_notes: e.target.value })}
+                        placeholder="Additional notes about the lead..."
+                        rows={3}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="organization-notes">Organization Notes</Label>
+                      <Textarea
+                        id="organization-notes"
+                        value={leadForm.organization_notes}
+                        onChange={(e) => setLeadForm({ ...leadForm, organization_notes: e.target.value })}
+                        placeholder="Notes about the organization..."
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="date-of-birth">Date of Birth</Label>
+                      <Input
+                        id="date-of-birth"
+                        type="date"
+                        value={leadForm.date_of_birth}
+                        onChange={(e) => setLeadForm({ ...leadForm, date_of_birth: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="special-event-date">Special Event Date</Label>
+                      <Input
+                        id="special-event-date"
+                        type="date"
+                        value={leadForm.special_event_date}
+                        onChange={(e) => setLeadForm({ ...leadForm, special_event_date: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="reference-url1">Reference URL 1</Label>
+                      <Input
+                        id="reference-url1"
                     type="url"
-                    value={leadForm.link}
-                    onChange={(e) => setLeadForm({ ...leadForm, link: e.target.value })}
-                    placeholder="https://example.com"
+                        value={leadForm.reference_url1}
+                        onChange={(e) => setLeadForm({ ...leadForm, reference_url1: e.target.value })}
+                        placeholder="https://..."
                   />
-                  <div className="text-xs text-slate-500 mt-1">Enter the company website or relevant link</div>
                 </div>
+                    <div>
+                      <Label htmlFor="reference-url2">Reference URL 2</Label>
+                      <Input
+                        id="reference-url2"
+                        type="url"
+                        value={leadForm.reference_url2}
+                        onChange={(e) => setLeadForm({ ...leadForm, reference_url2: e.target.value })}
+                        placeholder="https://..."
+                      />
               </div>
+                    <div>
+                      <Label htmlFor="reference-url3">Reference URL 3</Label>
+                      <Input
+                        id="reference-url3"
+                        type="url"
+                        value={leadForm.reference_url3}
+                        onChange={(e) => setLeadForm({ ...leadForm, reference_url3: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Follow-up Tab */}
+                <TabsContent value="followup" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="next-followup-date">Next Follow-up Date</Label>
+                      <Input
+                        id="next-followup-date"
+                        type="datetime-local"
+                        value={leadForm.next_followup_date}
+                        onChange={(e) => setLeadForm({ ...leadForm, next_followup_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex items-end gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="repeat-followup"
+                          checked={leadForm.repeat_followup}
+                          onCheckedChange={(checked) => setLeadForm({ ...leadForm, repeat_followup: checked as boolean })}
+                        />
+                        <Label htmlFor="repeat-followup" className="cursor-pointer">Repeat Follow-up</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="do-not-followup"
+                          checked={leadForm.do_not_followup}
+                          onCheckedChange={(checked) => setLeadForm({ ...leadForm, do_not_followup: checked as boolean })}
+                        />
+                        <Label htmlFor="do-not-followup" className="cursor-pointer">Do Not Follow-up</Label>
+                      </div>
+                    </div>
+                    {leadForm.do_not_followup && (
+                      <div className="col-span-2">
+                        <Label htmlFor="do-not-followup-reason">Do Not Follow-up Reason</Label>
+                        <Input
+                          id="do-not-followup-reason"
+                          value={leadForm.do_not_followup_reason}
+                          onChange={(e) => setLeadForm({ ...leadForm, do_not_followup_reason: e.target.value })}
+                          placeholder="Reason for not following up"
+                        />
+                      </div>
+                    )}
+                    <div className="col-span-2">
+                      <Label htmlFor="followup-notes">Follow-up Notes</Label>
+                      <Textarea
+                        id="followup-notes"
+                        value={leadForm.followup_notes}
+                        onChange={(e) => setLeadForm({ ...leadForm, followup_notes: e.target.value })}
+                        placeholder="Notes for follow-up..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddLeadModal(false)} disabled={creating}>Cancel</Button>
+              <Button variant="outline" onClick={() => {
+                setShowAddLeadModal(false);
+                setLeadForm({
+                  company_name: "",
+                  contact_name: "",
+                  email: "",
+                  phone: "",
+                  value: "",
+                  assigned_to: "",
+                  status: "new",
+                  description: "",
+                  link: "",
+                  designation: "",
+                  mobile_phone: "",
+                  direct_phone: "",
+                  office_phone: "",
+                  linkedin: "",
+                  address_line1: "",
+                  address_line2: "",
+                  city: "",
+                  state: "",
+                  country: "",
+                  zip: "",
+                  customer_group: "",
+                  product_group: "",
+                  tags: "",
+                  lead_source: "",
+                  data_source: "",
+                  lead_score: "",
+                  next_followup_date: "",
+                  followup_notes: "",
+                  repeat_followup: false,
+                  do_not_followup: false,
+                  do_not_followup_reason: "",
+                  lead_notes: "",
+                  organization_notes: "",
+                  date_of_birth: "",
+                  special_event_date: "",
+                  reference_url1: "",
+                  reference_url2: "",
+                  reference_url3: "",
+                  list_name: "",
+                });
+              }} disabled={creating}>Cancel</Button>
               <Button onClick={handleCreateLead} disabled={creating}>
                 {creating ? "Creating..." : "Create Lead"}
               </Button>
@@ -1900,7 +3040,7 @@ const ManagerLeads = () => {
                       const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || selectedLead.phone);
                       if (phoneNumbers.length > 0) {
                         return (
-                          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100 transition-all">
+                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100 transition-all">
                             <span className="text-xs font-semibold text-indigo-700 block mb-2 uppercase tracking-wide">
                               ☎️ Phone Number{phoneNumbers.length > 1 ? `s (${phoneNumbers.length})` : ''}
                             </span>
@@ -1921,8 +3061,240 @@ const ManagerLeads = () => {
                       }
                       return null;
                     })()}
+                    {(selectedLead as any).mobile_phone && (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">📱 Mobile Phone</span>
+                        <a href={`tel:${(selectedLead as any).mobile_phone}`} className="text-green-600 hover:text-green-800 text-sm font-medium">{(selectedLead as any).mobile_phone}</a>
+                      </div>
+                    )}
+                    {(selectedLead as any).direct_phone && (
+                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <span className="text-xs font-semibold text-purple-700 block mb-2 uppercase tracking-wide">📞 Direct Phone</span>
+                        <a href={`tel:${(selectedLead as any).direct_phone}`} className="text-purple-600 hover:text-purple-800 text-sm font-medium">{(selectedLead as any).direct_phone}</a>
+                      </div>
+                    )}
+                    {(selectedLead as any).office_phone && (
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <span className="text-xs font-semibold text-amber-700 block mb-2 uppercase tracking-wide">🏢 Office Phone</span>
+                        <a href={`tel:${(selectedLead as any).office_phone}`} className="text-amber-600 hover:text-amber-800 text-sm font-medium">{(selectedLead as any).office_phone}</a>
+                      </div>
+                    )}
+                    {(selectedLead as any).designation && (
+                      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <span className="text-xs font-semibold text-slate-700 block mb-2 uppercase tracking-wide">💼 Designation</span>
+                        <span className="text-slate-900 text-sm font-medium">{(selectedLead as any).designation}</span>
+                      </div>
+                    )}
+                    {(selectedLead as any).linkedin && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">💼 LinkedIn</span>
+                        <a href={(selectedLead as any).linkedin.startsWith('http') ? (selectedLead as any).linkedin : `https://${(selectedLead as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium underline">View Profile</a>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Address Information */}
+                {((selectedLead as any).address_line1 || (selectedLead as any).city || (selectedLead as any).state || (selectedLead as any).country) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                      Address Information
+                    </h4>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      {(selectedLead as any).address_line1 && <p className="text-slate-900 text-sm mb-1">{(selectedLead as any).address_line1}</p>}
+                      {(selectedLead as any).address_line2 && <p className="text-slate-900 text-sm mb-1">{(selectedLead as any).address_line2}</p>}
+                      <p className="text-slate-700 text-sm">
+                        {[
+                          (selectedLead as any).city,
+                          (selectedLead as any).state,
+                          (selectedLead as any).zip,
+                          (selectedLead as any).country
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Classification & Grouping */}
+                {((selectedLead as any).customer_group || (selectedLead as any).product_group || (selectedLead as any).tags || (selectedLead as any).lead_source || (selectedLead as any).lead_score) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-violet-500 rounded-full"></span>
+                      Classification & Grouping
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {(selectedLead as any).customer_group && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">👥 Customer Group</span>
+                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).customer_group}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).product_group && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">📦 Product Group</span>
+                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).product_group}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).lead_source && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">📊 Lead Source</span>
+                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).lead_source}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).data_source && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">💾 Data Source</span>
+                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).data_source}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).lead_score !== undefined && (selectedLead as any).lead_score !== null && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">⭐ Lead Score</span>
+                          <span className="text-violet-900 text-sm font-medium">{(selectedLead as any).lead_score}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).tags && Array.isArray((selectedLead as any).tags) && (selectedLead as any).tags.length > 0 && (
+                        <div className="bg-violet-50 p-4 rounded-lg border border-violet-200 col-span-2">
+                          <span className="text-xs font-semibold text-violet-700 block mb-2 uppercase tracking-wide">🏷️ Tags</span>
+                          <div className="flex flex-wrap gap-2">
+                            {(selectedLead as any).tags.map((tag: string, idx: number) => (
+                              <Badge key={idx} variant="outline" className="bg-white">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up Information */}
+                {((selectedLead as any).next_followup_date || (selectedLead as any).followup_notes || (selectedLead as any).do_not_followup) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                      Follow-up Information
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {(selectedLead as any).next_followup_date && (
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">📅 Next Follow-up</span>
+                          <span className="text-orange-900 text-sm font-medium">{new Date((selectedLead as any).next_followup_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).repeat_followup && (
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">🔄 Repeat Follow-up</span>
+                          <span className="text-orange-900 text-sm font-medium">Yes</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).do_not_followup && (
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200 col-span-2">
+                          <span className="text-xs font-semibold text-red-700 block mb-2 uppercase tracking-wide">🚫 Do Not Follow-up</span>
+                          <span className="text-red-900 text-sm font-medium">Yes</span>
+                          {(selectedLead as any).do_not_followup_reason && (
+                            <p className="text-red-700 text-sm mt-2">Reason: {(selectedLead as any).do_not_followup_reason}</p>
+                          )}
+                        </div>
+                      )}
+                      {(selectedLead as any).followup_notes && (
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 col-span-2">
+                          <span className="text-xs font-semibold text-orange-700 block mb-2 uppercase tracking-wide">📝 Follow-up Notes</span>
+                          <p className="text-orange-900 text-sm">{(selectedLead as any).followup_notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Notes */}
+                {((selectedLead as any).lead_notes || (selectedLead as any).organization_notes) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                      Additional Notes
+                    </h4>
+                    <div className="space-y-3">
+                      {(selectedLead as any).lead_notes && (
+                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                          <span className="text-xs font-semibold text-yellow-700 block mb-2 uppercase tracking-wide">📋 Lead Notes</span>
+                          <p className="text-yellow-900 text-sm">{(selectedLead as any).lead_notes}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).organization_notes && (
+                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                          <span className="text-xs font-semibold text-yellow-700 block mb-2 uppercase tracking-wide">🏢 Organization Notes</span>
+                          <p className="text-yellow-900 text-sm">{(selectedLead as any).organization_notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Personal Information */}
+                {((selectedLead as any).date_of_birth || (selectedLead as any).special_event_date) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+                      Personal Information
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {(selectedLead as any).date_of_birth && (
+                        <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                          <span className="text-xs font-semibold text-pink-700 block mb-2 uppercase tracking-wide">🎂 Date of Birth</span>
+                          <span className="text-pink-900 text-sm font-medium">{new Date((selectedLead as any).date_of_birth).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {(selectedLead as any).special_event_date && (
+                        <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                          <span className="text-xs font-semibold text-pink-700 block mb-2 uppercase tracking-wide">🎉 Special Event Date</span>
+                          <span className="text-pink-900 text-sm font-medium">{new Date((selectedLead as any).special_event_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reference URLs */}
+                {((selectedLead as any).reference_url1 || (selectedLead as any).reference_url2 || (selectedLead as any).reference_url3) && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
+                      Reference URLs
+                    </h4>
+                    <div className="space-y-2">
+                      {(selectedLead as any).reference_url1 && (
+                        <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-200">
+                          <a href={(selectedLead as any).reference_url1.startsWith('http') ? (selectedLead as any).reference_url1 : `https://${(selectedLead as any).reference_url1}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-800 text-sm font-medium underline">🔗 Reference URL 1</a>
+                        </div>
+                      )}
+                      {(selectedLead as any).reference_url2 && (
+                        <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-200">
+                          <a href={(selectedLead as any).reference_url2.startsWith('http') ? (selectedLead as any).reference_url2 : `https://${(selectedLead as any).reference_url2}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-800 text-sm font-medium underline">🔗 Reference URL 2</a>
+                        </div>
+                      )}
+                      {(selectedLead as any).reference_url3 && (
+                        <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-200">
+                          <a href={(selectedLead as any).reference_url3.startsWith('http') ? (selectedLead as any).reference_url3 : `https://${(selectedLead as any).reference_url3}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-800 text-sm font-medium underline">🔗 Reference URL 3</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* List Name */}
+                {(selectedLead as any).list_name && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                      List Information
+                    </h4>
+                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                      <span className="text-xs font-semibold text-indigo-700 block mb-2 uppercase tracking-wide">📋 List Name</span>
+                      <span className="text-indigo-900 text-sm font-medium">{(selectedLead as any).list_name}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Company Link */}
                 {selectedLead.link && (
@@ -2036,9 +3408,9 @@ const ManagerLeads = () => {
 
         {/* Edit Lead Modal */}
         <Dialog open={showEditLeadModal} onOpenChange={setShowEditLeadModal}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Lead</DialogTitle>
+              <DialogTitle>Edit Lead - {editLeadForm?.company_name || 'Lead'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {editMessage && (
@@ -2049,12 +3421,23 @@ const ManagerLeads = () => {
                 </Alert>
               )}
               {editLeadForm && (
+                <Tabs defaultValue="basic" className="w-full">
+                  <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                    <TabsTrigger value="contact">Contact</TabsTrigger>
+                    <TabsTrigger value="address">Address</TabsTrigger>
+                    <TabsTrigger value="classification">Classification</TabsTrigger>
+                    <TabsTrigger value="followup">Follow-up</TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Basic Information Tab */}
+                  <TabsContent value="basic" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-company">Company Name *</Label>
                     <Input
                       id="edit-company"
-                      value={editLeadForm.company_name}
+                          value={editLeadForm.company_name || ''}
                       onChange={(e) => setEditLeadForm({ ...editLeadForm, company_name: e.target.value })}
                       placeholder="Acme Corp"
                     />
@@ -2063,28 +3446,18 @@ const ManagerLeads = () => {
                     <Label htmlFor="edit-contact">Contact Name *</Label>
                     <Input
                       id="edit-contact"
-                      value={editLeadForm.contact_name}
+                          value={editLeadForm.contact_name || ''}
                       onChange={(e) => setEditLeadForm({ ...editLeadForm, contact_name: e.target.value })}
                       placeholder="John Doe"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-email">Email</Label>
+                        <Label htmlFor="edit-designation">Designation / Title</Label>
                     <Input
-                      id="edit-email"
-                      type="email"
-                      value={editLeadForm.email}
-                      onChange={(e) => setEditLeadForm({ ...editLeadForm, email: e.target.value })}
-                      placeholder="john@acme.com"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-phone">Phone</Label>
-                    <Input
-                      id="edit-phone"
-                      value={editLeadForm.phone}
-                      onChange={(e) => setEditLeadForm({ ...editLeadForm, phone: e.target.value })}
-                      placeholder="+1-555-0000"
+                          id="edit-designation"
+                          value={editLeadForm.designation || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, designation: e.target.value })}
+                          placeholder="CEO, Manager, etc."
                     />
                   </div>
                   <div>
@@ -2112,28 +3485,348 @@ const ManagerLeads = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                      <div>
+                        <Label htmlFor="edit-list-name">List Name</Label>
+                        <Input
+                          id="edit-list-name"
+                          value={editLeadForm.list_name || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, list_name: e.target.value })}
+                          placeholder="List name"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-link">Company Website / Link</Label>
+                        <Input
+                          id="edit-link"
+                          type="url"
+                          value={editLeadForm.link || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, link: e.target.value })}
+                          placeholder="https://example.com"
+                        />
+                      </div>
                   <div className="col-span-2">
                     <Label htmlFor="edit-description">Notes / Description</Label>
                     <Textarea
                       id="edit-description"
-                      value={editLeadForm.description}
+                          value={editLeadForm.description || ''}
                       onChange={(e) => setEditLeadForm({ ...editLeadForm, description: e.target.value })}
                       placeholder="Add any additional notes about this lead..."
                       rows={3}
                     />
                   </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Contact Information Tab */}
+                  <TabsContent value="contact" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit-email">Email</Label>
+                        <Input
+                          id="edit-email"
+                          type="email"
+                          value={editLeadForm.email || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, email: e.target.value })}
+                          placeholder="john@acme.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-phone">Phone (Primary)</Label>
+                        <Input
+                          id="edit-phone"
+                          value={editLeadForm.phone || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, phone: e.target.value })}
+                          placeholder="+1-555-0000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-mobile-phone">Mobile Phone</Label>
+                        <Input
+                          id="edit-mobile-phone"
+                          value={editLeadForm.mobile_phone || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, mobile_phone: e.target.value })}
+                          placeholder="+1-555-0000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-direct-phone">Direct Phone</Label>
+                        <Input
+                          id="edit-direct-phone"
+                          value={editLeadForm.direct_phone || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, direct_phone: e.target.value })}
+                          placeholder="+1-555-0000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-office-phone">Office Phone</Label>
+                        <Input
+                          id="edit-office-phone"
+                          value={editLeadForm.office_phone || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, office_phone: e.target.value })}
+                          placeholder="+1-555-0000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-linkedin">LinkedIn</Label>
+                        <Input
+                          id="edit-linkedin"
+                          type="url"
+                          value={editLeadForm.linkedin || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, linkedin: e.target.value })}
+                          placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Address Information Tab */}
+                  <TabsContent value="address" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
-                    <Label htmlFor="edit-link">Company Website / Link</Label>
+                        <Label htmlFor="edit-address-line1">Address Line 1</Label>
                     <Input
-                      id="edit-link"
+                          id="edit-address-line1"
+                          value={editLeadForm.address_line1 || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, address_line1: e.target.value })}
+                          placeholder="Street address"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-address-line2">Address Line 2</Label>
+                        <Input
+                          id="edit-address-line2"
+                          value={editLeadForm.address_line2 || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, address_line2: e.target.value })}
+                          placeholder="Apartment, suite, etc."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-city">City</Label>
+                        <Input
+                          id="edit-city"
+                          value={editLeadForm.city || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, city: e.target.value })}
+                          placeholder="City"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-state">State</Label>
+                        <Input
+                          id="edit-state"
+                          value={editLeadForm.state || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, state: e.target.value })}
+                          placeholder="State"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-zip">Zip / Postal Code</Label>
+                        <Input
+                          id="edit-zip"
+                          value={editLeadForm.zip || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, zip: e.target.value })}
+                          placeholder="12345"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-country">Country</Label>
+                        <Input
+                          id="edit-country"
+                          value={editLeadForm.country || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, country: e.target.value })}
+                          placeholder="Country"
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Classification Tab */}
+                  <TabsContent value="classification" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit-customer-group">Customer Group</Label>
+                        <Input
+                          id="edit-customer-group"
+                          value={editLeadForm.customer_group || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, customer_group: e.target.value })}
+                          placeholder="Customer group"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-product-group">Product Group</Label>
+                        <Input
+                          id="edit-product-group"
+                          value={editLeadForm.product_group || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, product_group: e.target.value })}
+                          placeholder="Product group"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-lead-source">Lead Source</Label>
+                        <Input
+                          id="edit-lead-source"
+                          value={editLeadForm.lead_source || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, lead_source: e.target.value })}
+                          placeholder="Website, LinkedIn, Referral, etc."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-data-source">Data Source</Label>
+                        <Input
+                          id="edit-data-source"
+                          value={editLeadForm.data_source || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, data_source: e.target.value })}
+                          placeholder="Data source"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-lead-score">Lead Score (0-100)</Label>
+                        <Input
+                          id="edit-lead-score"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={editLeadForm.lead_score || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, lead_score: e.target.value ? parseInt(e.target.value) : null })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-tags">Tags (comma-separated)</Label>
+                        <Input
+                          id="edit-tags"
+                          value={Array.isArray(editLeadForm.tags) ? editLeadForm.tags.join(', ') : (editLeadForm.tags || '')}
+                          onChange={(e) => {
+                            const tags = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                            setEditLeadForm({ ...editLeadForm, tags: tags.length > 0 ? tags : null });
+                          }}
+                          placeholder="tag1, tag2, tag3"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-lead-notes">Lead Notes</Label>
+                        <Textarea
+                          id="edit-lead-notes"
+                          value={editLeadForm.lead_notes || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, lead_notes: e.target.value })}
+                          placeholder="Additional notes about the lead..."
+                          rows={3}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-organization-notes">Organization Notes</Label>
+                        <Textarea
+                          id="edit-organization-notes"
+                          value={editLeadForm.organization_notes || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, organization_notes: e.target.value })}
+                          placeholder="Notes about the organization..."
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-date-of-birth">Date of Birth</Label>
+                        <Input
+                          id="edit-date-of-birth"
+                          type="date"
+                          value={editLeadForm.date_of_birth || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, date_of_birth: e.target.value || null })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-special-event-date">Special Event Date</Label>
+                        <Input
+                          id="edit-special-event-date"
+                          type="date"
+                          value={editLeadForm.special_event_date || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, special_event_date: e.target.value || null })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-reference-url1">Reference URL 1</Label>
+                        <Input
+                          id="edit-reference-url1"
                       type="url"
-                      value={editLeadForm.link}
-                      onChange={(e) => setEditLeadForm({ ...editLeadForm, link: e.target.value })}
-                      placeholder="https://example.com"
+                          value={editLeadForm.reference_url1 || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, reference_url1: e.target.value })}
+                          placeholder="https://..."
                     />
-                    <div className="text-xs text-slate-500 mt-1">Enter the company website or relevant link</div>
                   </div>
+                      <div>
+                        <Label htmlFor="edit-reference-url2">Reference URL 2</Label>
+                        <Input
+                          id="edit-reference-url2"
+                          type="url"
+                          value={editLeadForm.reference_url2 || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, reference_url2: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-reference-url3">Reference URL 3</Label>
+                        <Input
+                          id="edit-reference-url3"
+                          type="url"
+                          value={editLeadForm.reference_url3 || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, reference_url3: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Follow-up Tab */}
+                  <TabsContent value="followup" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit-next-followup-date">Next Follow-up Date</Label>
+                        <Input
+                          id="edit-next-followup-date"
+                          type="datetime-local"
+                          value={editLeadForm.next_followup_date ? new Date(editLeadForm.next_followup_date).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, next_followup_date: e.target.value || null })}
+                        />
+                      </div>
+                      <div className="flex items-end gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="edit-repeat-followup"
+                            checked={editLeadForm.repeat_followup || false}
+                            onCheckedChange={(checked) => setEditLeadForm({ ...editLeadForm, repeat_followup: checked as boolean })}
+                          />
+                          <Label htmlFor="edit-repeat-followup" className="cursor-pointer">Repeat Follow-up</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="edit-do-not-followup"
+                            checked={editLeadForm.do_not_followup || false}
+                            onCheckedChange={(checked) => setEditLeadForm({ ...editLeadForm, do_not_followup: checked as boolean })}
+                          />
+                          <Label htmlFor="edit-do-not-followup" className="cursor-pointer">Do Not Follow-up</Label>
+                        </div>
+                      </div>
+                      {editLeadForm.do_not_followup && (
+                        <div className="col-span-2">
+                          <Label htmlFor="edit-do-not-followup-reason">Do Not Follow-up Reason</Label>
+                          <Input
+                            id="edit-do-not-followup-reason"
+                            value={editLeadForm.do_not_followup_reason || ''}
+                            onChange={(e) => setEditLeadForm({ ...editLeadForm, do_not_followup_reason: e.target.value })}
+                            placeholder="Reason for not following up"
+                          />
                 </div>
+                      )}
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-followup-notes">Follow-up Notes</Label>
+                        <Textarea
+                          id="edit-followup-notes"
+                          value={editLeadForm.followup_notes || ''}
+                          onChange={(e) => setEditLeadForm({ ...editLeadForm, followup_notes: e.target.value })}
+                          placeholder="Notes for follow-up..."
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               )}
             </div>
             <DialogFooter>
@@ -2469,6 +4162,103 @@ const ManagerLeads = () => {
                     Delete {selectedLeadIds.size} Lead{selectedLeadIds.size !== 1 ? 's' : ''}
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Note Modal */}
+        <Dialog open={showNoteModal} onOpenChange={setShowNoteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Note - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="note-text">Note</Label>
+                <Textarea
+                  id="note-text"
+                  placeholder="Enter your note..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowNoteModal(false);
+                  setNoteText("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitNote}
+                disabled={submittingActivity || !noteText.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {submittingActivity ? "Adding..." : "Add Note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Callback Modal */}
+        <Dialog open={showCallbackModal} onOpenChange={setShowCallbackModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Schedule Callback - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="callback-date">Callback Date *</Label>
+                <Input
+                  id="callback-date"
+                  type="date"
+                  value={callbackDate}
+                  onChange={(e) => setCallbackDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">Select the date when you need to call back this lead</p>
+              </div>
+              <div>
+                <Label htmlFor="callback-notes">Notes *</Label>
+                <Textarea
+                  id="callback-notes"
+                  placeholder="What did the lead ask? What was discussed? What should you mention when calling back?"
+                  value={callbackNotes}
+                  onChange={(e) => setCallbackNotes(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCallbackModal(false);
+                  setCallbackDate("");
+                  setCallbackNotes("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitCallback}
+                disabled={submittingActivity || !callbackDate || !callbackNotes.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {submittingActivity ? "Scheduling..." : "Schedule Callback"}
               </Button>
             </DialogFooter>
           </DialogContent>

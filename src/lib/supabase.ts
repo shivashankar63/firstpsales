@@ -292,21 +292,52 @@ export const getLeadById = async (id: string) => {
 
 export const createLead = async (leadData: {
   company_name: string;
-  contact_name: string;
+  contact_name?: string;
   email?: string | null;
   phone?: string | null;
-  status: 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested';
-  value: number;
+  status?: 'new' | 'qualified' | 'proposal' | 'closed_won' | 'not_interested';
+  value?: number;
   assigned_to?: string | null;
   project_id: string;
   description?: string;
   link?: string;
+  // New comprehensive fields
+  designation?: string | null;
+  mobile_phone?: string | null;
+  direct_phone?: string | null;
+  office_phone?: string | null;
+  linkedin?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  zip?: string | null;
+  customer_group?: string | null;
+  product_group?: string | null;
+  tags?: string[] | null;
+  lead_source?: string | null;
+  data_source?: string | null;
+  lead_score?: number | null;
+  next_followup_date?: string | null;
+  followup_notes?: string | null;
+  repeat_followup?: boolean | null;
+  do_not_followup?: boolean | null;
+  do_not_followup_reason?: string | null;
+  lead_notes?: string | null;
+  organization_notes?: string | null;
+  date_of_birth?: string | null;
+  special_event_date?: string | null;
+  reference_url1?: string | null;
+  reference_url2?: string | null;
+  reference_url3?: string | null;
+  list_name?: string | null;
 }) => {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) throw new Error('User must be logged in to create leads');
     
-    const leadWithCreator = {
+    const leadWithCreator: any = {
       ...leadData,
       // Explicitly set email and phone to null if empty or undefined
       email: leadData.email && String(leadData.email).trim() ? String(leadData.email).trim() : null,
@@ -314,6 +345,39 @@ export const createLead = async (leadData: {
       created_by: currentUser.id,
       // Preserve assigned_to if provided (for salesman auto-assignment)
       assigned_to: leadData.assigned_to || null,
+      status: leadData.status || 'new',
+      value: leadData.value || 0,
+      // Handle new fields - only include if they have values
+      ...(leadData.designation && { designation: String(leadData.designation).trim() }),
+      ...(leadData.mobile_phone && { mobile_phone: String(leadData.mobile_phone).trim() }),
+      ...(leadData.direct_phone && { direct_phone: String(leadData.direct_phone).trim() }),
+      ...(leadData.office_phone && { office_phone: String(leadData.office_phone).trim() }),
+      ...(leadData.linkedin && { linkedin: String(leadData.linkedin).trim() }),
+      ...(leadData.address_line1 && { address_line1: String(leadData.address_line1).trim() }),
+      ...(leadData.address_line2 && { address_line2: String(leadData.address_line2).trim() }),
+      ...(leadData.city && { city: String(leadData.city).trim() }),
+      ...(leadData.state && { state: String(leadData.state).trim() }),
+      ...(leadData.country && { country: String(leadData.country).trim() }),
+      ...(leadData.zip && { zip: String(leadData.zip).trim() }),
+      ...(leadData.customer_group && { customer_group: String(leadData.customer_group).trim() }),
+      ...(leadData.product_group && { product_group: String(leadData.product_group).trim() }),
+      ...(leadData.tags && Array.isArray(leadData.tags) && { tags: leadData.tags }),
+      ...(leadData.lead_source && { lead_source: String(leadData.lead_source).trim() }),
+      ...(leadData.data_source && { data_source: String(leadData.data_source).trim() }),
+      ...(leadData.lead_score !== undefined && leadData.lead_score !== null && { lead_score: Number(leadData.lead_score) }),
+      ...(leadData.next_followup_date && { next_followup_date: leadData.next_followup_date }),
+      ...(leadData.followup_notes && { followup_notes: String(leadData.followup_notes).trim() }),
+      ...(leadData.repeat_followup !== undefined && { repeat_followup: Boolean(leadData.repeat_followup) }),
+      ...(leadData.do_not_followup !== undefined && { do_not_followup: Boolean(leadData.do_not_followup) }),
+      ...(leadData.do_not_followup_reason && { do_not_followup_reason: String(leadData.do_not_followup_reason).trim() }),
+      ...(leadData.lead_notes && { lead_notes: String(leadData.lead_notes).trim() }),
+      ...(leadData.organization_notes && { organization_notes: String(leadData.organization_notes).trim() }),
+      ...(leadData.date_of_birth && { date_of_birth: leadData.date_of_birth }),
+      ...(leadData.special_event_date && { special_event_date: leadData.special_event_date }),
+      ...(leadData.reference_url1 && { reference_url1: String(leadData.reference_url1).trim() }),
+      ...(leadData.reference_url2 && { reference_url2: String(leadData.reference_url2).trim() }),
+      ...(leadData.reference_url3 && { reference_url3: String(leadData.reference_url3).trim() }),
+      ...(leadData.list_name && { list_name: String(leadData.list_name).trim() }),
     };
     
     const { data, error } = await supabase
@@ -341,6 +405,37 @@ export const createBulkLeads = async (leads: Array<{
   link?: string;
   value?: number;
   assigned_to?: string | null;
+  // New comprehensive fields
+  designation?: string | null;
+  mobile_phone?: string | null;
+  direct_phone?: string | null;
+  office_phone?: string | null;
+  linkedin?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  zip?: string | null;
+  customer_group?: string | null;
+  product_group?: string | null;
+  tags?: string[] | null;
+  lead_source?: string | null;
+  data_source?: string | null;
+  lead_score?: number | null;
+  next_followup_date?: string | null;
+  followup_notes?: string | null;
+  repeat_followup?: boolean | null;
+  do_not_followup?: boolean | null;
+  do_not_followup_reason?: string | null;
+  lead_notes?: string | null;
+  organization_notes?: string | null;
+  date_of_birth?: string | null;
+  special_event_date?: string | null;
+  reference_url1?: string | null;
+  reference_url2?: string | null;
+  reference_url3?: string | null;
+  list_name?: string | null;
 }>) => {
   try {
     const currentUser = await getCurrentUser();
@@ -378,6 +473,98 @@ export const createBulkLeads = async (leads: Array<{
       }
       if (lead.link && String(lead.link).trim()) {
         leadData.link = String(lead.link).trim();
+      }
+      
+      // Add new comprehensive fields
+      if (lead.designation && String(lead.designation).trim()) {
+        leadData.designation = String(lead.designation).trim();
+      }
+      if (lead.mobile_phone && String(lead.mobile_phone).trim()) {
+        leadData.mobile_phone = String(lead.mobile_phone).trim();
+      }
+      if (lead.direct_phone && String(lead.direct_phone).trim()) {
+        leadData.direct_phone = String(lead.direct_phone).trim();
+      }
+      if (lead.office_phone && String(lead.office_phone).trim()) {
+        leadData.office_phone = String(lead.office_phone).trim();
+      }
+      if (lead.linkedin && String(lead.linkedin).trim()) {
+        leadData.linkedin = String(lead.linkedin).trim();
+      }
+      if (lead.address_line1 && String(lead.address_line1).trim()) {
+        leadData.address_line1 = String(lead.address_line1).trim();
+      }
+      if (lead.address_line2 && String(lead.address_line2).trim()) {
+        leadData.address_line2 = String(lead.address_line2).trim();
+      }
+      if (lead.city && String(lead.city).trim()) {
+        leadData.city = String(lead.city).trim();
+      }
+      if (lead.state && String(lead.state).trim()) {
+        leadData.state = String(lead.state).trim();
+      }
+      if (lead.country && String(lead.country).trim()) {
+        leadData.country = String(lead.country).trim();
+      }
+      if (lead.zip && String(lead.zip).trim()) {
+        leadData.zip = String(lead.zip).trim();
+      }
+      if (lead.customer_group && String(lead.customer_group).trim()) {
+        leadData.customer_group = String(lead.customer_group).trim();
+      }
+      if (lead.product_group && String(lead.product_group).trim()) {
+        leadData.product_group = String(lead.product_group).trim();
+      }
+      if (lead.tags && Array.isArray(lead.tags)) {
+        leadData.tags = lead.tags;
+      }
+      if (lead.lead_source && String(lead.lead_source).trim()) {
+        leadData.lead_source = String(lead.lead_source).trim();
+      }
+      if (lead.data_source && String(lead.data_source).trim()) {
+        leadData.data_source = String(lead.data_source).trim();
+      }
+      if (lead.lead_score !== undefined && lead.lead_score !== null) {
+        leadData.lead_score = Number(lead.lead_score);
+      }
+      if (lead.next_followup_date) {
+        leadData.next_followup_date = lead.next_followup_date;
+      }
+      if (lead.followup_notes && String(lead.followup_notes).trim()) {
+        leadData.followup_notes = String(lead.followup_notes).trim();
+      }
+      if (lead.repeat_followup !== undefined) {
+        leadData.repeat_followup = Boolean(lead.repeat_followup);
+      }
+      if (lead.do_not_followup !== undefined) {
+        leadData.do_not_followup = Boolean(lead.do_not_followup);
+      }
+      if (lead.do_not_followup_reason && String(lead.do_not_followup_reason).trim()) {
+        leadData.do_not_followup_reason = String(lead.do_not_followup_reason).trim();
+      }
+      if (lead.lead_notes && String(lead.lead_notes).trim()) {
+        leadData.lead_notes = String(lead.lead_notes).trim();
+      }
+      if (lead.organization_notes && String(lead.organization_notes).trim()) {
+        leadData.organization_notes = String(lead.organization_notes).trim();
+      }
+      if (lead.date_of_birth) {
+        leadData.date_of_birth = lead.date_of_birth;
+      }
+      if (lead.special_event_date) {
+        leadData.special_event_date = lead.special_event_date;
+      }
+      if (lead.reference_url1 && String(lead.reference_url1).trim()) {
+        leadData.reference_url1 = String(lead.reference_url1).trim();
+      }
+      if (lead.reference_url2 && String(lead.reference_url2).trim()) {
+        leadData.reference_url2 = String(lead.reference_url2).trim();
+      }
+      if (lead.reference_url3 && String(lead.reference_url3).trim()) {
+        leadData.reference_url3 = String(lead.reference_url3).trim();
+      }
+      if (lead.list_name && String(lead.list_name).trim()) {
+        leadData.list_name = String(lead.list_name).trim();
       }
       
       return leadData;

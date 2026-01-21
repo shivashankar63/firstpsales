@@ -6,16 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Phone, Mail, ArrowUpRight, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet } from "lucide-react";
-import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads } from "@/lib/supabase";
+import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download } from "lucide-react";
+import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
 import * as XLSX from "xlsx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type UserRole = "owner" | "manager" | "salesman";
-import LeadTimeline from "@/components/dashboard/LeadTimeline";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
@@ -42,12 +42,11 @@ const scoreColors: Record<string, string> = {
 const SalesMyLeads = () => {
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<any[]>([]);
-  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const navigate = useNavigate();
   
   // Bulk import states
@@ -59,6 +58,15 @@ const SalesMyLeads = () => {
   const [selectedImportProject, setSelectedImportProject] = useState<string>("");
   const [projects, setProjects] = useState<any[]>([]);
   const [currentSalesmanId, setCurrentSalesmanId] = useState<string | null>(null);
+  
+  // Note and Callback modals
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
+  const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [callbackDate, setCallbackDate] = useState("");
+  const [callbackNotes, setCallbackNotes] = useState("");
+  const [submittingActivity, setSubmittingActivity] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -175,16 +183,171 @@ const SalesMyLeads = () => {
     not_interested: "Not Interested",
   };
 
-  const handleAdvanceStage = async (leadId: string, currentStatus: string) => {
-    const order = ["new", "qualified", "proposal", "closed_won"];
-    const idx = order.indexOf(currentStatus);
-    const next = order[Math.min(order.length - 1, idx + 1)] || currentStatus;
+  const handleAddNote = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setNoteText("");
+    setShowNoteModal(true);
+  };
+
+  const handleScheduleCallback = (lead: any) => {
+    setSelectedLeadForActivity(lead);
+    setCallbackDate("");
+    setCallbackNotes("");
+    setShowCallbackModal(true);
+  };
+
+  const handleSubmitNote = async () => {
+    if (!selectedLeadForActivity || !noteText.trim()) return;
+    
+    setSubmittingActivity(true);
     try {
-      await updateLead(leadId, { status: next });
-      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status: next } : l)));
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: noteText.trim(),
+      });
+      
+      // Update last_contacted_at for the lead
+      await updateLead(selectedLeadForActivity.id, {
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads and keep selection in sync
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+        const updatedLeads = data || [];
+        setLeads(updatedLeads);
+        const updated = updatedLeads.find((l) => l.id === selectedLeadForActivity.id);
+        if (updated) {
+          setSelectedLeadForActivity(updated);
+        }
+      }
+      
+      setShowNoteModal(false);
+      setNoteText("");
+      setSelectedLeadForActivity(null);
     } catch (error) {
-      console.error("Failed to advance lead", error);
+      console.error("Failed to add note", error);
+      alert("Failed to add note. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
     }
+  };
+
+  const handleSubmitCallback = async () => {
+    if (!selectedLeadForActivity || !callbackDate || !callbackNotes.trim()) return;
+    
+    setSubmittingActivity(true);
+    try {
+      // Create activity with callback information
+      await createLeadActivity({
+        lead_id: selectedLeadForActivity.id,
+        type: 'note',
+        description: `Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}. Notes: ${callbackNotes.trim()}`,
+      });
+      
+      // Update lead with callback date and notes
+      const callbackDateTime = new Date(callbackDate);
+      callbackDateTime.setHours(9, 0, 0, 0); // Set to 9 AM by default
+      
+      await updateLead(selectedLeadForActivity.id, {
+        next_followup_date: callbackDateTime.toISOString(),
+        followup_notes: callbackNotes.trim(),
+        last_contacted_at: new Date().toISOString(),
+      });
+      
+      // Refresh leads and keep selection in sync
+      const user = await getCurrentUser();
+      if (user) {
+        const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
+        const updatedLeads = data || [];
+        setLeads(updatedLeads);
+        const updated = updatedLeads.find((l) => l.id === selectedLeadForActivity.id);
+        if (updated) {
+          setSelectedLeadForActivity(updated);
+        }
+      }
+      
+      setShowCallbackModal(false);
+      setCallbackDate("");
+      setCallbackNotes("");
+      setSelectedLeadForActivity(null);
+      alert(`Callback scheduled for ${new Date(callbackDate).toLocaleDateString()}`);
+    } catch (error) {
+      console.error("Failed to schedule callback", error);
+      alert("Failed to schedule callback. Please try again.");
+    } finally {
+      setSubmittingActivity(false);
+    }
+  };
+
+  // Export leads to Excel
+  const handleExportToExcel = () => {
+    if (filteredLeads.length === 0) {
+      alert("No leads to export.");
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredLeads.map((lead) => {
+      const phoneNumbers = (() => {
+        const phone = lead.phone || lead.contact_phone || "";
+        if (!phone) return "";
+        return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p).join(", ");
+      })();
+
+      return {
+        "Company Name": lead.company_name || "",
+        "Contact Name": lead.contact_name || "",
+        "Designation": (lead as any).designation || "",
+        "Email": lead.email || "",
+        "Phone": phoneNumbers || "",
+        "Mobile Phone": (lead as any).mobile_phone || "",
+        "Direct Phone": (lead as any).direct_phone || "",
+        "Office Phone": (lead as any).office_phone || "",
+        "LinkedIn": (lead as any).linkedin || "",
+        "Address Line 1": (lead as any).address_line1 || "",
+        "Address Line 2": (lead as any).address_line2 || "",
+        "City": (lead as any).city || "",
+        "State": (lead as any).state || "",
+        "Country": (lead as any).country || "",
+        "Zip": (lead as any).zip || "",
+        "Status": statusLabel[lead.status] || lead.status || "",
+        "Value": lead.value || 0,
+        "Project": lead.projects?.name || "Unassigned",
+        "Customer Group": (lead as any).customer_group || "",
+        "Product Group": (lead as any).product_group || "",
+        "Lead Source": (lead as any).lead_source || "",
+        "Data Source": (lead as any).data_source || "",
+        "Lead Score": (lead as any).lead_score || "",
+        "Next Follow-up Date": (lead as any).next_followup_date ? new Date((lead as any).next_followup_date).toLocaleDateString() : "",
+        "Follow-up Notes": (lead as any).followup_notes || "",
+        "Lead Notes": (lead as any).lead_notes || "",
+        "Organization Notes": (lead as any).organization_notes || "",
+        "Date of Birth": (lead as any).date_of_birth || "",
+        "Special Event Date": (lead as any).special_event_date || "",
+        "Reference URL 1": (lead as any).reference_url1 || "",
+        "Reference URL 2": (lead as any).reference_url2 || "",
+        "Reference URL 3": (lead as any).reference_url3 || "",
+        "List Name": (lead as any).list_name || "",
+        "Description": lead.description || "",
+        "Website": lead.link || "",
+        "Created At": lead.created_at ? new Date(lead.created_at).toLocaleDateString() : "",
+        "Last Contacted": lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : "",
+      };
+    });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+
+    // Generate filename with current date
+    const filename = `leads_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Download file
+    XLSX.writeFile(wb, filename);
   };
 
   // Handle Excel file upload and parsing
@@ -501,283 +664,348 @@ const SalesMyLeads = () => {
               </Card>
             </div>
 
-            {/* Advanced Filter Bar */}
+            {/* Search and Action Bar */}
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-5">
-              <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between mb-3">
-                <div className="relative flex-1 w-full lg:max-w-md">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                <div className="relative flex-1 w-full sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <Input
-                    placeholder="Search leads by name, company, email, or location..."
+                    placeholder="Search leads by name, company, email..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 h-9 text-sm"
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="gap-2 h-9"
-                >
-                  <FilterIcon className="w-4 h-4" />
-                  {showFilters ? "Hide Filters" : "Show Filters"}
-                  {(statusFilter !== "all" || sourceFilter !== "all" || priorityFilter !== "all") && (
-                    <Badge className="bg-indigo-100 text-indigo-700 border-0 text-xs px-1.5 py-0.5 ml-1">Active</Badge>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Advanced Filter Dropdown */}
+                  <DropdownMenu open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 h-9"
+                      >
+                        <FilterIcon className="w-4 h-4" />
+                        Advanced Filters
+                        {(statusFilter !== "all" || sourceFilter !== "all" || priorityFilter !== "all" || projectFilter !== "all") && (
+                          <Badge className="bg-indigo-100 text-indigo-700 border-0 text-xs px-1.5 py-0.5 ml-1">Active</Badge>
+                        )}
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 p-3">
+                      <div className="space-y-3">
+                        {/* Status Filter */}
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Status</label>
+                          <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="qualified">Qualified</SelectItem>
+                              <SelectItem value="proposal">Proposal</SelectItem>
+                              <SelectItem value="closed_won">Closed Won</SelectItem>
+                              <SelectItem value="not_interested">Not Interested</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Project Filter */}
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Project</label>
+                          <Select value={projectFilter} onValueChange={setProjectFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="All Projects" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {projectOptions.map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt === "all" ? "All Projects" : opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Source Filter */}
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Lead Source</label>
+                          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="All Sources" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Sources</SelectItem>
+                              <SelectItem value="Direct">Direct</SelectItem>
+                              <SelectItem value="Referral">Referral</SelectItem>
+                              <SelectItem value="Website">Website</SelectItem>
+                              <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                              <SelectItem value="Cold Call">Cold Call</SelectItem>
+                              <SelectItem value="Event">Event</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Priority Filter */}
+                        <div>
+                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Priority</label>
+                          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="All Priorities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Priorities</SelectItem>
+                              <SelectItem value="hot">Hot</SelectItem>
+                              <SelectItem value="warm">Warm</SelectItem>
+                              <SelectItem value="cold">Cold</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Clear Filters */}
+                        <div className="pt-2 border-t border-slate-200">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSearchQuery("");
+                              setStatusFilter("all");
+                              setSourceFilter("all");
+                              setPriorityFilter("all");
+                              setProjectFilter("all");
+                              setShowAdvancedFilters(false);
+                            }}
+                            className="w-full h-8 text-xs gap-2"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Clear All Filters
+                          </Button>
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Export to Excel Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportToExcel}
+                    className="gap-2 h-9"
+                    disabled={filteredLeads.length === 0}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Excel
+                  </Button>
+
+                  {/* Bulk Import Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkImportModal(true)}
+                    className="gap-2 h-9"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Bulk Import
+                  </Button>
+                </div>
               </div>
+            </div>
 
-              {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-200">
-                  {/* Status Filter */}
-                  <div>
-                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Status</label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-between h-9 text-sm">
-                          {statusFilter === "all" ? "All Status" : statusLabel[statusFilter] || statusFilter}
-                          <ChevronDown className="w-3.5 h-3.5 ml-2" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
-                        <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Status</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setStatusFilter("new")}>New</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Qualified</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setStatusFilter("proposal")}>Proposal</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setStatusFilter("closed_won")}>Closed Won</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setStatusFilter("not_interested")}>Not Interested</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  {/* Source Filter */}
-                  <div>
-                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Lead Source</label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-between h-9 text-sm">
-                          {sourceFilter === "all" ? "All Sources" : sourceFilter}
-                          <Briefcase className="w-3.5 h-3.5 ml-2" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
-                        <DropdownMenuItem onClick={() => setSourceFilter("all")}>All Sources</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setSourceFilter("Direct")}>Direct</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSourceFilter("Referral")}>Referral</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSourceFilter("Website")}>Website</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSourceFilter("LinkedIn")}>LinkedIn</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSourceFilter("Cold Call")}>Cold Call</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSourceFilter("Event")}>Event</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  {/* Priority Filter */}
-                  <div>
-                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Priority</label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-between h-9 text-sm">
-                          {priorityFilter === "all" ? "All Priorities" : priorityFilter.charAt(0).toUpperCase() + priorityFilter.slice(1)}
-                          <Flame className="w-3.5 h-3.5 ml-2" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
-                        <DropdownMenuItem onClick={() => setPriorityFilter("all")}>All Priorities</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setPriorityFilter("hot")}>
-                          <Flame className="w-3.5 h-3.5 mr-2 text-rose-600" /> Hot
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPriorityFilter("warm")}>
-                          <Flame className="w-3.5 h-3.5 mr-2 text-amber-600" /> Warm
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPriorityFilter("cold")}>
-                          <Flame className="w-3.5 h-3.5 mr-2 text-slate-400" /> Cold
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  {/* Clear Filters */}
-                  <div className="flex items-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setStatusFilter("all");
-                        setSourceFilter("all");
-                        setPriorityFilter("all");
-                        setProjectFilter("all");
-                      }}
-                      className="w-full h-9 text-sm gap-2"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Clear All
-                    </Button>
-                  </div>
+            {/* Leads Table */}
+            <Card className="p-3 sm:p-6 bg-white border-slate-200">
+              {filteredLeads.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-500">No leads found. Add leads using the 'Bulk Import' button.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Lead</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Project</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Contact</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Status</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Value</th>
+                        <th className="text-left py-2 px-3 font-medium text-xs text-slate-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeads.map((lead) => {
+                        const stageKey = (lead.status || "new").toLowerCase();
+                        const projectName = lead.projects?.name || "Unassigned";
+                        const phoneNumbers = (() => {
+                          const phone = lead.phone || lead.contact_phone || "";
+                          if (!phone) return [];
+                          return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p);
+                        })();
+                        const needsAttention = lead.last_contacted_at
+                          ? (Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24) > 7
+                          : true;
+                        const lastTouch = lead.last_contacted_at
+                          ? formatDistanceToNow(new Date(lead.last_contacted_at), { addSuffix: true })
+                          : "Never";
+                        return (
+                          <>
+                            <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                              <td className="py-3 px-3">
+                                <div className="flex items-start gap-3">
+                                  <Avatar className="w-8 h-8 ring-1 ring-slate-200">
+                                    <AvatarFallback className="bg-slate-900 text-white font-semibold text-xs">
+                                      {(lead.company_name || "?").slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-semibold text-slate-900 mb-1">{lead.company_name || "Unknown"}</div>
+                                    <div className="text-xs text-slate-600">{lead.contact_name || "No contact"}</div>
+                                  </div>
+                                </div>
+                              </td>
+                            <td className="py-3 px-3">
+                              <Badge variant="outline" className="border-slate-300 text-slate-700 text-xs">
+                                {projectName}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="space-y-1">
+                                {lead.email && (
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                                    <Mail className="w-3 h-3 text-slate-400" />
+                                    <a href={`mailto:${lead.email}`} className="hover:text-blue-600 hover:underline">
+                                      {lead.email}
+                                    </a>
+                                  </div>
+                                )}
+                                {phoneNumbers.length > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    {phoneNumbers.length === 1 ? (
+                                      <a href={`tel:${phoneNumbers[0]}`} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-blue-600">
+                                        <Phone className="w-3 h-3 text-slate-400" />
+                                        <span>{phoneNumbers[0]}</span>
+                                      </a>
+                                    ) : (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-slate-600 hover:text-blue-600">
+                                            <Phone className="w-3 h-3 mr-1" />
+                                            {phoneNumbers.length} numbers
+                                            <ChevronDown className="w-3 h-3 ml-1" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                          {phoneNumbers.map((phone, idx) => (
+                                            <DropdownMenuItem key={idx} asChild>
+                                              <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
+                                                <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                                <span className="font-medium">{phone}</span>
+                                              </a>
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                  </div>
+                                )}
+                                {!lead.email && phoneNumbers.length === 0 && (
+                                  <span className="text-xs text-slate-400">-</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <Badge className={`${stageColors[stageKey] || stageColors.new} border text-xs font-medium px-2 py-0.5`}>
+                                {statusLabel[stageKey] || stageKey.replace("_", " ")}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-sm font-semibold text-slate-900">
+                                ${Number(lead.value || 0).toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Email"
+                                  onClick={() => {
+                                    const email = lead.email;
+                                    if (email) window.location.href = `mailto:${email}`;
+                                  }}
+                                  disabled={!lead.email}
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </Button>
+                                {phoneNumbers.length > 0 && (
+                                  phoneNumbers.length === 1 ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 hover:bg-slate-100"
+                                      title={`Call ${phoneNumbers[0]}`}
+                                      onClick={() => window.location.href = `tel:${phoneNumbers[0]}`}
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                    </Button>
+                                  ) : (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-7 w-7 p-0 hover:bg-slate-100">
+                                          <Phone className="w-3.5 h-3.5" />
+                                          <ChevronDown className="w-2 h-2 ml-0.5" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+                                        <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
+                                          {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
+                                        </div>
+                                        {phoneNumbers.map((phone, idx) => (
+                                          <DropdownMenuItem key={idx} asChild>
+                                            <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
+                                              <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                              <span className="font-medium">{phone}</span>
+                                            </a>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 hover:bg-slate-100 text-xs"
+                                  title="Add Note"
+                                  onClick={() => handleAddNote(lead)}
+                                >
+                                  <StickyNote className="w-3.5 h-3.5 mr-1" />
+                                  Note
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 hover:bg-slate-100 text-xs"
+                                  title="Schedule Callback"
+                                  onClick={() => handleScheduleCallback(lead)}
+                                >
+                                  <Calendar className="w-3.5 h-3.5 mr-1" />
+                                  Callback
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        </>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-5">
-              <div className="text-xs font-medium text-slate-700 uppercase tracking-wide">Filter by project</div>
-              <select
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="w-full sm:w-64 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-colors"
-              >
-                {projectOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt === "all" ? "All projects" : opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {filteredLeads.map((lead) => {
-                const stageKey = (lead.status || "new").toLowerCase();
-                const scoreKey = (lead.lead_score || "warm").toLowerCase();
-                const projectName = lead.projects?.name || "Unassigned";
-                const isExpanded = expandedLeadId === lead.id;
-                const needsAttention = lead.last_contacted_at
-                  ? (Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24) > 7
-                  : true;
-                const lastTouch = lead.last_contacted_at
-                  ? formatDistanceToNow(new Date(lead.last_contacted_at), { addSuffix: true })
-                  : "Never";
-                return (
-                  <Card key={lead.id} className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-11 h-11 ring-1 ring-slate-200">
-                            <AvatarFallback className="bg-slate-900 text-white font-semibold text-sm">
-                              {(lead.company_name || "?").slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="text-base font-semibold text-slate-900">{lead.company_name || "Unknown"}</div>
-                            <div className="text-xs text-slate-600">{lead.contact_name || lead.email || "No contact"}</div>
-                            <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                              <span className="inline-block w-1 h-1 rounded-full bg-slate-400"></span>
-                              {projectName}
-                            </div>
-                          </div>
-                        </div>
-                        <Badge className={`${stageColors[stageKey] || stageColors.new} border text-xs font-medium px-2 py-0.5`}>
-                          {statusLabel[stageKey] || stageKey.replace("_", " ")}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-                        <Badge variant="outline" className="border-slate-300 text-slate-700 flex items-center gap-1 text-xs font-normal px-2 py-0.5">
-                          <Clock className="w-3 h-3" />
-                          {lastTouch}
-                        </Badge>
-                        {needsAttention && (
-                          <Badge className="bg-rose-100 text-rose-700 border-rose-200 border flex items-center gap-1 text-xs font-medium px-2 py-0.5">
-                            <AlertCircle className="w-3 h-3" />
-                            Needs attention
-                          </Badge>
-                        )}
-                        {lead.location && (
-                          <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50 flex items-center gap-1 text-xs font-normal px-2 py-0.5">
-                            <MapPin className="w-3 h-3" />
-                            {lead.location}
-                          </Badge>
-                        )}
-                        {(lead.source || "Direct") && (
-                          <Badge variant="outline" className="border-purple-300 text-purple-700 bg-purple-50 flex items-center gap-1 text-xs font-normal px-2 py-0.5">
-                            <Briefcase className="w-3 h-3" />
-                            {lead.source || "Direct"}
-                          </Badge>
-                        )}
-                        <Badge className={`${scoreColors[scoreKey] || scoreColors.warm} border text-xs font-medium px-2 py-0.5`}>
-                          {(lead.lead_score || "Warm").toString()}
-                        </Badge>
-                      </div>
-
-                      <div className="bg-slate-50 rounded-lg p-3 mb-3">
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs">
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="truncate">{lead.email || "-"}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{lead.phone || lead.contact_phone || "-"}</span>
-                          </div>
-                          <div className="text-slate-500 font-medium">Value</div>
-                          <div className="text-slate-900 font-bold text-sm">${Number(lead.value || 0).toLocaleString()}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors h-8 px-3 text-xs"
-                            onClick={() => {
-                              const email = (lead as any).contact_email || (lead as any).email;
-                              if (email) window.location.href = `mailto:${email}`;
-                            }}
-                          >
-                            <Mail className="w-3.5 h-3.5 mr-1" /> Email
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors h-8 px-3 text-xs"
-                            onClick={() => {
-                              const phone = (lead as any).contact_phone || (lead as any).phone;
-                              if (phone) window.location.href = `tel:${phone}`;
-                            }}
-                          >
-                            <Phone className="w-3.5 h-3.5 mr-1" /> Call
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="sm"
-                            className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm h-8 px-3 text-xs"
-                            onClick={() => handleAdvanceStage(lead.id, (lead.status || "new").toLowerCase())}
-                          >
-                            <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> Advance
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-slate-300 hover:bg-slate-50 h-8 px-3 text-xs"
-                            onClick={() => setExpandedLeadId(isExpanded ? null : lead.id)}
-                          >
-                            {isExpanded ? (
-                              <><ChevronUp className="w-3.5 h-3.5" /></>
-                            ) : (
-                              <><ChevronDown className="w-3.5 h-3.5" /></>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="border-t border-slate-200 bg-slate-50/50 p-4">
-                        <LeadTimeline
-                          leadId={lead.id}
-                          leadName={lead.company_name || "Unknown"}
-                          lastContactedAt={lead.last_contacted_at}
-                        />
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
+            </Card>
           </>
         )}
         
@@ -913,6 +1141,106 @@ const SalesMyLeads = () => {
                     Import Leads
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Note Modal */}
+        <Dialog open={showNoteModal} onOpenChange={setShowNoteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Note - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+              <DialogDescription>Add a note about this lead</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="note-text">Note</Label>
+                <Textarea
+                  id="note-text"
+                  placeholder="Enter your note..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowNoteModal(false);
+                  setNoteText("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitNote}
+                disabled={submittingActivity || !noteText.trim()}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {submittingActivity ? "Adding..." : "Add Note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Callback Modal */}
+        <Dialog open={showCallbackModal} onOpenChange={setShowCallbackModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Schedule Callback - {selectedLeadForActivity?.company_name || 'Lead'}</DialogTitle>
+              <DialogDescription>Set a callback date and add notes about what was discussed</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="callback-date">Callback Date *</Label>
+                <Input
+                  id="callback-date"
+                  type="date"
+                  value={callbackDate}
+                  onChange={(e) => setCallbackDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">Select the date when you need to call back this lead</p>
+              </div>
+              <div>
+                <Label htmlFor="callback-notes">Notes *</Label>
+                <Textarea
+                  id="callback-notes"
+                  placeholder="What did the lead ask? What was discussed? What should you mention when calling back?"
+                  value={callbackNotes}
+                  onChange={(e) => setCallbackNotes(e.target.value)}
+                  rows={4}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">Add notes about what was discussed and what to mention during the callback</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCallbackModal(false);
+                  setCallbackDate("");
+                  setCallbackNotes("");
+                  setSelectedLeadForActivity(null);
+                }}
+                disabled={submittingActivity}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitCallback}
+                disabled={submittingActivity || !callbackDate || !callbackNotes.trim()}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                {submittingActivity ? "Scheduling..." : "Schedule Callback"}
               </Button>
             </DialogFooter>
           </DialogContent>
