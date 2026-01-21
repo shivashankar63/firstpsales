@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download, CalendarCheck } from "lucide-react";
+import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download, CalendarCheck, MessageCircle, Eye } from "lucide-react";
 import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -59,14 +59,21 @@ const SalesMyLeads = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [currentSalesmanId, setCurrentSalesmanId] = useState<string | null>(null);
   
-  // Note and Callback modals
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [showCallbackModal, setShowCallbackModal] = useState(false);
-  const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
-  const [noteText, setNoteText] = useState("");
-  const [callbackDate, setCallbackDate] = useState("");
-  const [callbackNotes, setCallbackNotes] = useState("");
-  const [submittingActivity, setSubmittingActivity] = useState(false);
+// Note, Callback, WhatsApp, Email modals
+const [showNoteModal, setShowNoteModal] = useState(false);
+const [showCallbackModal, setShowCallbackModal] = useState(false);
+const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+const [showEmailModal, setShowEmailModal] = useState(false);
+const [selectedLeadForActivity, setSelectedLeadForActivity] = useState<any | null>(null);
+const [selectedLeadForWhatsApp, setSelectedLeadForWhatsApp] = useState<any | null>(null);
+const [selectedLeadForEmail, setSelectedLeadForEmail] = useState<any | null>(null);
+const [noteText, setNoteText] = useState("");
+const [callbackDate, setCallbackDate] = useState("");
+const [callbackNotes, setCallbackNotes] = useState("");
+const [whatsAppMessage, setWhatsAppMessage] = useState("");
+const [emailSubject, setEmailSubject] = useState("");
+const [emailBody, setEmailBody] = useState("");
+const [submittingActivity, setSubmittingActivity] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -181,6 +188,127 @@ const SalesMyLeads = () => {
     proposal: "Proposal",
     closed_won: "Closed Won",
     not_interested: "Not Interested",
+  };
+
+  // Helpers for contact actions
+  const parsePhoneNumbers = (phoneString: string | null | undefined): string[] => {
+    if (!phoneString) return [];
+    return String(phoneString)
+      .split(/[,;|\n\r]+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length >= 7 && p.length <= 20 && /[0-9+]/.test(p));
+  };
+
+  const formatPhoneForWhatsApp = (phone: string): string | null => {
+    if (!phone) return null;
+    let cleaned = phone.replace(/[^\d]/g, "");
+    if (cleaned.startsWith("00")) cleaned = cleaned.slice(2);
+    cleaned = cleaned.replace(/^0+/, "");
+    if (cleaned.length < 8) return null;
+    return cleaned;
+  };
+
+  const getWhatsAppMessage = (lead: any) => {
+    let messageTemplate = "";
+    if ((lead as any).whatsapp_message) {
+      messageTemplate = (lead as any).whatsapp_message;
+    } else {
+      const project = projects.find((p) => p.id === lead.project_id);
+      if (project && (project as any).whatsapp_message) {
+        messageTemplate = (project as any).whatsapp_message;
+      } else {
+        const companyName = lead.company_name || "there";
+        const contactName = lead.contact_name || "";
+        return `Hello${contactName ? ` ${contactName}` : ""}, I hope this message finds you well. I wanted to reach out regarding ${companyName}. Would you be available for a quick conversation?`;
+      }
+    }
+    const companyName = lead.company_name || "";
+    const contactName = lead.contact_name || "";
+    const projectName = projects.find((p) => p.id === lead.project_id)?.name || "";
+    return messageTemplate
+      .replace(/{company_name}/g, companyName)
+      .replace(/{contact_name}/g, contactName)
+      .replace(/{project_name}/g, projectName);
+  };
+
+  const handleWhatsApp = (lead: any) => {
+    const phoneNumbers = parsePhoneNumbers(lead.contact_phone || lead.phone || (lead as any).mobile_phone);
+    const validPhones = phoneNumbers.map(formatPhoneForWhatsApp).filter((p): p is string => Boolean(p));
+    if (validPhones.length === 0) {
+      alert("No phone number available for this lead");
+      return;
+    }
+    setSelectedLeadForWhatsApp(lead);
+    setWhatsAppMessage(getWhatsAppMessage(lead));
+    setShowWhatsAppModal(true);
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!selectedLeadForWhatsApp || !whatsAppMessage.trim()) {
+      alert("Please enter a message");
+      return;
+    }
+    const phoneNumbers = parsePhoneNumbers(
+      selectedLeadForWhatsApp.contact_phone ||
+        selectedLeadForWhatsApp.phone ||
+        (selectedLeadForWhatsApp as any).mobile_phone
+    );
+    const validPhones = phoneNumbers.map(formatPhoneForWhatsApp).filter((p): p is string => Boolean(p));
+    if (validPhones.length === 0) {
+      alert("No phone number available for this lead");
+      return;
+    }
+    const message = encodeURIComponent(whatsAppMessage.trim());
+    const formattedPhone = validPhones[0];
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
+    setShowWhatsAppModal(false);
+    setWhatsAppMessage("");
+    setSelectedLeadForWhatsApp(null);
+  };
+
+  const getEmailDefaults = (lead: any) => {
+    const companyName = lead.company_name || "";
+    const contactName = lead.contact_name || "";
+    const projectName = projects.find((p) => p.id === lead.project_id)?.name || "";
+    const defaultSubject = `Quick follow-up - ${companyName || projectName || "your project"}`;
+    const defaultBody = `Hi${contactName ? ` ${contactName}` : ""},\n\nI hope you're doing well. I wanted to follow up regarding ${
+      companyName || projectName || "our discussion"
+    }. Please let me know a good time to connect.\n\nThanks,\n`;
+    return { subject: defaultSubject, body: defaultBody };
+  };
+
+  const handleEmail = (lead: any) => {
+    const emailAddress = lead.contact_email || lead.email;
+    if (!emailAddress) {
+      alert("No email available for this lead");
+      return;
+    }
+    setSelectedLeadForEmail(lead);
+    const defaults = getEmailDefaults(lead);
+    setEmailSubject(defaults.subject);
+    setEmailBody(defaults.body);
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedLeadForEmail) return;
+    const emailAddress = selectedLeadForEmail.contact_email || selectedLeadForEmail.email;
+    if (!emailAddress) {
+      alert("No email available for this lead");
+      return;
+    }
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      alert("Subject and body are required");
+      return;
+    }
+    const subject = encodeURIComponent(emailSubject.trim());
+    const body = encodeURIComponent(emailBody.trim());
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emailAddress)}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, "_blank");
+    setShowEmailModal(false);
+    setSelectedLeadForEmail(null);
+    setEmailSubject("");
+    setEmailBody("");
   };
 
   const handleAddNote = (lead: any) => {
@@ -961,31 +1089,19 @@ const SalesMyLeads = () => {
                         </div>
                             </td>
                             <td className="py-3 px-3">
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                                  className="h-7 w-7 p-0 hover:bg-slate-100"
-                                  title="Email"
-                            onClick={() => {
-                                    const email = lead.email;
-                              if (email) window.location.href = `mailto:${email}`;
-                            }}
-                                  disabled={!lead.email}
-                          >
-                                  <Mail className="w-3.5 h-3.5" />
-                          </Button>
-                                {phoneNumbers.length > 0 && (
+                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                {/* Phone */}
+                                {phoneNumbers.length > 0 ? (
                                   phoneNumbers.length === 1 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
                                       className="h-7 w-7 p-0 hover:bg-slate-100"
                                       title={`Call ${phoneNumbers[0]}`}
                                       onClick={() => window.location.href = `tel:${phoneNumbers[0]}`}
                                     >
                                       <Phone className="w-3.5 h-3.5" />
-                          </Button>
+                                    </Button>
                                   ) : (
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
@@ -997,7 +1113,7 @@ const SalesMyLeads = () => {
                                       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
                                         <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
                                           {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
-                        </div>
+                                        </div>
                                         {phoneNumbers.map((phone, idx) => (
                                           <DropdownMenuItem key={idx} asChild>
                                             <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
@@ -1009,28 +1125,89 @@ const SalesMyLeads = () => {
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   )
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-slate-100"
+                                    title="No phone number"
+                                    disabled
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                  </Button>
                                 )}
-                          <Button
+
+                                {/* Email */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-slate-100"
+                                  title="Email"
+                                  onClick={() => handleEmail(lead)}
+                                  disabled={!lead.email && !lead.contact_email}
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </Button>
+
+                                {/* WhatsApp */}
+                                {phoneNumbers.length > 0 ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-green-100"
+                                    title="WhatsApp"
+                                    onClick={() => handleWhatsApp(lead)}
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    title="WhatsApp - No phone number"
+                                    disabled
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                                  </Button>
+                                )}
+
+                                {/* Note */}
+                                <Button
                                   variant="ghost"
-                            size="sm"
+                                  size="sm"
                                   className="h-7 px-2 hover:bg-slate-100 text-xs"
                                   title="Add Note"
                                   onClick={() => handleAddNote(lead)}
-                          >
+                                >
                                   <StickyNote className="w-3.5 h-3.5 mr-1" />
                                   Note
-                          </Button>
-                          <Button
+                                </Button>
+
+                                {/* Callback */}
+                                <Button
                                   variant="ghost"
-                            size="sm"
+                                  size="sm"
                                   className="h-7 px-2 hover:bg-slate-100 text-xs"
                                   title="Schedule Callback"
                                   onClick={() => handleScheduleCallback(lead)}
                                 >
                                   <Calendar className="w-3.5 h-3.5 mr-1" />
                                   Callback
-                          </Button>
-                        </div>
+                                </Button>
+
+                                {/* View details */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 hover:bg-slate-100 text-xs"
+                                  title="View Details"
+                                  onClick={() => navigate(`/sales/my-leads?leadId=${lead.id}`)}
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-1" />
+                                  View
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         </>
@@ -1276,6 +1453,141 @@ const SalesMyLeads = () => {
                 className="bg-slate-900 hover:bg-slate-800 text-white"
               >
                 {submittingActivity ? "Scheduling..." : "Schedule Callback"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* WhatsApp Message Modal */}
+        <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-green-600" />
+                Send WhatsApp Message - {selectedLeadForWhatsApp?.company_name || 'Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedLeadForWhatsApp && (() => {
+                const phoneNumbers = parsePhoneNumbers(
+                  selectedLeadForWhatsApp.contact_phone || 
+                  selectedLeadForWhatsApp.phone || 
+                  (selectedLeadForWhatsApp as any).mobile_phone
+                );
+                return (
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">To:</p>
+                    <p className="text-sm text-slate-900 font-medium">
+                      {selectedLeadForWhatsApp.contact_name || 'N/A'}
+                    </p>
+                    {phoneNumbers.length > 0 && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        📱 {phoneNumbers[0]}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+              <div>
+                <Label htmlFor="whatsapp-message">Message *</Label>
+                <Textarea
+                  id="whatsapp-message"
+                  placeholder="Enter your WhatsApp message..."
+                  value={whatsAppMessage}
+                  onChange={(e) => setWhatsAppMessage(e.target.value)}
+                  rows={6}
+                  className="mt-1 font-medium"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can customize this message before sending. The message will open in WhatsApp.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWhatsAppModal(false);
+                  setWhatsAppMessage("");
+                  setSelectedLeadForWhatsApp(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendWhatsApp}
+                disabled={!whatsAppMessage.trim()}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Send via WhatsApp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Email Modal */}
+        <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-blue-600" />
+                Send Email - {selectedLeadForEmail?.company_name || 'Lead'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedLeadForEmail && (
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-1">To:</p>
+                  <p className="text-sm text-slate-900 font-medium">
+                    {selectedLeadForEmail.contact_email || selectedLeadForEmail.email || 'N/A'}
+                  </p>
+                </div>
+              )}
+              <div>
+                <Label htmlFor="email-subject">Subject *</Label>
+                <Input
+                  id="email-subject"
+                  placeholder="Email subject..."
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email-body">Message *</Label>
+                <Textarea
+                  id="email-body"
+                  placeholder="Enter your email message..."
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={6}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can customize this message before sending. The email will open in Gmail.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setEmailSubject("");
+                  setEmailBody("");
+                  setSelectedLeadForEmail(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmail}
+                disabled={!emailSubject.trim() || !emailBody.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send via Gmail
               </Button>
             </DialogFooter>
           </DialogContent>
