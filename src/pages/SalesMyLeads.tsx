@@ -201,10 +201,39 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
 
   const formatPhoneForWhatsApp = (phone: string): string | null => {
     if (!phone) return null;
+    
+    // Step 1: Remove all non-digit characters (keep only digits)
     let cleaned = phone.replace(/[^\d]/g, "");
-    if (cleaned.startsWith("00")) cleaned = cleaned.slice(2);
+    
+    // Step 2: Handle international prefixes
+    // Remove + sign (already removed in step 1, but handle if present in original)
+    // Handle 00 prefix (international dialing code)
+    if (cleaned.startsWith("00")) {
+      cleaned = cleaned.slice(2);
+    }
+    
+    // Step 3: Remove ALL leading zeros - WhatsApp requires no leading zeros
+    // Country codes start with 1-9, never 0
     cleaned = cleaned.replace(/^0+/, "");
-    if (cleaned.length < 8) return null;
+    
+    // Step 4: Validate length (E.164 standard: 1-15 digits)
+    // Minimum: 7 digits (some small countries)
+    // Maximum: 15 digits (E.164 standard)
+    if (cleaned.length < 7 || cleaned.length > 15) {
+      return null;
+    }
+    
+    // Step 5: Ensure it's all digits and doesn't start with 0
+    if (!/^\d+$/.test(cleaned) || cleaned.startsWith("0")) {
+      return null;
+    }
+    
+    // Step 6: Final check - must start with 1-9 (valid country code)
+    // Country codes are 1-3 digits and start with 1-9
+    if (!/^[1-9]\d+$/.test(cleaned)) {
+      return null;
+    }
+    
     return cleaned;
   };
 

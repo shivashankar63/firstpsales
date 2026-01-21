@@ -324,10 +324,39 @@ const SalesmanLeadsTable = () => {
   // Format phone for WhatsApp (reuse logic from leads pages)
   const formatPhoneForWhatsApp = (phone: string): string | null => {
     if (!phone) return null;
+    
+    // Step 1: Remove all non-digit characters (keep only digits)
     let cleaned = phone.replace(/[^\d]/g, "");
-    if (cleaned.startsWith("00")) cleaned = cleaned.slice(2);
+    
+    // Step 2: Handle international prefixes
+    // Remove + sign (already removed in step 1, but handle if present in original)
+    // Handle 00 prefix (international dialing code)
+    if (cleaned.startsWith("00")) {
+      cleaned = cleaned.slice(2);
+    }
+    
+    // Step 3: Remove ALL leading zeros - WhatsApp requires no leading zeros
+    // Country codes start with 1-9, never 0
     cleaned = cleaned.replace(/^0+/, "");
-    if (cleaned.length < 8) return null;
+    
+    // Step 4: Validate length (E.164 standard: 1-15 digits)
+    // Minimum: 7 digits (some small countries)
+    // Maximum: 15 digits (E.164 standard)
+    if (cleaned.length < 7 || cleaned.length > 15) {
+      return null;
+    }
+    
+    // Step 5: Ensure it's all digits and doesn't start with 0
+    if (!/^\d+$/.test(cleaned) || cleaned.startsWith("0")) {
+      return null;
+    }
+    
+    // Step 6: Final check - must start with 1-9 (valid country code)
+    // Country codes are 1-3 digits and start with 1-9
+    if (!/^[1-9]\d+$/.test(cleaned)) {
+      return null;
+    }
+    
     return cleaned;
   };
 
@@ -387,13 +416,22 @@ const SalesmanLeadsTable = () => {
       .filter((p): p is string => Boolean(p));
 
     if (validPhones.length === 0) {
-      alert("No valid phone number available for WhatsApp");
+      const originalPhone = (selectedLeadForWhatsApp as any).contact_phone || (selectedLeadForWhatsApp as any).phone || (selectedLeadForWhatsApp as any).mobile_phone;
+      alert(`Invalid phone number format: "${originalPhone}". Please ensure the number includes a country code (e.g., +1 for USA, +91 for India).`);
       return;
     }
 
     const formattedPhone = validPhones[0];
+    
+    // Double-check the format before opening WhatsApp
+    if (!formattedPhone || formattedPhone.length < 7 || formattedPhone.length > 15 || formattedPhone.startsWith("0")) {
+      alert(`Invalid phone number format: "${formattedPhone}". Please check the number includes a valid country code.`);
+      return;
+    }
+    
     const message = encodeURIComponent(whatsAppMessage.trim());
-    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`;
+    window.open(whatsappUrl, "_blank");
 
     setShowWhatsAppModal(false);
     setSelectedLeadForWhatsApp(null);
