@@ -1892,6 +1892,11 @@ const ManagerLeads = () => {
                                       Callback {new Date(lead.next_followup_date).toLocaleDateString()}
                                     </Badge>
                                   )}
+                                  {normalizeStatus(lead.status) === 'not_interested' && (
+                                    <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] px-1.5 py-0.5">
+                                      Not Interested
+                                    </Badge>
+                                  )}
                                 </div>
                                 {(lead.followup_notes || lead.lead_notes) && (
                                   <div className="text-[11px] text-slate-500 line-clamp-2">
@@ -2317,6 +2322,11 @@ const ManagerLeads = () => {
                                   {lead.next_followup_date && new Date(lead.next_followup_date) > new Date() && (
                                     <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0.5">
                                       Callback {new Date(lead.next_followup_date).toLocaleDateString()}
+                                    </Badge>
+                                  )}
+                                  {normalizeStatus(lead.status) === 'not_interested' && (
+                                    <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] px-1.5 py-0.5">
+                                      Not Interested
                                     </Badge>
                                   )}
                                 </div>

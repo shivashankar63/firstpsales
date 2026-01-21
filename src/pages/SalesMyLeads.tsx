@@ -680,24 +680,24 @@ const SalesMyLeads = () => {
                   {/* Advanced Filter Dropdown */}
                   <DropdownMenu open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 h-9"
-                      >
-                        <FilterIcon className="w-4 h-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-9"
+                >
+                  <FilterIcon className="w-4 h-4" />
                         Advanced Filters
                         {(statusFilter !== "all" || sourceFilter !== "all" || priorityFilter !== "all" || projectFilter !== "all") && (
-                          <Badge className="bg-indigo-100 text-indigo-700 border-0 text-xs px-1.5 py-0.5 ml-1">Active</Badge>
-                        )}
+                    <Badge className="bg-indigo-100 text-indigo-700 border-0 text-xs px-1.5 py-0.5 ml-1">Active</Badge>
+                  )}
                         <ChevronDown className="w-3.5 h-3.5" />
-                      </Button>
+                </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 p-3">
                       <div className="space-y-3">
-                        {/* Status Filter */}
-                        <div>
-                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Status</label>
+                  {/* Status Filter */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Status</label>
                           <Select value={statusFilter} onValueChange={setStatusFilter}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="All Status" />
@@ -728,11 +728,11 @@ const SalesMyLeads = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
+                  </div>
 
-                        {/* Source Filter */}
-                        <div>
-                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Lead Source</label>
+                  {/* Source Filter */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Lead Source</label>
                           <Select value={sourceFilter} onValueChange={setSourceFilter}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="All Sources" />
@@ -747,11 +747,11 @@ const SalesMyLeads = () => {
                               <SelectItem value="Event">Event</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
+                  </div>
 
-                        {/* Priority Filter */}
-                        <div>
-                          <label className="text-xs font-medium text-slate-700 mb-1.5 block">Priority</label>
+                  {/* Priority Filter */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 mb-1.5 block">Priority</label>
                           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="All Priorities" />
@@ -763,28 +763,28 @@ const SalesMyLeads = () => {
                               <SelectItem value="cold">Cold</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
+                  </div>
 
-                        {/* Clear Filters */}
+                  {/* Clear Filters */}
                         <div className="pt-2 border-t border-slate-200">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSearchQuery("");
-                              setStatusFilter("all");
-                              setSourceFilter("all");
-                              setPriorityFilter("all");
-                              setProjectFilter("all");
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setStatusFilter("all");
+                        setSourceFilter("all");
+                        setPriorityFilter("all");
+                        setProjectFilter("all");
                               setShowAdvancedFilters(false);
-                            }}
+                      }}
                             className="w-full h-8 text-xs gap-2"
-                          >
-                            <X className="w-3.5 h-3.5" />
+                    >
+                      <X className="w-3.5 h-3.5" />
                             Clear All Filters
-                          </Button>
-                        </div>
-                      </div>
+                    </Button>
+                  </div>
+                </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
 
@@ -835,40 +835,40 @@ const SalesMyLeads = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.map((lead) => {
-                        const stageKey = (lead.status || "new").toLowerCase();
-                        const projectName = lead.projects?.name || "Unassigned";
+              {filteredLeads.map((lead) => {
+                const stageKey = (lead.status || "new").toLowerCase();
+                const projectName = lead.projects?.name || "Unassigned";
                         const phoneNumbers = (() => {
                           const phone = lead.phone || lead.contact_phone || "";
                           if (!phone) return [];
                           return String(phone).split(/[,;|\n\r]+/).map(p => p.trim()).filter(p => p);
                         })();
-                        const needsAttention = lead.last_contacted_at
-                          ? (Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24) > 7
-                          : true;
-                        const lastTouch = lead.last_contacted_at
-                          ? formatDistanceToNow(new Date(lead.last_contacted_at), { addSuffix: true })
-                          : "Never";
-                        return (
+                const needsAttention = lead.last_contacted_at
+                  ? (Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60 * 24) > 7
+                  : true;
+                const lastTouch = lead.last_contacted_at
+                  ? formatDistanceToNow(new Date(lead.last_contacted_at), { addSuffix: true })
+                  : "Never";
+                return (
                           <>
                             <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                               <td className="py-3 px-3">
                                 <div className="flex items-start gap-3">
                                   <Avatar className="w-8 h-8 ring-1 ring-slate-200">
                                     <AvatarFallback className="bg-slate-900 text-white font-semibold text-xs">
-                                      {(lead.company_name || "?").slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
+                              {(lead.company_name || "?").slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <div className="text-sm font-semibold text-slate-900 mb-1">{lead.company_name || "Unknown"}</div>
                                     <div className="text-xs text-slate-600">{lead.contact_name || "No contact"}</div>
-                                  </div>
-                                </div>
+                            </div>
+                          </div>
                               </td>
                             <td className="py-3 px-3">
                               <Badge variant="outline" className="border-slate-300 text-slate-700 text-xs">
                                 {projectName}
-                              </Badge>
+                        </Badge>
                             </td>
                             <td className="py-3 px-3">
                               <div className="space-y-1">
@@ -878,7 +878,7 @@ const SalesMyLeads = () => {
                                     <a href={`mailto:${lead.email}`} className="hover:text-blue-600 hover:underline">
                                       {lead.email}
                                     </a>
-                                  </div>
+                      </div>
                                 )}
                                 {phoneNumbers.length > 0 && (
                                   <div className="flex items-center gap-1.5">
@@ -913,7 +913,31 @@ const SalesMyLeads = () => {
                                 {!lead.email && phoneNumbers.length === 0 && (
                                   <span className="text-xs text-slate-400">-</span>
                                 )}
-                              </div>
+                                {/* Note / Callback / Not Interested badges */}
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {lead.followup_notes && (
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0.5">
+                                      Note
+                          </Badge>
+                        )}
+                                  {lead.next_followup_date && new Date(lead.next_followup_date) > new Date() && (
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0.5">
+                                      Callback {new Date(lead.next_followup_date).toLocaleDateString()}
+                          </Badge>
+                        )}
+                                  {(lead.status || "").toLowerCase() === "not_interested" && (
+                                    <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] px-1.5 py-0.5">
+                                      Not Interested
+                        </Badge>
+                                  )}
+                      </div>
+                                {(lead.followup_notes || lead.lead_notes) && (
+                                  <div className="text-[11px] text-slate-500 line-clamp-2">
+                                    {(lead.followup_notes || lead.lead_notes || "").slice(0, 80)}
+                                    {(lead.followup_notes || lead.lead_notes || "").length > 80 ? "…" : ""}
+                          </div>
+                                )}
+                          </div>
                             </td>
                             <td className="py-3 px-3">
                               <Badge className={`${stageColors[stageKey] || stageColors.new} border text-xs font-medium px-2 py-0.5`}>
@@ -923,34 +947,34 @@ const SalesMyLeads = () => {
                             <td className="py-3 px-3">
                               <div className="text-sm font-semibold text-slate-900">
                                 ${Number(lead.value || 0).toLocaleString()}
-                              </div>
+                        </div>
                             </td>
                             <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
                                   className="h-7 w-7 p-0 hover:bg-slate-100"
                                   title="Email"
-                                  onClick={() => {
+                            onClick={() => {
                                     const email = lead.email;
-                                    if (email) window.location.href = `mailto:${email}`;
-                                  }}
+                              if (email) window.location.href = `mailto:${email}`;
+                            }}
                                   disabled={!lead.email}
-                                >
+                          >
                                   <Mail className="w-3.5 h-3.5" />
-                                </Button>
+                          </Button>
                                 {phoneNumbers.length > 0 && (
                                   phoneNumbers.length === 1 ? (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
+                          <Button
+                            variant="outline"
+                            size="sm"
                                       className="h-7 w-7 p-0 hover:bg-slate-100"
                                       title={`Call ${phoneNumbers[0]}`}
                                       onClick={() => window.location.href = `tel:${phoneNumbers[0]}`}
                                     >
                                       <Phone className="w-3.5 h-3.5" />
-                                    </Button>
+                          </Button>
                                   ) : (
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
@@ -962,7 +986,7 @@ const SalesMyLeads = () => {
                                       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
                                         <div className="px-2 py-1.5 text-xs font-semibold text-slate-600 border-b">
                                           {phoneNumbers.length} Phone Number{phoneNumbers.length !== 1 ? 's' : ''}
-                                        </div>
+                        </div>
                                         {phoneNumbers.map((phone, idx) => (
                                           <DropdownMenuItem key={idx} asChild>
                                             <a href={`tel:${phone}`} className="flex items-center gap-2 cursor-pointer w-full">
@@ -975,27 +999,27 @@ const SalesMyLeads = () => {
                                     </DropdownMenu>
                                   )
                                 )}
-                                <Button
+                          <Button
                                   variant="ghost"
-                                  size="sm"
+                            size="sm"
                                   className="h-7 px-2 hover:bg-slate-100 text-xs"
                                   title="Add Note"
                                   onClick={() => handleAddNote(lead)}
-                                >
+                          >
                                   <StickyNote className="w-3.5 h-3.5 mr-1" />
                                   Note
-                                </Button>
-                                <Button
+                          </Button>
+                          <Button
                                   variant="ghost"
-                                  size="sm"
+                            size="sm"
                                   className="h-7 px-2 hover:bg-slate-100 text-xs"
                                   title="Schedule Callback"
                                   onClick={() => handleScheduleCallback(lead)}
                                 >
                                   <Calendar className="w-3.5 h-3.5 mr-1" />
                                   Callback
-                                </Button>
-                              </div>
+                          </Button>
+                        </div>
                             </td>
                           </tr>
                         </>
@@ -1003,7 +1027,7 @@ const SalesMyLeads = () => {
                       })}
                     </tbody>
                   </table>
-                </div>
+                      </div>
               )}
             </Card>
           </>
@@ -1058,8 +1082,8 @@ const SalesMyLeads = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
+                      </div>
+                    )}
 
               {/* Import Message */}
               {importMessage && (
@@ -1076,7 +1100,7 @@ const SalesMyLeads = () => {
                   <div className="flex items-center justify-between">
                     <Label>Preview ({excelData.length} rows found)</Label>
                     <Badge variant="outline">{excelHeaders.length} columns detected</Badge>
-                  </div>
+            </div>
                   
                   <div className="border border-slate-200 rounded-lg overflow-auto max-h-64">
                     <table className="w-full text-sm">
@@ -1139,8 +1163,8 @@ const SalesMyLeads = () => {
                   <>
                     <Upload className="w-4 h-4 mr-2" />
                     Import Leads
-                  </>
-                )}
+          </>
+        )}
               </Button>
             </DialogFooter>
           </DialogContent>
