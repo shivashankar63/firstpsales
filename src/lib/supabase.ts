@@ -228,6 +228,17 @@ export const signInWithEmail = async (email: string, password: string) => {
     });
     
     if (error) throw error;
+    
+    // Track login session
+    if (data.user) {
+      try {
+        await createUserSession(data.user.id);
+      } catch (sessionError) {
+        console.error('Failed to track login session:', sessionError);
+        // Don't fail the login if session tracking fails
+      }
+    }
+    
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error as any };
@@ -236,6 +247,19 @@ export const signInWithEmail = async (email: string, password: string) => {
 
 export const signOut = async () => {
   try {
+    // Get current user before signing out
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Track logout session
+    if (user) {
+      try {
+        await updateUserSessionLogout(user.id);
+      } catch (sessionError) {
+        console.error('Failed to track logout session:', sessionError);
+        // Don't fail the logout if session tracking fails
+      }
+    }
+    
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     return { error: null };
@@ -1289,6 +1313,291 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
   } catch (error) {
     console.error('Error getting user role:', error);
     return null;
+  }
+};
+
+// ============================================================================
+// USER SESSIONS FUNCTIONS (Login/Logout Tracking)
+// ============================================================================
+
+export const createUserSession = async (userId: string, ipAddress?: string, userAgent?: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_sessions')
+      .insert([{
+        user_id: userId,
+        login_time: new Date().toISOString(),
+        ip_address: ipAddress || null,
+        user_agent: userAgent || null,
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    logSupabaseError('createUserSession', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const updateUserSessionLogout = async (userId: string) => {
+  try {
+    console.log('[updateUserSessionLogout] Updating logout for userId:', userId);
+    
+    // Find the most recent session without a logout time
+    const { data: activeSession, error: findError } = await supabase
+      .from('user_sessions')
+      .select('id, login_time')
+      .eq('user_id', userId)
+      .is('logout_time', null)
+      .order('login_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    console.log('[updateUserSessionLogout] Active session found:', activeSession);
+    
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('[updateUserSessionLogout] Error finding session:', findError);
+      throw findError;
+    }
+    
+    if (!activeSession) {
+      console.log('[updateUserSessionLogout] No active session to update');
+      return { data: null, error: null }; // No active session to update
+    }
+    
+    const logoutTime = new Date().toISOString();
+    console.log('[updateUserSessionLogout] Setting logout_time to:', logoutTime);
+    
+    const { data, error } = await supabase
+      .from('user_sessions')
+      .update({
+        logout_time: logoutTime,
+      })
+      .eq('id', activeSession.id)
+      .select()
+      .single();
+    
+    console.log('[updateUserSessionLogout] Update result - data:', data, 'error:', error);
+    
+    if (error) {
+      console.error('[updateUserSessionLogout] Update error:', error);
+      throw error;
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('[updateUserSessionLogout] Exception:', error);
+    logSupabaseError('updateUserSessionLogout', error);
+    return { data: null, error: error as any };
+  }
+};
+
+export const getUserSessions = async (userId: string, limit: number = 100) => {
+  try {
+    console.log('[getUserSessions] Fetching sessions for userId:', userId);
+    const { data, error } = await supabase
+      .from('user_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('login_time', { ascending: false })
+      .limit(limit);
+    
+    console.log('[getUserSessions] Query result - data:', data, 'error:', error);
+    
+    if (error) {
+      console.error('[getUserSessions] Supabase error:', error);
+      throw error;
+    }
+    
+    // For each session, get projects worked on during that time period
+    if (data && data.length > 0) {
+      const sessionsWithProjects = await Promise.all(
+        data.map(async (session) => {
+          const loginTime = new Date(session.login_time);
+          const logoutTime = session.logout_time ? new Date(session.logout_time) : new Date();
+          
+          // Get unique project names
+          const projectNames = new Set<string>();
+          
+          try {
+            // Get leads assigned to this user that were updated during the session
+            // This includes status changes, field updates, etc.
+            const { data: leadsData } = await supabase
+              .from('leads')
+              .select('project_id')
+              .eq('assigned_to', userId)
+              .gte('updated_at', loginTime.toISOString())
+              .lte('updated_at', logoutTime.toISOString());
+            
+            if (leadsData && leadsData.length > 0) {
+              const projectIds = [...new Set(leadsData.map((l: any) => l.project_id).filter(Boolean))];
+              if (projectIds.length > 0) {
+                const { data: projectsData } = await supabase
+                  .from('projects')
+                  .select('name')
+                  .in('id', projectIds);
+                
+                if (projectsData) {
+                  projectsData.forEach((project: any) => {
+                    if (project.name) {
+                      projectNames.add(project.name);
+                    }
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching leads for session:', error);
+          }
+          
+          try {
+            // Check all lead activities during the session (notes, calls, emails, status changes, etc.)
+            const { data: activitiesData } = await supabase
+              .from('lead_activities')
+              .select('lead_id')
+              .eq('user_id', userId)
+              .gte('created_at', loginTime.toISOString())
+              .lte('created_at', logoutTime.toISOString());
+            
+            if (activitiesData && activitiesData.length > 0) {
+              const leadIds = [...new Set(activitiesData.map((a: any) => a.lead_id).filter(Boolean))];
+              if (leadIds.length > 0) {
+                const { data: leadsFromActivities } = await supabase
+                  .from('leads')
+                  .select('project_id')
+                  .in('id', leadIds);
+                
+                if (leadsFromActivities) {
+                  const projectIds = [...new Set(leadsFromActivities.map((l: any) => l.project_id).filter(Boolean))];
+                  if (projectIds.length > 0) {
+                    const { data: projectsData } = await supabase
+                      .from('projects')
+                      .select('name')
+                      .in('id', projectIds);
+                    
+                    if (projectsData) {
+                      projectsData.forEach((project: any) => {
+                        if (project.name) {
+                          projectNames.add(project.name);
+                        }
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching activities for session:', error);
+          }
+          
+          try {
+            // Also check general activities table (if it exists and has project_id)
+            const { data: generalActivities } = await supabase
+              .from('activities')
+              .select('project_id')
+              .eq('user_id', userId)
+              .gte('created_at', loginTime.toISOString())
+              .lte('created_at', logoutTime.toISOString())
+              .not('project_id', 'is', null);
+            
+            if (generalActivities && generalActivities.length > 0) {
+              const projectIds = [...new Set(generalActivities.map((a: any) => a.project_id).filter(Boolean))];
+              if (projectIds.length > 0) {
+                const { data: projectsData } = await supabase
+                  .from('projects')
+                  .select('name')
+                  .in('id', projectIds);
+                
+                if (projectsData) {
+                  projectsData.forEach((project: any) => {
+                    if (project.name) {
+                      projectNames.add(project.name);
+                    }
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            // activities table might not have project_id, ignore error
+            console.log('Activities table query skipped:', error);
+          }
+          
+          try {
+            // Check leads that were created during the session
+            const { data: createdLeads } = await supabase
+              .from('leads')
+              .select('project_id')
+              .eq('created_by', userId)
+              .gte('created_at', loginTime.toISOString())
+              .lte('created_at', logoutTime.toISOString());
+            
+            if (createdLeads && createdLeads.length > 0) {
+              const projectIds = [...new Set(createdLeads.map((l: any) => l.project_id).filter(Boolean))];
+              if (projectIds.length > 0) {
+                const { data: projectsData } = await supabase
+                  .from('projects')
+                  .select('name')
+                  .in('id', projectIds);
+                
+                if (projectsData) {
+                  projectsData.forEach((project: any) => {
+                    if (project.name) {
+                      projectNames.add(project.name);
+                    }
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching created leads for session:', error);
+          }
+          
+          return {
+            ...session,
+            projects_worked: Array.from(projectNames),
+          };
+        })
+      );
+      
+      console.log('[getUserSessions] Returning', sessionsWithProjects.length, 'sessions with projects');
+      return { data: sessionsWithProjects, error: null };
+    }
+    
+    console.log('[getUserSessions] Returning', data?.length || 0, 'sessions');
+    return { data: data || [], error: null };
+  } catch (error) {
+    console.error('[getUserSessions] Exception:', error);
+    logSupabaseError('getUserSessions', error);
+    return { data: [], error: error as any };
+  }
+};
+
+export const getAllUserSessions = async (limit: number = 1000) => {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return { data: [], error: { message: 'User not authenticated' } };
+    }
+    
+    // Check if user is manager or owner
+    const userRole = await getUserRole(currentUser.id);
+    if (userRole !== 'manager' && userRole !== 'owner') {
+      return { data: [], error: { message: 'Unauthorized' } };
+    }
+    
+    const { data, error } = await supabase
+      .from('user_sessions')
+      .select('*, users(id, full_name, email)')
+      .order('login_time', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (error) {
+    logSupabaseError('getAllUserSessions', error);
+    return { data: [], error: error as any };
   }
 };
 

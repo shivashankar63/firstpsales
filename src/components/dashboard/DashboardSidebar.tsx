@@ -96,7 +96,9 @@ const DashboardSidebar = ({ role }: SidebarProps) => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Import signOut function to track logout session
+    const { signOut } = await import('@/lib/supabase');
+    await signOut();
     navigate("/", { replace: true });
   };
 

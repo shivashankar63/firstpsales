@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase, createUserSession, updateUserSessionLogout } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
 type UserRole = 'owner' | 'manager' | 'salesman';
@@ -19,6 +19,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -33,6 +34,9 @@ export const useAuth = () => {
 
         if (user) {
           setUser(user);
+          if (user.id) {
+            previousUserIdRef.current = user.id;
+          }
           
           // Fetch user role from database
           const { data, error: dbError } = await supabase
@@ -73,6 +77,16 @@ export const useAuth = () => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Track login session on SIGNED_IN event
+          if (event === 'SIGNED_IN') {
+            try {
+              const { createUserSession } = await import('@/lib/supabase');
+              await createUserSession(session.user.id);
+            } catch (error) {
+              console.error('Failed to track login session:', error);
+            }
+          }
+          
           const { data } = await supabase
             .from('users')
             .select('role')
@@ -90,6 +104,16 @@ export const useAuth = () => {
             }
           }
         } else {
+          // Track logout session on SIGNED_OUT event
+          if (event === 'SIGNED_OUT' && previousUserIdRef.current) {
+            try {
+              const { updateUserSessionLogout } = await import('@/lib/supabase');
+              await updateUserSessionLogout(previousUserIdRef.current);
+            } catch (error) {
+              console.error('Failed to track logout session:', error);
+            }
+            previousUserIdRef.current = null;
+          }
           setUserRole(null);
         }
       }
@@ -131,6 +155,13 @@ export const useAuth = () => {
           const resolvedRole = dbRole ?? metaRole;
           if (resolvedRole) {
             setUserRole(resolvedRole);
+          }
+
+          // Track login session
+          try {
+            await createUserSession(data.user.id);
+          } catch (error) {
+            console.error('Failed to track login session:', error);
           }
 
           // Redirect to appropriate dashboard
@@ -204,6 +235,16 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       setError(null);
+      
+      // Track logout session before signing out
+      if (user?.id) {
+        try {
+          await updateUserSessionLogout(user.id);
+        } catch (error) {
+          console.error('Failed to track logout session:', error);
+        }
+      }
+      
       const { error } = await supabase.auth.signOut();
       
       if (error) {

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Loader, TrendingUp, Target, Users, DollarSign, Award, AlertCircle } from "lucide-react";
+import { Loader, TrendingUp, Target, Users, DollarSign, Award, AlertCircle, Clock, LogIn, LogOut } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getCurrentUser, getUsers, getLeads } from "@/lib/supabase";
+import { getCurrentUser, getUsers, getLeads, getUserSessions } from "@/lib/supabase";
 
 interface SalesPersonPerformance {
   id: string;
@@ -24,11 +24,25 @@ interface SalesPersonPerformance {
   winRate: number;
 }
 
+interface UserSession {
+  id: string;
+  user_id: string;
+  login_time: string;
+  logout_time: string | null;
+  session_duration_minutes: number | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  projects_worked?: string[];
+}
+
 const ManagerSalesPerformance = () => {
   const [loading, setLoading] = useState(true);
   const [salesTeam, setSalesTeam] = useState<SalesPersonPerformance[]>([]);
   const [selectedSalesman, setSelectedSalesman] = useState<SalesPersonPerformance | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [userSessions, setUserSessions] = useState<UserSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -205,9 +219,25 @@ const ManagerSalesPerformance = () => {
                 <div
                   key={salesman.id}
                   className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col gap-3 sm:gap-0"
-                  onClick={() => {
+                  onClick={async () => {
                     setSelectedSalesman(salesman);
                     setShowDetailsModal(true);
+                    setLoadingSessions(true);
+                    setUserSessions([]);
+                    try {
+                      console.log('Fetching sessions for user:', salesman.id);
+                      const result = await getUserSessions(salesman.id, 100);
+                      console.log('Sessions result:', result);
+                      if (result.error) {
+                        console.error('Error fetching user sessions:', result.error);
+                      }
+                      setUserSessions(result.data || []);
+                    } catch (error) {
+                      console.error('Exception fetching user sessions:', error);
+                      setUserSessions([]);
+                    } finally {
+                      setLoadingSessions(false);
+                    }
                   }}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
@@ -392,6 +422,129 @@ const ManagerSalesPerformance = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Login/Logout History */}
+                <div>
+                  <h4 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    Login/Logout History
+                  </h4>
+                  {loadingSessions ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader className="w-6 h-6 animate-spin text-slate-600" />
+                      <span className="ml-2 text-slate-600">Loading session history...</span>
+                    </div>
+                  ) : userSessions.length === 0 ? (
+                    <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
+                      <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                      <p className="text-slate-600 text-sm">No session history available</p>
+                      <p className="text-xs text-slate-500 mt-2">Sessions will appear after login/logout</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse bg-white border border-slate-200 rounded-lg">
+                        <thead>
+                          <tr className="bg-slate-100 border-b border-slate-200">
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-r border-slate-200">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-r border-slate-200">
+                              Login Time
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-r border-slate-200">
+                              Logout Time
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-r border-slate-200">
+                              Duration
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              Projects Worked
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {userSessions.map((session, index) => {
+                            const loginDate = new Date(session.login_time);
+                            const logoutDate = session.logout_time ? new Date(session.logout_time) : null;
+                            const duration = session.session_duration_minutes;
+                            const isActive = !session.logout_time;
+                            const projectsWorked = session.projects_worked || [];
+                            
+                            return (
+                              <tr
+                                key={session.id}
+                                className={`hover:bg-slate-50 ${
+                                  isActive ? 'bg-blue-50/30' : index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                                }`}
+                              >
+                                <td className="px-4 py-3 text-sm text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {loginDate.toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'short', 
+                                    day: 'numeric' 
+                                  })}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <LogIn className="w-4 h-4 text-green-600" />
+                                    {loginDate.toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit',
+                                      second: '2-digit'
+                                    })}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 whitespace-nowrap">
+                                  {logoutDate ? (
+                                    <div className="flex items-center gap-2">
+                                      <LogOut className="w-4 h-4 text-red-600" />
+                                      {logoutDate.toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 whitespace-nowrap">
+                                  {duration !== null ? (
+                                    <span className="font-medium">
+                                      {Math.floor(duration / 60)}h {duration % 60}m
+                                    </span>
+                                  ) : isActive ? (
+                                    <span className="text-slate-400">-</span>
+                                  ) : (
+                                    <span className="text-slate-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-700">
+                                  {projectsWorked.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {projectsWorked.map((project, idx) => (
+                                        <Badge
+                                          key={idx}
+                                          className="bg-purple-100 text-purple-700 border-purple-200 text-xs"
+                                        >
+                                          {project}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 text-xs">No projects</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
