@@ -83,6 +83,28 @@ const ManagerLeads = () => {
   const [callbackDate, setCallbackDate] = useState("");
   const [callbackNotes, setCallbackNotes] = useState("");
   const [submittingActivity, setSubmittingActivity] = useState(false);
+  const [leadNoteCounts, setLeadNoteCounts] = useState<Record<string, number>>({});
+  
+  // Helper function to load note counts for leads
+  const loadNoteCounts = async (leadsToCheck: any[]) => {
+    if (!leadsToCheck || leadsToCheck.length === 0) return;
+    const noteCounts: Record<string, number> = {};
+    await Promise.all(
+      leadsToCheck.map(async (lead: any) => {
+        try {
+          const { data: activities } = await getActivitiesForLead(lead.id);
+          const notes = (activities || []).filter((a: any) => 
+            String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+          );
+          noteCounts[lead.id] = notes.length;
+        } catch (error) {
+          noteCounts[lead.id] = 0;
+        }
+      })
+    );
+    setLeadNoteCounts(prev => ({ ...prev, ...noteCounts }));
+  };
+  
     // Open Edit Lead modal with selected lead's data
     const openEditLeadModal = () => {
       if (!selectedLead) return;
@@ -328,15 +350,20 @@ const ManagerLeads = () => {
       try {
         const leadsRes = await getLeads();
         const allLeads = leadsRes.data || [];
+        let leadsToShow: any[] = [];
         // If a status filter is set in the URL, show all projects' leads for that status
         if (searchParams.get("status")) {
-          setLeads(allLeads);
+          leadsToShow = allLeads;
+          setLeads(leadsToShow);
         } else if (selectedProject) {
-          const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject.id);
-          setLeads(projectLeads);
+          leadsToShow = allLeads.filter((l: any) => l.project_id === selectedProject.id);
+          setLeads(leadsToShow);
         } else {
-          setLeads(allLeads); // Show all leads when no project is selected
+          leadsToShow = allLeads; // Show all leads when no project is selected
+          setLeads(leadsToShow);
         }
+        // Load note counts for displayed leads
+        await loadNoteCounts(leadsToShow);
       } catch (error) {
         // Error fetching leads
       }
@@ -348,14 +375,19 @@ const ManagerLeads = () => {
       try {
         const leadsRes = await getLeads();
         const allLeads = leadsRes.data || [];
+        let leadsToShow: any[] = [];
         if (searchParams.get("status")) {
-          setLeads(allLeads);
+          leadsToShow = allLeads;
+          setLeads(leadsToShow);
         } else if (selectedProject) {
-          const projectLeads = allLeads.filter((l: any) => l.project_id === selectedProject.id);
-          setLeads(projectLeads);
+          leadsToShow = allLeads.filter((l: any) => l.project_id === selectedProject.id);
+          setLeads(leadsToShow);
         } else {
-          setLeads(allLeads); // Show all leads when no project is selected
+          leadsToShow = allLeads; // Show all leads when no project is selected
+          setLeads(leadsToShow);
         }
+        // Refresh note counts for displayed leads
+        await loadNoteCounts(leadsToShow);
       } catch (e) {
         // Failed to refresh leads after realtime event
       }
@@ -1179,6 +1211,20 @@ const ManagerLeads = () => {
       await updateLead(selectedLeadForActivity.id, {
         last_contacted_at: new Date().toISOString(),
       });
+      
+      // Update note count for this lead
+      try {
+        const { data: activitiesData } = await getActivitiesForLead(selectedLeadForActivity.id);
+        const notes = (activitiesData || []).filter((a: any) => 
+          String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+        );
+        setLeadNoteCounts(prev => ({
+          ...prev,
+          [selectedLeadForActivity.id]: notes.length
+        }));
+      } catch (error) {
+        console.error("Error updating note count", error);
+      }
       
       // Refresh leads and keep selection in sync
       const leadsRes = await getLeads();
@@ -2486,7 +2532,7 @@ const ManagerLeads = () => {
                   return (
                           <tr 
                             key={lead.id} 
-                            className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                            className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''} ${leadNoteCounts[lead.id] > 0 ? 'bg-blue-50/30' : ''}`}
                             onClick={() => {
                       setSelectedLead(lead);
                       setShowDetailsModal(true);
@@ -2507,7 +2553,15 @@ const ManagerLeads = () => {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-xs font-medium text-slate-900">{lead.company_name}</div>
+                                    {leadNoteCounts[lead.id] > 0 && (
+                                      <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium border border-blue-200">
+                                        <StickyNote className="w-3 h-3" />
+                                        <span>{leadNoteCounts[lead.id]}</span>
+                                      </div>
+                                    )}
+                                  </div>
                             {isStale && (
                                     <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-1.5 py-0.5 mt-0.5">
                                       Stale ({daysStale}d)

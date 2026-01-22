@@ -1,4 +1,4 @@
-import { Search, Filter, ChevronDown, Eye, MoreHorizontal, Loader, X } from "lucide-react";
+import { Search, Filter, ChevronDown, Eye, MoreHorizontal, Loader, X, StickyNote } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getLeads, getUsers, supabase, subscribeToLeads } from "@/lib/supabase";
+import { getLeads, getUsers, supabase, subscribeToLeads, getActivitiesForLead } from "@/lib/supabase";
 
 interface Lead {
   id: string;
@@ -48,6 +48,7 @@ const ManagerLeadsTable = () => {
   const [editingStatus, setEditingStatus] = useState("");
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [leadNoteCounts, setLeadNoteCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchLeadsAndProjects = async () => {
@@ -60,6 +61,25 @@ const ManagerLeadsTable = () => {
         setLeads(leadsData || []);
         setUsers(usersData || []);
         setProjects(projectsData || []);
+        
+        // Load note counts for all leads
+        if (leadsData && leadsData.length > 0) {
+          const noteCounts: Record<string, number> = {};
+          await Promise.all(
+            leadsData.map(async (lead: any) => {
+              try {
+                const { data: activities } = await getActivitiesForLead(lead.id);
+                const notes = (activities || []).filter((a: any) => 
+                  String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+                );
+                noteCounts[lead.id] = notes.length;
+              } catch (error) {
+                noteCounts[lead.id] = 0;
+              }
+            })
+          );
+          setLeadNoteCounts(noteCounts);
+        }
       } catch (error) {
         console.error("Error fetching leads/projects:", error);
       } finally {
@@ -252,10 +272,19 @@ const ManagerLeadsTable = () => {
             <tbody>
               {filteredLeads.length > 0 ? (
                 filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                  <tr key={lead.id} className={`border-b border-border hover:bg-muted/50 transition-colors ${leadNoteCounts[lead.id] > 0 ? 'bg-blue-50/30' : ''}`}>
                     <td className="py-3 px-4">
-                      <span className="text-sm font-medium text-foreground">{lead.projects?.name || "Unknown"}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">{lead.company_name || "Unknown"}</span>
+                        {leadNoteCounts[lead.id] > 0 && (
+                          <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium border border-blue-200">
+                            <StickyNote className="w-3 h-3" />
+                            <span>{leadNoteCounts[lead.id]}</span>
+                          </div>
+                        )}
+                      </div>
                     </td>
+                    <td className="py-3 px-4 text-sm text-foreground">{lead.projects?.name || "Unknown"}</td>
                     <td className="py-3 px-4 text-sm text-foreground">{lead.contact_name}</td>
                     <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-foreground">

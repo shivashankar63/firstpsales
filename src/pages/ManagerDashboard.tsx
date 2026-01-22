@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Download, FileSpreadsheet, ChevronDown, FileText, Receipt, Package, ShoppingCart, UserPlus } from "lucide-react";
+import { Plus, Loader, Briefcase, Users, TrendingUp, DollarSign, Target, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Download, FileSpreadsheet, ChevronDown, FileText, Receipt, Package, ShoppingCart, UserPlus, StickyNote } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount, supabase } from "@/lib/supabase";
+import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount, supabase, getActivitiesForLead } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import {
   DropdownMenu,
@@ -45,6 +45,7 @@ const ManagerDashboard = () => {
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const navigate = useNavigate();
+  const [leadNoteCounts, setLeadNoteCounts] = useState<Record<string, number>>({});
 
   const formatCurrency = (value: number) =>
     value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -139,6 +140,25 @@ const ManagerDashboard = () => {
         setSalesTeam((usersRes.data || []).filter((u: any) => 
           String(u.role || "").toLowerCase().includes("sales")
         ));
+
+        // Load note counts for all leads
+        if (leadsRes.data && leadsRes.data.length > 0) {
+          const noteCounts: Record<string, number> = {};
+          await Promise.all(
+            leadsRes.data.map(async (lead: any) => {
+              try {
+                const { data: activities } = await getActivitiesForLead(lead.id);
+                const notes = (activities || []).filter((a: any) => 
+                  String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+                );
+                noteCounts[lead.id] = notes.length;
+              } catch (error) {
+                noteCounts[lead.id] = 0;
+              }
+            })
+          );
+          setLeadNoteCounts(noteCounts);
+        }
 
         await fetchStats();
       } catch (error) {
@@ -885,8 +905,18 @@ const ManagerDashboard = () => {
               </thead>
               <tbody>
                 {leads.slice(0, 5).map((lead) => (
-                  <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 px-3 text-sm text-slate-900">{lead.company_name}</td>
+                  <tr key={lead.id} className={`border-b border-slate-100 hover:bg-slate-50 ${leadNoteCounts[lead.id] > 0 ? 'bg-blue-50/30' : ''}`}>
+                    <td className="py-2 px-3 text-sm text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <span>{lead.company_name}</span>
+                        {leadNoteCounts[lead.id] > 0 && (
+                          <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium border border-blue-200">
+                            <StickyNote className="w-3 h-3" />
+                            <span>{leadNoteCounts[lead.id]}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-2 px-3 text-sm text-slate-700">{lead.contact_name}</td>
                     <td className="py-2 px-3">
                       <Badge className="capitalize border px-2 py-1 text-xs" variant="outline">{lead.status.replace('_', ' ')}</Badge>
