@@ -49,8 +49,8 @@ const ManagerTeam = () => {
       <main className="flex-1 p-4 lg:p-8 pt-20 sm:pt-16 lg:pt-8 overflow-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">My Team</h1>
-            <p className="text-slate-500">Overview of team performance and quotas</p>
+            <h1 className="text-3xl font-bold text-slate-900">Manager Users</h1>
+            <p className="text-slate-500">Overview of manager users and quotas</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-200 flex items-center gap-2">
             <Users className="w-4 h-4" /> {selectedSalesmen.length} selected
