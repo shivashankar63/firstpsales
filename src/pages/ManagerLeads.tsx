@@ -2090,9 +2090,9 @@ const ManagerLeads = () => {
                             </td>
                             <td className="py-2 px-3">
                               <div className="flex items-center gap-2">
-                                <Avatar className="w-7 h-7">
-                                  <AvatarFallback className="bg-slate-100 text-slate-900 text-xs font-medium">
-                                    {lead.company_name.substring(0, 2).toUpperCase()}
+                                <Avatar className="w-8 h-8 ring-1 ring-slate-200">
+                                  <AvatarFallback className="bg-slate-900 text-white font-semibold text-xs">
+                                    {(lead.company_name || "?").slice(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
@@ -2547,9 +2547,9 @@ const ManagerLeads = () => {
                             </td>
                             <td className="py-2 px-3">
                               <div className="flex items-center gap-2">
-                                <Avatar className="w-7 h-7">
-                                  <AvatarFallback className="bg-slate-100 text-slate-900 text-xs font-medium">
-                                    {lead.company_name.substring(0, 2).toUpperCase()}
+                                <Avatar className="w-8 h-8 ring-1 ring-slate-200">
+                                  <AvatarFallback className="bg-slate-900 text-white font-semibold text-xs">
+                                    {(lead.company_name || "?").slice(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
