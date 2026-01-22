@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download, CalendarCheck, MessageCircle, Eye } from "lucide-react";
-import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
+import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity, getActivitiesForLead, subscribeToLeadActivities } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -73,7 +73,16 @@ const [callbackNotes, setCallbackNotes] = useState("");
 const [whatsAppMessage, setWhatsAppMessage] = useState("");
 const [emailSubject, setEmailSubject] = useState("");
 const [emailBody, setEmailBody] = useState("");
-const [submittingActivity, setSubmittingActivity] = useState(false);
+  const [submittingActivity, setSubmittingActivity] = useState(false);
+  
+  // Details modal state
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [leadActivities, setLeadActivities] = useState<any[]>([]);
+  
+  // Track note counts for each lead
+  const [leadNoteCounts, setLeadNoteCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +106,25 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
         const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
         setLeads(data || []);
         
+        // Load note counts for all leads
+        if (data && data.length > 0) {
+          const noteCounts: Record<string, number> = {};
+          await Promise.all(
+            data.map(async (lead: any) => {
+              try {
+                const { data: activities } = await getActivitiesForLead(lead.id);
+                const notes = (activities || []).filter((a: any) => 
+                  String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+                );
+                noteCounts[lead.id] = notes.length;
+              } catch (error) {
+                noteCounts[lead.id] = 0;
+              }
+            })
+          );
+          setLeadNoteCounts(noteCounts);
+        }
+        
         // Load projects for bulk import
         const projectsRes = await getProjects();
         setProjects(projectsRes.data || []);
@@ -115,6 +143,25 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
         if (user) {
           const { data } = await getLeads(user ? { assignedTo: user.id } : undefined);
           setLeads(data || []);
+          
+          // Refresh note counts for all leads
+          if (data && data.length > 0) {
+            const noteCounts: Record<string, number> = {};
+            await Promise.all(
+              data.map(async (lead: any) => {
+                try {
+                  const { data: activities } = await getActivitiesForLead(lead.id);
+                  const notes = (activities || []).filter((a: any) => 
+                    String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+                  );
+                  noteCounts[lead.id] = notes.length;
+                } catch (error) {
+                  noteCounts[lead.id] = 0;
+                }
+              })
+            );
+            setLeadNoteCounts(noteCounts);
+          }
         }
       } catch (error) {
         // Silently handle error
@@ -127,6 +174,47 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
       } catch {}
     };
   }, [navigate]);
+
+  // If a leadId is present in the URL, open that lead's modal when data is available
+  useEffect(() => {
+    const paramId = searchParams.get("leadId");
+    if (!paramId || !leads?.length) return;
+    const found = leads.find((l) => String(l.id) === String(paramId));
+    if (found) {
+      setSelectedLead(found);
+      setShowDetailsModal(true);
+    }
+  }, [searchParams, leads]);
+
+  // Load activities for the selected lead when viewing details
+  useEffect(() => {
+    if (!selectedLead || !showDetailsModal) return;
+
+    let cleanup: (() => void) | undefined;
+
+    const load = async () => {
+      try {
+        const { data } = await getActivitiesForLead(selectedLead.id);
+        setLeadActivities(data || []);
+      } catch (e) {
+        console.error("Error loading activities", e);
+      }
+    };
+
+    load();
+
+    const sub = subscribeToLeadActivities(selectedLead.id, async () => {
+      try {
+        const { data } = await getActivitiesForLead(selectedLead.id);
+        setLeadActivities(data || []);
+      } catch (e) {
+        console.error("Error loading activities", e);
+      }
+    });
+    cleanup = () => { try { sub.unsubscribe?.(); } catch {} };
+
+    return () => { cleanup?.(); };
+  }, [selectedLead, showDetailsModal]);
 
   const totalValue = useMemo(() => leads.reduce((s, l) => s + (l.value || 0), 0), [leads]);
 
@@ -379,6 +467,25 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
         const updated = updatedLeads.find((l) => l.id === selectedLeadForActivity.id);
         if (updated) {
           setSelectedLeadForActivity(updated);
+          // If details modal is open for this lead, refresh activities
+          if (selectedLead && selectedLead.id === selectedLeadForActivity.id) {
+            const { data: activitiesData } = await getActivitiesForLead(selectedLead.id);
+            setLeadActivities(activitiesData || []);
+          }
+          
+          // Update note count for this lead
+          try {
+            const { data: activitiesData } = await getActivitiesForLead(selectedLeadForActivity.id);
+            const notes = (activitiesData || []).filter((a: any) => 
+              String((a.activity_type || a.type || 'note')).toLowerCase() === 'note'
+            );
+            setLeadNoteCounts(prev => ({
+              ...prev,
+              [selectedLeadForActivity.id]: notes.length
+            }));
+          } catch (error) {
+            console.error("Error updating note count", error);
+          }
         }
       }
       
@@ -1020,7 +1127,7 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
                   : "Never";
                 return (
                           <>
-                            <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                            <tr key={lead.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${leadNoteCounts[lead.id] > 0 ? 'bg-blue-50/30' : ''}`}>
                               <td className="py-3 px-3">
                                 <div className="flex items-start gap-3">
                                   <Avatar className="w-8 h-8 ring-1 ring-slate-200">
@@ -1029,7 +1136,15 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
                             </AvatarFallback>
                           </Avatar>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-slate-900 mb-1">{lead.company_name || "Unknown"}</div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="text-sm font-semibold text-slate-900">{lead.company_name || "Unknown"}</div>
+                                      {leadNoteCounts[lead.id] > 0 && (
+                                        <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium border border-blue-200">
+                                          <StickyNote className="w-3 h-3" />
+                                          <span>{leadNoteCounts[lead.id]}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                     <div className="text-xs text-slate-600">{lead.contact_name || "No contact"}</div>
                             </div>
                           </div>
@@ -1232,7 +1347,11 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
                                   size="sm"
                                   className="h-7 px-2 hover:bg-slate-100 text-xs"
                                   title="View Details"
-                                  onClick={() => navigate(`/sales/my-leads?leadId=${lead.id}`)}
+                                  onClick={() => {
+                                    setSelectedLead(lead);
+                                    setShowDetailsModal(true);
+                                    setSearchParams({ leadId: lead.id });
+                                  }}
                                 >
                                   <Eye className="w-3.5 h-3.5 mr-1" />
                                   View
@@ -1623,6 +1742,293 @@ const [submittingActivity, setSubmittingActivity] = useState(false);
               >
                 <Mail className="w-4 h-4 mr-2" />
                 Send via Gmail
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Details Modal */}
+        <Dialog open={showDetailsModal} onOpenChange={(open) => {
+          setShowDetailsModal(open);
+          if (!open) {
+            setSelectedLead(null);
+            setSearchParams({});
+          }
+        }}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Lead Details - {selectedLead?.company_name}</DialogTitle>
+            </DialogHeader>
+            {selectedLead && (
+              <div className="space-y-4">
+                {/* Basic Information */}
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Basic Information</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Company Name</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">{selectedLead.company_name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Contact Name</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">{selectedLead.contact_name}</p>
+                    </div>
+                    {(selectedLead as any).designation && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Designation</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).designation}</p>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Project</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        {selectedLead.projects?.name ? (
+                          <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {selectedLead.projects.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-400">No project assigned</span>
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        <Badge className={stageColors[selectedLead.status] || "bg-slate-100 text-slate-700 border-slate-200"}>
+                          {selectedLead.status || "new"}
+                        </Badge>
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">${((selectedLead.value || 0) / 1000).toFixed(0)}K</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Contact Information</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">Email</Label>
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        {selectedLead.contact_email || (selectedLead as any).email ? (
+                          <a href={`mailto:${selectedLead.contact_email || (selectedLead as any).email}`} className="text-blue-600 hover:text-blue-800">
+                            {selectedLead.contact_email || (selectedLead as any).email}
+                          </a>
+                        ) : (
+                          "N/A"
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground">
+                        Phone{(() => {
+                          const phones = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
+                          return phones.length > 1 ? ` (${phones.length})` : '';
+                        })()}
+                      </Label>
+                      <div className="text-sm font-medium text-foreground mt-1 space-y-1">
+                        {(() => {
+                          const phoneNumbers = parsePhoneNumbers(selectedLead.contact_phone || (selectedLead as any).phone);
+                          if (phoneNumbers.length === 0) {
+                            return <span className="text-slate-400">N/A</span>;
+                          }
+                          return phoneNumbers.map((phone, idx) => (
+                            <a 
+                              key={idx}
+                              href={`tel:${phone}`} 
+                              className="block text-blue-600 hover:text-blue-800"
+                            >
+                              {phone}
+                            </a>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                    {(selectedLead as any).mobile_phone && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Mobile Phone</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">
+                          <a href={`tel:${(selectedLead as any).mobile_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).mobile_phone}</a>
+                        </p>
+                      </div>
+                    )}
+                    {(selectedLead as any).direct_phone && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Direct Phone</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">
+                          <a href={`tel:${(selectedLead as any).direct_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).direct_phone}</a>
+                        </p>
+                      </div>
+                    )}
+                    {(selectedLead as any).office_phone && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">Office Phone</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">
+                          <a href={`tel:${(selectedLead as any).office_phone}`} className="text-blue-600 hover:text-blue-800">{(selectedLead as any).office_phone}</a>
+                        </p>
+                      </div>
+                    )}
+                    {(selectedLead as any).linkedin && (
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">LinkedIn</Label>
+                        <p className="text-sm font-medium text-foreground mt-1">
+                          <a href={(selectedLead as any).linkedin.startsWith('http') ? (selectedLead as any).linkedin : `https://${(selectedLead as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">View Profile</a>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address Information */}
+                {((selectedLead as any).address_line1 || (selectedLead as any).city || (selectedLead as any).state) && (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">Address</h4>
+                    <div className="bg-slate-50 p-3 rounded-lg">
+                      {(selectedLead as any).address_line1 && <p className="text-sm text-slate-900">{(selectedLead as any).address_line1}</p>}
+                      {(selectedLead as any).address_line2 && <p className="text-sm text-slate-900">{(selectedLead as any).address_line2}</p>}
+                      <p className="text-sm text-slate-700">
+                        {[
+                          (selectedLead as any).city,
+                          (selectedLead as any).state,
+                          (selectedLead as any).zip,
+                          (selectedLead as any).country
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Classification */}
+                {((selectedLead as any).customer_group || (selectedLead as any).product_group || (selectedLead as any).lead_source || (selectedLead as any).lead_score) && (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">Classification</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(selectedLead as any).customer_group && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Customer Group</Label>
+                          <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).customer_group}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).product_group && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Product Group</Label>
+                          <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).product_group}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).lead_source && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Lead Source</Label>
+                          <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).lead_source}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).lead_score !== undefined && (selectedLead as any).lead_score !== null && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Lead Score</Label>
+                          <p className="text-sm font-medium text-foreground mt-1">{(selectedLead as any).lead_score}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).tags && Array.isArray((selectedLead as any).tags) && (selectedLead as any).tags.length > 0 && (
+                        <div className="col-span-2">
+                          <Label className="text-xs font-semibold text-muted-foreground">Tags</Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {(selectedLead as any).tags.map((tag: string, idx: number) => (
+                              <Badge key={idx} variant="outline">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up Information */}
+                {((selectedLead as any).next_followup_date || (selectedLead as any).followup_notes) && (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">Follow-up</h4>
+                    <div className="space-y-2">
+                      {(selectedLead as any).next_followup_date && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Next Follow-up Date</Label>
+                          <p className="text-sm font-medium text-foreground mt-1">{new Date((selectedLead as any).next_followup_date).toLocaleString()}</p>
+                        </div>
+                      )}
+                      {(selectedLead as any).followup_notes && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground">Follow-up Notes</Label>
+                          <p className="text-sm font-medium text-foreground mt-1 whitespace-pre-wrap">{(selectedLead as any).followup_notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedLead.description && (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">Description</h4>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedLead.description}</p>
+                  </div>
+                )}
+
+                {/* Link */}
+                {selectedLead.link && (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-2">Link</h4>
+                    <p className="text-sm">
+                      <a href={selectedLead.link.startsWith('http') ? selectedLead.link : `https://${selectedLead.link}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
+                        {selectedLead.link}
+                      </a>
+                    </p>
+                  </div>
+                )}
+
+                {/* Activity Notes Section */}
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <StickyNote className="w-4 h-4" />
+                    Activity Notes ({(() => {
+                      const notes = (leadActivities || []).filter((a: any) => String((a.activity_type || a.type || 'note')).toLowerCase() === 'note');
+                      return notes.length;
+                    })()})
+                  </h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                    {(() => {
+                      const notes = (leadActivities || []).filter((a: any) => String((a.activity_type || a.type || 'note')).toLowerCase() === 'note');
+                      if (notes.length === 0) {
+                        return (
+                          <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-200 border-dashed">
+                            <p className="text-slate-500 text-sm">✍️ No notes added yet. Add notes using the Note button.</p>
+                          </div>
+                        );
+                      }
+                      return notes.map((a: any, idx: number) => (
+                        <div key={a.id || idx} className="bg-slate-50 p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-all">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <span className="text-sm font-semibold text-slate-900">Note</span>
+                            <span className="text-xs text-slate-600 whitespace-nowrap bg-white px-2 py-1 rounded border border-slate-200">
+                              {new Date(a.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          {a.description && (
+                            <p className="text-slate-700 text-sm leading-relaxed break-words whitespace-pre-wrap">{a.description}</p>
+                          )}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowDetailsModal(false);
+                setSelectedLead(null);
+                setSearchParams({});
+              }}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
