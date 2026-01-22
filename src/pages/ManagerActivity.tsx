@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, Phone, Mail, FileText, CheckCircle2, Loader, Plus, Users, Edit, Trash2 } from "lucide-react";
-import { getCurrentUser, getUsers, getLeads, getActivities, subscribeToActivities, getUsersByRole, getTeams, createTeam, supabase, createSalesmanAccount, updateUser, deleteUser } from "@/lib/supabase";
+import { getCurrentUser, getUsers, getLeads, getActivities, subscribeToActivities, getUsersByRole, getTeams, createTeam, supabase, createSalesmanAccount, updateUser, deleteUser, updateTeam, deleteTeam, updateTeamMembers } from "@/lib/supabase";
 import { useCallback } from "react";
 
 const iconMap: Record<string, any> = {
@@ -60,6 +60,11 @@ async function fetchTeamMembers(teamId: string) {
 }
 
 const ManagerActivity = () => {
+  // Edit Team states
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editTeamLoading, setEditTeamLoading] = useState(false);
+  const [editTeamMembers, setEditTeamMembers] = useState<string[]>([]);
   const [activities, setActivities] = useState<ActivityWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState<Record<string, string>>({});
@@ -434,34 +439,134 @@ const ManagerActivity = () => {
                 <div className="text-slate-500">No teams yet. Create one below.</div>
               ) : (
                 teams.map(team => (
-                  <DialogTrigger asChild key={team.id}>
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col gap-2 cursor-pointer hover:shadow-md transition"
-                      onClick={async () => {
-                        setModalTeam(team);
-                        if (!teamLeads[team.id]) await fetchLeadsForTeam(team);
-                      }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg font-semibold text-purple-700">{team.name}</span>
-                        <span className="ml-2 text-xs text-slate-500">(View overview)</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        {team.members.length === 0 ? (
-                          <span className="text-xs text-slate-400">No members</span>
-                        ) : (
-                          team.members.map(id => (
-                            <div key={id} className="flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-full">
-                              <Avatar className="w-6 h-6">
-                                <AvatarFallback className="bg-purple-600 text-white text-xs">
-                                  {(teamMembers[id]?.split(" ")[0][0] || "").toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs text-purple-900 font-medium">{teamMembers[id] || id}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                  <div key={team.id} className="relative group">
+                    <div className="absolute top-2 right-2 flex gap-2 z-20">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs bg-white hover:bg-slate-50 shadow-sm"
+                        onClick={e => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setEditingTeamId(team.id);
+                          setEditTeamName(team.name);
+                          setEditTeamMembers([...team.members]);
+                        }}
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-sm"
+                        onClick={async e => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          if (window.confirm(`Are you sure you want to delete team '${team.name}'?`)) {
+                            setEditTeamLoading(true);
+                            setSuccessMsg("");
+                            setErrorMsg("");
+                            try {
+                              console.log('Attempting to delete team:', team.id, team.name);
+                              const res = await deleteTeam(team.id);
+                              console.log('Delete team response:', res);
+                              
+                              if (res.success) {
+                                // Verify deletion by re-fetching teams from database
+                                const { data: teamsData } = await getTeams();
+                                const teamsWithMembers: Team[] = [];
+                                if (teamsData && Array.isArray(teamsData)) {
+                                  for (const t of teamsData) {
+                                    const members = await fetchTeamMembers(t.id);
+                                    teamsWithMembers.push({ id: t.id, name: t.name, members });
+                                  }
+                                }
+                                // Update state with fresh data from database
+                                setTeams(teamsWithMembers);
+                                
+                                // Verify the team was actually deleted
+                                const deletedTeamStillExists = teamsWithMembers.some(t => t.id === team.id);
+                                if (deletedTeamStillExists) {
+                                  console.warn('Team deletion reported success but team still exists in database');
+                                  setErrorMsg(`Warning: Team deletion may have failed. Please refresh the page to verify.`);
+                                  setTimeout(() => setErrorMsg(""), 8000);
+                                } else {
+                                  setSuccessMsg(`Team '${team.name}' deleted successfully.`);
+                                  setErrorMsg("");
+                                  setTimeout(() => setSuccessMsg(""), 3000);
+                                }
+                              } else {
+                                let errorDetails = "Unknown error";
+                                const errorCode = (res.error as any)?.code || '';
+                                if (typeof res.error === 'object' && res.error !== null) {
+                                  errorDetails = res.error.message || res.error.details || (res.error as any)?.hint || JSON.stringify(res.error);
+                                } else if (typeof res.error === 'string') {
+                                  errorDetails = res.error;
+                                }
+                                console.error('Delete team error:', res.error);
+                                
+                                let errorMessage = `Failed to delete team: ${errorDetails}`;
+                                if (errorCode === 'RLS_POLICY_VIOLATION' || errorDetails.includes('RLS') || errorDetails.includes('manager_id')) {
+                                  errorMessage += '\n\nPossible causes:\n';
+                                  errorMessage += '1. RLS DELETE policy not applied - Run FIX_TEAMS_DELETE_RLS.sql in Supabase\n';
+                                  errorMessage += '2. You are not the team manager (manager_id does not match your user id)\n';
+                                  errorMessage += '3. Your user role is not "manager" or "owner"\n';
+                                  errorMessage += '\nCheck browser console for detailed logs.';
+                                }
+                                
+                                setErrorMsg(errorMessage);
+                                setSuccessMsg("");
+                                setTimeout(() => setErrorMsg(""), 12000);
+                              }
+                            } catch (error: any) {
+                              console.error('Delete team exception:', error);
+                              setErrorMsg(`Failed to delete team: ${error?.message || JSON.stringify(error) || "Unknown error."}`);
+                              setSuccessMsg("");
+                              setTimeout(() => setErrorMsg(""), 8000);
+                            } finally {
+                              setEditTeamLoading(false);
+                            }
+                          }
+                        }}
+                        disabled={editTeamLoading}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete
+                      </Button>
                     </div>
-                  </DialogTrigger>
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col gap-2 cursor-pointer hover:shadow-md transition text-left"
+                        onClick={async () => {
+                          setModalTeam(team);
+                          if (!teamLeads[team.id]) await fetchLeadsForTeam(team);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg font-semibold text-purple-700">{team.name}</span>
+                          <span className="ml-2 text-xs text-slate-500">(View overview)</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {team.members.length === 0 ? (
+                            <span className="text-xs text-slate-400">No members</span>
+                          ) : (
+                            team.members.map(id => (
+                              <div key={id} className="flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-full">
+                                <Avatar className="w-6 h-6">
+                                  <AvatarFallback className="bg-purple-600 text-white text-xs">
+                                    {(teamMembers[id]?.split(" ")[0][0] || "").toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs text-purple-900 font-medium">{teamMembers[id] || id}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </button>
+                    </DialogTrigger>
+                  </div>
                 ))
               )}
             </div>
@@ -531,6 +636,95 @@ const ManagerActivity = () => {
               )}
             </DialogContent>
           </Dialog>
+
+          {/* Edit Team Modal - moved outside the map */}
+          <Dialog open={!!editingTeamId} onOpenChange={(open) => { if (!open) setEditingTeamId(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Team</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-team-name">Team Name</Label>
+                  <Input
+                    id="edit-team-name"
+                    value={editTeamName}
+                    onChange={e => setEditTeamName(e.target.value)}
+                    disabled={editTeamLoading}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="mt-4">Team Members</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {salesmen.map(s => (
+                      <label key={s.id} className="flex items-center gap-2 text-sm bg-slate-100 px-2 py-1 rounded cursor-pointer hover:bg-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={editTeamMembers.includes(s.id)}
+                          onChange={e => {
+                            setEditTeamMembers(prev =>
+                              e.target.checked
+                                ? [...prev, s.id]
+                                : prev.filter(id => id !== s.id)
+                            );
+                          }}
+                          disabled={editTeamLoading}
+                        />
+                        {s.full_name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => {
+                  setEditingTeamId(null);
+                  setEditTeamName("");
+                  setEditTeamMembers([]);
+                }} disabled={editTeamLoading}>Cancel</Button>
+                <Button
+                  onClick={async () => {
+                    if (!editingTeamId) return;
+                    setEditTeamLoading(true);
+                    setSuccessMsg("");
+                    setErrorMsg("");
+                    try {
+                      const res = await updateTeam(editingTeamId, { name: editTeamName });
+                      if (!res.error) {
+                        // Deduplicate member IDs before sending to backend
+                        const uniqueMembers = Array.from(new Set(editTeamMembers));
+                        const resMembers = await updateTeamMembers(editingTeamId, uniqueMembers);
+                        setEditTeamLoading(false);
+                        if (resMembers.success) {
+                          setTeams(prev => prev.map(t => t.id === editingTeamId ? { ...t, name: editTeamName, members: [...uniqueMembers] } : t));
+                          setSuccessMsg("Team updated successfully.");
+                          setEditingTeamId(null);
+                          setEditTeamName("");
+                          setEditTeamMembers([]);
+                        } else {
+                          console.error('Update team members error:', resMembers.error);
+                          setErrorMsg('Failed to update team members. ' + (resMembers.error?.message || resMembers.error?.details || JSON.stringify(resMembers.error) || "Unknown error. Possible RLS or constraint issue."));
+                        }
+                      } else {
+                        setEditTeamLoading(false);
+                        console.error('Update team error:', res.error);
+                        setErrorMsg('Failed to update team. ' + (res.error?.message || res.error?.details || JSON.stringify(res.error) || "Unknown error. Possible RLS or constraint issue."));
+                      }
+                    } catch (error: any) {
+                      setEditTeamLoading(false);
+                      console.error('Update team error:', error);
+                      setErrorMsg('Failed to update team. ' + (error?.message || "Unknown error."));
+                    }
+                  }}
+                  disabled={editTeamLoading || !editTeamName.trim()}
+                >
+                  {editTeamLoading ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <hr className="my-6 border-slate-200" />
           <form
             className="flex flex-col gap-4 md:flex-row md:items-end"
@@ -542,9 +736,14 @@ const ManagerActivity = () => {
               try {
                 // Create team in Supabase
                 const currentUser = await getCurrentUser();
+                if (!currentUser) {
+                  setErrorMsg('Failed to get current user');
+                  setCreatingTeam(false);
+                  return;
+                }
                 const { data: created, error } = await createTeam({
                   name: newTeamName,
-                  created_by: currentUser.id,
+                  manager_id: currentUser.id,
                 });
                 if (error || !created || !created[0]) {
                   setErrorMsg('Failed to create team. ' + (error?.message || error || 'Unknown error'));

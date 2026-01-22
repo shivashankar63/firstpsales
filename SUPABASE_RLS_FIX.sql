@@ -94,6 +94,7 @@ CREATE POLICY "Enable delete leads" ON public.leads
 DROP POLICY IF EXISTS "Enable read all teams" ON public.teams;
 DROP POLICY IF EXISTS "Enable insert teams" ON public.teams;
 DROP POLICY IF EXISTS "Enable update teams" ON public.teams;
+DROP POLICY IF EXISTS "Enable delete teams" ON public.teams;
 
 -- Policy 1: Allow users to read all teams
 CREATE POLICY "Enable read all teams" ON public.teams
@@ -116,6 +117,25 @@ CREATE POLICY "Enable update teams" ON public.teams
       SELECT 1 FROM public.users 
       WHERE id = auth.uid() AND role = 'owner'
     )
+  )
+  WITH CHECK (
+    auth.uid() = manager_id OR
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE id = auth.uid() AND role = 'owner'
+    )
+  );
+
+-- Policy 4: Allow managers and owners to delete any team
+-- This allows: 1) Team manager to delete their own team, 2) Any manager/owner to delete any team
+-- This handles cases where manager_id might be null
+CREATE POLICY "Enable delete teams" ON public.teams
+  FOR DELETE USING (
+    auth.uid() = manager_id OR
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE id = auth.uid() AND role IN ('manager', 'owner')
+    )
   );
 
 -- ============================================================================
@@ -124,6 +144,8 @@ CREATE POLICY "Enable update teams" ON public.teams
 
 DROP POLICY IF EXISTS "Enable read team members" ON public.team_members;
 DROP POLICY IF EXISTS "Enable insert team members" ON public.team_members;
+DROP POLICY IF EXISTS "Enable update team members" ON public.team_members;
+DROP POLICY IF EXISTS "Enable delete team members" ON public.team_members;
 
 -- Policy 1: Allow users to read all team members
 CREATE POLICY "Enable read team members" ON public.team_members
@@ -132,6 +154,30 @@ CREATE POLICY "Enable read team members" ON public.team_members
 -- Policy 2: Allow managers and owners to insert team members
 CREATE POLICY "Enable insert team members" ON public.team_members
   FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE id = auth.uid() AND role IN ('manager', 'owner')
+    )
+  );
+
+-- Policy 3: Allow managers and owners to update team members
+CREATE POLICY "Enable update team members" ON public.team_members
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE id = auth.uid() AND role IN ('manager', 'owner')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE id = auth.uid() AND role IN ('manager', 'owner')
+    )
+  );
+
+-- Policy 4: Allow managers and owners to delete team members
+CREATE POLICY "Enable delete team members" ON public.team_members
+  FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.users 
       WHERE id = auth.uid() AND role IN ('manager', 'owner')

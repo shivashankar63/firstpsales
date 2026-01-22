@@ -1,3 +1,120 @@
+// Update team members (replace all members for a team)
+export const updateTeamMembers = async (teamId: string, memberIds: string[]) => {
+  try {
+    // Delete existing members
+    const { error: delError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', teamId);
+    if (delError) throw delError;
+
+    // Wait for DB to process deletes (avoid race condition)
+    await new Promise(resolve => setTimeout(resolve, 250));
+
+    // Deduplicate memberIds
+    const uniqueMemberIds = Array.from(new Set(memberIds));
+
+    // Insert new members
+    if (uniqueMemberIds.length > 0) {
+      const inserts = uniqueMemberIds.map(id => ({ team_id: teamId, user_id: id }));
+      const { error: insError } = await supabase
+        .from('team_members')
+        .insert(inserts);
+      if (insError) throw insError;
+    }
+    return { success: true, error: null };
+  } catch (error) {
+    logSupabaseError('updateTeamMembers', error);
+    return { success: false, error: error as any };
+  }
+};
+export const deleteTeam = async (id: string) => {
+  try {
+    console.log('Starting team deletion for id:', id);
+    
+    // First delete related team_members
+    const { error: memberError, data: memberData } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', id)
+      .select();
+    
+    if (memberError) {
+      console.error('Error deleting team_members:', memberError);
+      throw memberError;
+    }
+    
+    console.log('Deleted team_members:', memberData?.length || 0, 'rows');
+
+    // Wait a bit for DB to process deletes
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Now delete the team
+    const { error, data } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', id)
+      .select();
+    
+    console.log('Team delete response - error:', error, 'data:', data);
+    
+    if (error) {
+      console.error('Error deleting team:', error);
+      throw error;
+    }
+
+    // Check if any rows were actually deleted
+    // If RLS blocks the delete, data will be empty array even though error is null
+    if (!data || data.length === 0) {
+      console.warn('Team deletion returned no rows - likely blocked by RLS');
+      
+      // Try to verify if team still exists (this might also be blocked by RLS)
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('teams')
+        .select('id, manager_id')
+        .eq('id', id)
+        .maybeSingle();
+      
+      console.log('Verification query - data:', verifyData, 'error:', verifyError);
+      
+      if (verifyData) {
+        return { 
+          success: false, 
+          error: { 
+            message: `Team deletion blocked by RLS policy. Team still exists. Manager ID: ${verifyData.manager_id}, Current user may not match manager_id.`,
+            details: 'The DELETE policy requires auth.uid() = manager_id or user role = owner. Please verify your user role and that you are the team manager.',
+            code: 'RLS_POLICY_VIOLATION'
+          } 
+        };
+      } else {
+        // Team doesn't exist, but delete returned no rows - might be a race condition
+        // Or RLS is blocking both delete and select
+        return { 
+          success: false, 
+          error: { 
+            message: 'Team deletion may have been blocked by RLS policy. Unable to verify deletion status.',
+            details: 'Please check: 1) Your user role is manager or owner, 2) You are the manager of this team (manager_id matches your user id), 3) RLS policies are correctly configured.',
+            code: 'RLS_POLICY_VIOLATION'
+          } 
+        };
+      }
+    }
+
+    // Success - rows were deleted
+    console.log('Team deleted successfully:', data);
+    return { success: true, error: null };
+  } catch (error: any) {
+    logSupabaseError('deleteTeam', error);
+    return { 
+      success: false, 
+      error: {
+        message: error?.message || 'Unknown error',
+        details: error?.details || error?.hint || '',
+        code: error?.code || ''
+      }
+    };
+  }
+};
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://uvqlonqtlqypxqatgbih.supabase.co';

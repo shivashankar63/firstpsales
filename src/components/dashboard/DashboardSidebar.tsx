@@ -53,7 +53,7 @@ const getMenuItems = (role: "owner" | "manager" | "salesman") => {
     { icon: Target, label: "Leads Overview", path: "/manager/pipeline" },
     { icon: Target, label: "Leads", path: "/manager/leads" },
     { icon: TrendingUp, label: "Sales Performance", path: "/manager/sales-performance" },
-    { icon: Award, label: "Manager Users", path: "/manager/activity" },
+    { icon: Award, label: "Manage Users", path: "/manager/activity" },
   ];
 
   const salesmanItems = [

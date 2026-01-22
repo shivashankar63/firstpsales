@@ -115,6 +115,28 @@ const Teams = () => {
         <div className="space-y-6">
           {teams.map((team) => (
             <div key={team.id} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
+              <div className="flex justify-end gap-2 p-2 bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => alert(`Edit team '${team.name}' feature coming soon!`)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete team '${team.name}'?`)) {
+                      alert(`Delete team '${team.name}' feature coming soon!`);
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
               {/* Team Header */}
               <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 p-6">
                 <div className="flex items-center justify-between mb-4">
