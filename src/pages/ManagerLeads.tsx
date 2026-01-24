@@ -1941,48 +1941,6 @@ const ManagerLeads = () => {
         {/* If All Projects is selected, show all leads and stats across all projects */}
         {projects.length > 0 && !selectedProject && (
           <>
-            <Card className="p-4 bg-white border-slate-200 shadow-sm mb-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3 flex-1">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                    <Clock className="w-4 h-4 text-slate-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-slate-900">{filteredLeads.length}</span>
-                      <span className="text-xs text-slate-600 font-medium">Total</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-blue-900">{newLeads.length}</span>
-                      <span className="text-xs text-blue-700 font-medium">New</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors">
-                    <CheckCircle className="w-4 h-4 text-indigo-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-indigo-900">{qualifiedLeads.length}</span>
-                      <span className="text-xs text-indigo-700 font-medium">Qualified</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors">
-                    <AlertCircle className="w-4 h-4 text-orange-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-orange-900">{proposalLeads.length}</span>
-                      <span className="text-xs text-orange-700 font-medium">In Proposal</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
-                    {/* Download icon removed */}
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-green-700">{formatCurrencyCompact(totalValue)}</span>
-                      <span className="text-xs text-green-700 font-medium">Value</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs text-slate-500 font-medium">Showing all leads across all projects</span>
-              </div>
-            </Card>
             {/* Bulk Actions Toolbar */}
             {selectedLeadIds.size > 0 && (
               <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">
@@ -2374,51 +2332,6 @@ const ManagerLeads = () => {
 
         {selectedProject && (
           <>
-            {/* Compact Stats Bar */}
-            <Card className="p-4 bg-white border-slate-200 shadow-sm mb-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Stats */}
-                <div className="flex flex-wrap items-center gap-3 flex-1">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                    <Clock className="w-4 h-4 text-slate-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-slate-900">{leads.length}</span>
-                      <span className="text-xs text-slate-600 font-medium">Total</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-blue-900">{newLeads.length}</span>
-                      <span className="text-xs text-blue-700 font-medium">New</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors">
-                    <CheckCircle className="w-4 h-4 text-indigo-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-indigo-900">{qualifiedLeads.length}</span>
-                      <span className="text-xs text-indigo-700 font-medium">Qualified</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors">
-                    <AlertCircle className="w-4 h-4 text-orange-600" />
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-orange-900">{proposalLeads.length}</span>
-                      <span className="text-xs text-orange-700 font-medium">In Proposal</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
-                    {/* Download icon removed */}
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-green-700">{formatCurrencyCompact(totalValue)}</span>
-                      <span className="text-xs text-green-700 font-medium">Value</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-
             {/* Bulk Actions Toolbar */}
             {selectedLeadIds.size > 0 && (
               <Card className="p-4 bg-blue-50 border-blue-200 shadow-sm mb-4">

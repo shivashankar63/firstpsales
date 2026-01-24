@@ -74,7 +74,7 @@ const [callbackNotes, setCallbackNotes] = useState("");
 const [whatsAppMessage, setWhatsAppMessage] = useState("");
 const [emailSubject, setEmailSubject] = useState("");
 const [emailBody, setEmailBody] = useState("");
-  const [submittingActivity, setSubmittingActivity] = useState(false);
+const [submittingActivity, setSubmittingActivity] = useState(false);
   
   // Details modal state
   const [searchParams, setSearchParams] = useSearchParams();
