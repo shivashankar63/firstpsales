@@ -5,6 +5,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getLeads, getUserRole, getUsers, getProjects, updateLead, deleteLead, createLeadActivity } from "@/lib/supabase";
+import { formatCurrency } from "@/utils/currency";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -604,7 +605,7 @@ const ManagerFollowUps = () => {
                           )}
                         </TableCell>
                         <TableCell className="font-semibold text-green-700 py-1 px-2 text-xs">
-                          ${(followUp.value || 0).toLocaleString()}
+                          {formatCurrency(followUp.value || 0)}
                         </TableCell>
                         <TableCell className="py-1 px-2">
                           {followUp.followup_notes ? (

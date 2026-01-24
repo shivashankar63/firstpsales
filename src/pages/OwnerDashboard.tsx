@@ -8,6 +8,7 @@ import TeamPerformance from "@/components/dashboard/TeamPerformance";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import { Card } from "@/components/ui/card";
 import { getLeads, getUsers, getCurrentUser, getUserRole } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 
 type UserRole = "owner" | "manager" | "salesman";
 
@@ -15,7 +16,7 @@ const OwnerDashboard = () => {
   const [stats, setStats] = useState([
     {
       title: "Total Revenue",
-      value: "$0",
+      value: "₹0",
       icon: DollarSign,
       trend: { value: 0, isPositive: true },
     },
@@ -47,7 +48,7 @@ const OwnerDashboard = () => {
     },
     {
       title: "MRR Growth",
-      value: "+$0",
+      value: "+₹0",
       icon: TrendingUp,
       trend: { value: 0, isPositive: true },
     },
@@ -95,7 +96,7 @@ const OwnerDashboard = () => {
         setStats([
           {
             title: "Total Revenue",
-            value: `$${(totalRevenue / 1000000).toFixed(1)}M`,
+            value: formatCurrencyCompact(totalRevenue),
             icon: DollarSign,
             trend: { value: 23, isPositive: true },
           },
@@ -127,7 +128,7 @@ const OwnerDashboard = () => {
           },
           {
             title: "MRR Growth",
-            value: `+$${((totalRevenue / 12) / 1000).toFixed(0)}K`,
+            value: `+${formatCurrencyCompact((totalRevenue / 12))}`,
             icon: TrendingUp,
             trend: { value: 15, isPositive: true },
           },
@@ -147,7 +148,7 @@ const OwnerDashboard = () => {
     const allLeads = (stats[1]?.value ? parseInt(stats[1].value) : 0);
     return {
       topRegion: "Based on Team Performance",
-      topRevenue: "$0",
+      topRevenue: "₹0",
       topRevenuePct: "0%",
       teamUtilization: "0%",
       activeTeam: "0",
@@ -195,7 +196,7 @@ const OwnerDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <Card className="p-6 bg-card border-l-4 border-l-green-500">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-4">TOTAL DEALS WON</h3>
-                <p className="text-2xl font-bold text-foreground mb-2">{stats[0]?.value || '$0'}</p>
+                <p className="text-2xl font-bold text-foreground mb-2">{stats[0]?.value || '₹0'}</p>
                 <p className="text-sm text-muted-foreground">All closed won deals in pipeline</p>
                 <div className="flex items-center gap-2 mt-4 text-green-600">
                   <ArrowUpRight className="w-4 h-4" />

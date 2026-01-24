@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getCurrentUser, getUsers, getLeads, getUserSessions } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 
 interface SalesPersonPerformance {
   id: string;
@@ -159,7 +160,7 @@ const ManagerSalesPerformance = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Total Revenue</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">${(totalRevenue / 1000000).toFixed(2)}M</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">{formatCurrencyCompact(totalRevenue)}</p>
               </div>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-green-50 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-5 sm:w-6 h-5 sm:h-6 text-green-600" />
@@ -171,7 +172,7 @@ const ManagerSalesPerformance = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <p className="text-slate-600 text-xs sm:text-sm mb-1 font-medium">Total Quota</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-900">${(totalQuota / 1000000).toFixed(2)}M</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-900">{formatCurrencyCompact(totalQuota)}</p>
               </div>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-blue-50 rounded-xl flex items-center justify-center">
                 <Target className="w-5 sm:w-6 h-5 sm:h-6 text-blue-600" />
@@ -260,11 +261,11 @@ const ManagerSalesPerformance = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mt-2">
                     <div className="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-200 flex flex-col items-center">
                       <p className="text-[11px] sm:text-xs text-slate-600 mb-1 font-medium">Revenue</p>
-                      <p className="font-bold text-green-600 text-sm">${(salesman.revenue / 1000).toFixed(0)}K</p>
+                      <p className="font-bold text-green-600 text-sm">{formatCurrencyCompact(salesman.revenue)}</p>
                     </div>
                     <div className="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-200 flex flex-col items-center">
                       <p className="text-[11px] sm:text-xs text-slate-600 mb-1 font-medium">Quota</p>
-                      <p className="font-bold text-slate-900 text-sm">${(salesman.quota / 1000).toFixed(0)}K</p>
+                      <p className="font-bold text-slate-900 text-sm">{formatCurrencyCompact(salesman.quota)}</p>
                     </div>
                     <div className="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-200 flex flex-col items-center">
                       <p className="text-[11px] sm:text-xs text-slate-600 mb-1 font-medium">Closed Won</p>
@@ -276,7 +277,7 @@ const ManagerSalesPerformance = () => {
                     </div>
                     <div className="bg-slate-50 p-2 sm:p-3 rounded-lg border border-slate-200 flex flex-col items-center hidden sm:flex">
                       <p className="text-[11px] sm:text-xs text-slate-600 mb-1 font-medium">Avg Deal</p>
-                      <p className="font-bold text-slate-900 text-sm">${(salesman.avgDealValue / 1000).toFixed(0)}K</p>
+                      <p className="font-bold text-slate-900 text-sm">{formatCurrencyCompact(salesman.avgDealValue)}</p>
                     </div>
                   </div>
 
@@ -351,15 +352,15 @@ const ManagerSalesPerformance = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-3 sm:p-4 rounded-lg border border-green-200">
                       <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">💰 Total Revenue</span>
-                      <span className="text-lg sm:text-xl font-bold text-green-600">${(selectedSalesman.revenue / 1000).toFixed(0)}K</span>
+                      <span className="text-lg sm:text-xl font-bold text-green-600">{formatCurrencyCompact(selectedSalesman.revenue)}</span>
                     </div>
                     <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-3 sm:p-4 rounded-lg border border-blue-200">
                       <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">📊 Quota</span>
-                      <span className="text-lg sm:text-xl font-bold text-blue-600">${(selectedSalesman.quota / 1000).toFixed(0)}K</span>
+                      <span className="text-lg sm:text-xl font-bold text-blue-600">{formatCurrencyCompact(selectedSalesman.quota)}</span>
                     </div>
                     <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-3 sm:p-4 rounded-lg border border-purple-200">
                       <span className="text-xs font-semibold text-purple-700 block mb-2 uppercase tracking-wide">💎 Avg Deal Value</span>
-                      <span className="text-lg sm:text-xl font-bold text-purple-600">${(selectedSalesman.avgDealValue / 1000).toFixed(0)}K</span>
+                      <span className="text-lg sm:text-xl font-bold text-purple-600">{formatCurrencyCompact(selectedSalesman.avgDealValue)}</span>
                     </div>
                   </div>
                 </div>

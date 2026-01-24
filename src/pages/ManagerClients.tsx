@@ -5,6 +5,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getLeads, getUserRole, getUsers, getProjects, subscribeToLeads } from "@/lib/supabase";
+import { formatCurrency } from "@/utils/currency";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -138,7 +139,7 @@ const ManagerClients = () => {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">Clients</h1>
               <p className="text-xs sm:text-sm text-slate-600">
-                {totalClients} {totalClients === 1 ? 'client' : 'clients'} • Total Value: ${totalValue.toLocaleString()}
+                {totalClients} {totalClients === 1 ? 'client' : 'clients'} • Total Value: {formatCurrency(totalValue)}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 Closed won deals - Focus on delivery and retention
@@ -274,7 +275,7 @@ const ManagerClients = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-green-700 mb-1 font-medium">Total Value</p>
-                    <p className="text-xl font-bold text-green-900">${totalValue.toLocaleString()}</p>
+                    <p className="text-xl font-bold text-green-900">{formatCurrency(totalValue)}</p>
                   </div>
                   <DollarSign className="w-8 h-8 text-green-600" />
                 </div>
@@ -284,7 +285,7 @@ const ManagerClients = () => {
                   <div>
                     <p className="text-xs text-purple-700 mb-1 font-medium">Avg. Deal Value</p>
                     <p className="text-xl font-bold text-purple-900">
-                      ${totalClients > 0 ? Math.round(totalValue / totalClients).toLocaleString() : '0'}
+                      {totalClients > 0 ? formatCurrency(Math.round(totalValue / totalClients)) : '₹0'}
                     </p>
                   </div>
                   <Package className="w-8 h-8 text-purple-600" />
@@ -355,7 +356,7 @@ const ManagerClients = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="font-bold text-green-700">
-                              ${(client.value || 0).toLocaleString()}
+                              {formatCurrency(client.value || 0)}
                             </span>
                           </TableCell>
                           <TableCell>

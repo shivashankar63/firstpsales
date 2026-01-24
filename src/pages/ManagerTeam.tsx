@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import * as React from "react";
 import { getUsersByRole } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 
 type Salesman = {
@@ -85,11 +86,11 @@ const ManagerTeam = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="bg-white/5 border-white/10 p-4">
             <div className="text-slate-500 text-sm">Total Quota</div>
-            <div className="text-2xl font-bold text-slate-900">${(totalQuota/1000).toFixed(0)}K</div>
+            <div className="text-2xl font-bold text-slate-900">{formatCurrencyCompact(totalQuota)}</div>
           </Card>
           <Card className="bg-white/5 border-white/10 p-4">
             <div className="text-slate-500 text-sm">Achieved</div>
-            <div className="text-2xl font-bold text-slate-900">${(totalAchieved/1000).toFixed(0)}K</div>
+            <div className="text-2xl font-bold text-slate-900">{formatCurrencyCompact(totalAchieved)}</div>
           </Card>
           <Card className="bg-white/5 border-white/10 p-4">
             <div className="text-slate-500 text-sm">Achievement</div>
@@ -125,7 +126,7 @@ const ManagerTeam = () => {
                 <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-600">
                   <div>
                     <div className="text-slate-500">Quota</div>
-                    <div className="font-semibold text-slate-900">${member.quota ? (member.quota/1000).toFixed(0) : '-'}K</div>
+                    <div className="font-semibold text-slate-900">{member.quota ? formatCurrencyCompact(member.quota) : '-'}</div>
                   </div>
                   <div>
                     <div className="text-slate-500">Achieved</div>

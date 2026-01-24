@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Phone, Mail, Flame, Loader, Clock, AlertCircle, ChevronDown, ChevronUp, Search, MapPin, Briefcase, Filter as FilterIcon, X, Upload, FileSpreadsheet, StickyNote, Calendar, Download, CalendarCheck, MessageCircle, Eye } from "lucide-react";
 import { getLeads, getCurrentUser, updateLead, getUserRole, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity, getActivitiesForLead, subscribeToLeadActivities } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -902,7 +903,7 @@ const [emailBody, setEmailBody] = useState("");
                   <p className="text-sm text-slate-600 mt-0.5">Track and manage your pipeline</p>
                 </div>
                 <Badge className="bg-slate-900 text-white border-transparent px-3 py-1.5 text-sm font-semibold">
-                  ${totalValue.toLocaleString()}
+                  {formatCurrency(totalValue)}
                 </Badge>
               </div>
             </div>
@@ -914,7 +915,7 @@ const [emailBody, setEmailBody] = useState("");
               </Card>
               <Card className="p-3 bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="text-xs font-medium text-slate-500 mb-1">Pipeline Value</div>
-                <div className="text-xl font-bold text-slate-900">${stats.value.toLocaleString()}</div>
+                <div className="text-xl font-bold text-slate-900">{formatCurrency(stats.value)}</div>
               </Card>
               <Card className="p-3 bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="text-xs font-medium text-slate-500 mb-1">Hot Leads</div>
@@ -1230,7 +1231,7 @@ const [emailBody, setEmailBody] = useState("");
                             </td>
                             <td className="py-3 px-3">
                               <div className="text-sm font-semibold text-slate-900">
-                                ${Number(lead.value || 0).toLocaleString()}
+                                {formatCurrency(lead.value || 0)}
                         </div>
                             </td>
                             <td className="py-3 px-3">
@@ -1801,7 +1802,7 @@ const [emailBody, setEmailBody] = useState("");
                     </div>
                     <div>
                       <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
-                      <p className="text-sm font-medium text-foreground mt-1">${((selectedLead.value || 0) / 1000).toFixed(0)}K</p>
+                      <p className="text-sm font-medium text-foreground mt-1">{formatCurrencyCompact(selectedLead.value || 0)}</p>
                     </div>
                   </div>
                 </div>

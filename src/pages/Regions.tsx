@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useState, useEffect } from "react";
 import { getTeams, getUsers, getLeads } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 const fallbackRegions = [
   {
@@ -149,12 +150,12 @@ const Regions = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
             <div className="text-sm text-slate-400 mb-1">Global Revenue</div>
-            <div className="text-2xl font-bold text-white">${(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="text-2xl font-bold text-white">{formatCurrencyCompact(totalRevenue)}</div>
             <div className="text-xs text-green-400 mt-1">+15% vs last quarter</div>
           </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
             <div className="text-sm text-slate-400 mb-1">Total Quota</div>
-            <div className="text-2xl font-bold text-white">${(totalQuota / 1000000).toFixed(2)}M</div>
+            <div className="text-2xl font-bold text-white">{formatCurrencyCompact(totalQuota)}</div>
             <div className="text-xs text-slate-400 mt-1">{((totalRevenue / totalQuota) * 100).toFixed(0)}% achieved</div>
           </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
@@ -207,11 +208,11 @@ const Regions = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/5 rounded-lg p-3">
                       <div className="text-xs text-slate-400 mb-1">Revenue</div>
-                      <div className="text-lg font-bold text-white">${(region.revenue / 1000).toFixed(0)}K</div>
+                      <div className="text-lg font-bold text-white">{formatCurrencyCompact(region.revenue)}</div>
                     </div>
                     <div className="bg-white/5 rounded-lg p-3">
                       <div className="text-xs text-slate-400 mb-1">Quota</div>
-                      <div className="text-lg font-bold text-white">${(region.quota / 1000).toFixed(0)}K</div>
+                      <div className="text-lg font-bold text-white">{formatCurrencyCompact(region.quota)}</div>
                     </div>
                   </div>
 

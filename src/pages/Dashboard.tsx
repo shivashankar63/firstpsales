@@ -3,6 +3,7 @@ import { Users, UserX, TrendingUp, DollarSign } from "lucide-react";
 import StatsCard from "@/components/dashboard/StatsCard";
 import LeadsTable from "@/components/dashboard/LeadsTable";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -30,7 +31,7 @@ const Dashboard = () => {
     },
     {
       title: "Revenue Projected",
-      value: "$1.2M",
+      value: formatCurrencyCompact(1200000),
       icon: DollarSign,
       trend: { value: 8, isPositive: true },
     },

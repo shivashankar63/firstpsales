@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getTeams, getUsers } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 const Teams = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -101,7 +102,7 @@ const Teams = () => {
           </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
             <div className="text-sm text-slate-400 mb-1">Total Revenue</div>
-            <div className="text-2xl font-bold text-white">${(teams.reduce((sum, t) => sum + t.revenue, 0) / 1000).toFixed(0)}K</div>
+            <div className="text-2xl font-bold text-white">{formatCurrencyCompact(teams.reduce((sum, t) => sum + t.revenue, 0))}</div>
           </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
             <div className="text-sm text-slate-400 mb-1">Avg Achievement</div>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/utils/currency";
 
 interface Lead {
   id: string;
@@ -152,7 +153,7 @@ const LeadsTable = () => {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <span className="ml-auto font-semibold text-foreground text-base">${lead.value.toLocaleString()}</span>
+                <span className="ml-auto font-semibold text-foreground text-base">{formatCurrency(lead.value)}</span>
               </div>
               <div className="flex gap-2 mt-2">
                 <Button variant="ghost" size="sm" className="gap-2 flex-1 rounded-full">
@@ -220,7 +221,7 @@ const LeadsTable = () => {
                   </DropdownMenu>
                 </td>
                 <td className="py-4 px-4 font-medium text-foreground">
-                  ${lead.value.toLocaleString()}
+                  {formatCurrency(lead.value)}
                 </td>
                 <td className="py-4 px-4">
                   <Button variant="ghost" size="sm" className="gap-2">

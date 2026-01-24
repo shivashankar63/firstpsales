@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getLeads, getCurrentUser, getUserRole, updateLead, createBulkLeads, getProjects, subscribeToLeads, createLeadActivity } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1139,7 +1140,7 @@ const SalesPipeline = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-600 mb-1">Total Pipeline</p>
-                      <p className="text-2xl font-bold text-slate-900">${totalValue.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalValue)}</p>
                     </div>
                     <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200">
                       <DollarSign className="w-6 h-6 text-slate-900" />
@@ -1229,7 +1230,7 @@ const SalesPipeline = () => {
                       {currentStage?.name || 'New Leads'} ({currentStage?.leads.length || 0})
                     </span>
                     <span className="text-slate-700">
-                      ${((currentStage?.value || 0) / 1000).toFixed(0)}K
+                      {formatCurrencyCompact(currentStage?.value || 0)}
                     </span>
                   </div>
                 );
@@ -1315,7 +1316,7 @@ const SalesPipeline = () => {
                                 </Select>
                               </td>
                               <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
-                                ${((lead.value || 0) / 1000).toFixed(0)}K
+                                {formatCurrencyCompact(lead.value || 0)}
                               </td>
                               <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex justify-center gap-1">

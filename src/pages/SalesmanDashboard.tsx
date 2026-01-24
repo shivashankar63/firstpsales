@@ -6,6 +6,7 @@ import SalesmanLeadsTable from "@/components/dashboard/SalesmanLeadsTable";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getUserById, getUserRole, getLeads, subscribeToLeads } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 type UserRole = "owner" | "manager" | "salesman";
 
@@ -117,7 +118,7 @@ const SalesmanDashboard = () => {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between pointer-events-none gap-2">
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
-                    <p className="text-xl sm:text-3xl font-bold text-slate-900">${(totalRevenue / 1000).toFixed(0)}K</p>
+                    <p className="text-xl sm:text-3xl font-bold text-slate-900">{formatCurrencyCompact(totalRevenue)}</p>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpRight className="w-4 h-4 text-green-600" />
                       <span className="text-xs sm:text-sm font-medium text-green-600">12.5%</span>
@@ -186,7 +187,7 @@ const SalesmanDashboard = () => {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between pointer-events-none gap-2">
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-slate-600 mb-1">Pipeline Value</p>
-                    <p className="text-xl sm:text-3xl font-bold text-slate-900">${(totalPipeline / 1000).toFixed(0)}K</p>
+                    <p className="text-xl sm:text-3xl font-bold text-slate-900">{formatCurrencyCompact(totalPipeline)}</p>
                     <div className="flex items-center gap-1 mt-2">
                       <Activity className="w-4 h-4 text-orange-600" />
                       <span className="text-xs sm:text-sm font-medium text-orange-600">{negotiationLeads + qualifiedLeads + newLeads}</span>

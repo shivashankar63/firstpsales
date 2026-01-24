@@ -620,7 +620,7 @@ const SalesmanLeadsTable = () => {
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span className="text-xs">{stat.count} leads</span>
                 </div>
-                <span className="text-sm font-bold text-slate-900">${(stat.value / 1000).toFixed(0)}K</span>
+                <span className="text-sm font-bold text-slate-900">{formatCurrencyCompact(stat.value)}</span>
               </div>
             </div>
           ))}
@@ -898,7 +898,7 @@ const SalesmanLeadsTable = () => {
                           }}
                           title="Click to edit value"
                         >
-                      ${(lead.value / 1000).toFixed(0)}K
+                      {formatCurrencyCompact(lead.value)}
                         </span>
                       )}
                     </td>
@@ -1161,7 +1161,7 @@ const SalesmanLeadsTable = () => {
               </div>
                   <div>
                     <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
-                    <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{formatCurrencyCompact(selectedLead.value)}</p>
                   </div>
                 </div>
               </div>
@@ -1434,7 +1434,7 @@ const SalesmanLeadsTable = () => {
                 </select>
               </div>
                     <div>
-                      <Label htmlFor="edit-value">Value ($) *</Label>
+                      <Label htmlFor="edit-value">Value (₹) *</Label>
                       <Input
                         id="edit-value"
                         type="number"

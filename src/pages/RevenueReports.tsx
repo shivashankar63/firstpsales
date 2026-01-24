@@ -4,6 +4,7 @@ import { DollarSign, TrendingUp, Calendar, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { getLeads, getUsers } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,7 +142,7 @@ const RevenueReports = () => {
               <span className="text-xs text-green-400">+24%</span>
             </div>
             <div className="text-sm text-slate-400 mb-1">Total Revenue</div>
-            <div className="text-2xl font-bold text-white">${(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="text-2xl font-bold text-white">{formatCurrencyCompact(totalRevenue)}</div>
           </div>
 
           <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-sm border border-purple-500/20 rounded-xl p-6">
@@ -163,7 +164,7 @@ const RevenueReports = () => {
               <span className="text-xs text-slate-400">avg</span>
             </div>
             <div className="text-sm text-slate-400 mb-1">Avg Deal Size</div>
-            <div className="text-2xl font-bold text-white">${(avgDealSize / 1000).toFixed(0)}K</div>
+            <div className="text-2xl font-bold text-white">{formatCurrencyCompact(avgDealSize)}</div>
           </div>
 
           <div className="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-sm border border-green-500/20 rounded-xl p-6">
@@ -195,7 +196,7 @@ const RevenueReports = () => {
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value: any) => `$${(value / 1000).toFixed(0)}K`}
+                  formatter={(value: any) => formatCurrencyCompact(value)}
                 />
                 <Legend />
                 <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[8, 8, 0, 0]} />
@@ -219,7 +220,7 @@ const RevenueReports = () => {
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value: any) => `$${(value / 1000).toFixed(0)}K`}
+                  formatter={(value: any) => formatCurrencyCompact(value)}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} name="Revenue" />

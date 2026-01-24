@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase, signInWithEmail, signUpWithEmail } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 type UserRole = "owner" | "manager" | "salesman";
 
@@ -203,7 +204,7 @@ const Home = () => {
               {/* Right Side - Stats Preview */}
               <div className="space-y-6">
                 <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                  <div className="text-4xl font-bold text-slate-900 mb-2">$2.4M</div>
+                  <div className="text-4xl font-bold text-slate-900 mb-2">{formatCurrencyCompact(2400000)}</div>
                   <div className="text-slate-600">Total Pipeline Value</div>
                 </div>
                 <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">

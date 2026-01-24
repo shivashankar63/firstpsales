@@ -5,6 +5,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getProjects, createProject, getLeads, getUsers, getUserById, getUserRole, createSalesmanAccount, supabase, getActivitiesForLead } from "@/lib/supabase";
+import { formatCurrency as formatCurrencyINR, formatCurrencyCompact } from "@/utils/currency";
 import * as XLSX from "xlsx";
 import {
   DropdownMenu,
@@ -47,8 +48,7 @@ const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [leadNoteCounts, setLeadNoteCounts] = useState<Record<string, number>>({});
 
-  const formatCurrency = (value: number) =>
-    value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const formatCurrency = (value: number) => formatCurrencyINR(value);
 
   const fetchStats = async () => {
     setStatsLoading(true);
@@ -260,7 +260,7 @@ const ManagerDashboard = () => {
       title: "Invoices",
       description: statsLoading
         ? "Loading..."
-        : `${stats.invoices.count} invoices • $${formatCurrency(stats.invoices.total)} total`,
+        : `${stats.invoices.count} invoices • ${formatCurrency(stats.invoices.total)} total`,
       icon: Receipt,
       path: "/manager/invoices",
       pillClass: "bg-indigo-100 text-indigo-700",
@@ -269,7 +269,7 @@ const ManagerDashboard = () => {
       title: "Receipts",
       description: statsLoading
         ? "Loading..."
-        : `${stats.receipts.count} payments • $${formatCurrency(stats.receipts.total)} received`,
+        : `${stats.receipts.count} payments • ${formatCurrency(stats.receipts.total)} received`,
       icon: Package,
       path: "/manager/receipts",
       pillClass: "bg-emerald-100 text-emerald-700",
@@ -278,7 +278,7 @@ const ManagerDashboard = () => {
       title: "Clients",
       description: statsLoading
         ? "Loading..."
-        : `${stats.clients.count} clients • $${formatCurrency(stats.clients.total)} total value`,
+        : `${stats.clients.count} clients • ${formatCurrency(stats.clients.total)} total value`,
       icon: Users,
       path: "/manager/clients",
       pillClass: "bg-teal-100 text-teal-700",
@@ -294,7 +294,7 @@ const ManagerDashboard = () => {
       title: "Purchase Orders",
       description: statsLoading
         ? "Loading..."
-        : `${stats.purchaseOrders.count} POs • $${formatCurrency(stats.purchaseOrders.total)} total`,
+        : `${stats.purchaseOrders.count} POs • ${formatCurrency(stats.purchaseOrders.total)} total`,
       icon: UserPlus,
       path: "/manager/purchase-orders",
       pillClass: "bg-purple-100 text-purple-700",
@@ -390,8 +390,8 @@ const ManagerDashboard = () => {
       { "Metric": "In Proposal", "Value": negotiationLeads },
       { "Metric": "Won Leads", "Value": wonLeads },
       { "Metric": "Lost Leads", "Value": lostLeads },
-      { "Metric": "Total Revenue", "Value": `$${totalRevenue.toLocaleString()}` },
-      { "Metric": "Pipeline Value", "Value": `$${totalPipeline.toLocaleString()}` },
+      { "Metric": "Total Revenue", "Value": formatCurrencyINR(totalRevenue) },
+      { "Metric": "Pipeline Value", "Value": formatCurrencyINR(totalPipeline) },
       { "Metric": "Win Rate", "Value": `${winRate}%` },
       { "Metric": "Active Projects", "Value": projects.length },
       { "Metric": "Sales Team Size", "Value": salesTeam.length },
@@ -503,7 +503,7 @@ const ManagerDashboard = () => {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between pointer-events-none gap-2">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
-                <p className="text-xl sm:text-3xl font-bold text-slate-900">${(totalRevenue / 1000).toFixed(0)}K</p>
+                <p className="text-xl sm:text-3xl font-bold text-slate-900">{formatCurrencyCompact(totalRevenue)}</p>
                 <div className="flex items-center gap-1 mt-2">
                   <ArrowUpRight className="w-4 h-4 text-green-600" />
                   <span className="text-xs sm:text-sm font-medium text-green-600">12.5%</span>
@@ -606,7 +606,7 @@ const ManagerDashboard = () => {
               </Button>
               <div className="text-left sm:text-right">
                 <p className="text-xs sm:text-sm text-slate-600">Total Pipeline Value</p>
-                <p className="text-xl sm:text-2xl font-semibold text-slate-900">${(totalPipeline / 1000).toFixed(0)}K</p>
+                <p className="text-xl sm:text-2xl font-semibold text-slate-900">{formatCurrencyCompact(totalPipeline)}</p>
               </div>
             </div>
           </div>
@@ -633,7 +633,7 @@ const ManagerDashboard = () => {
               <div className="w-3 h-3 rounded-full bg-slate-400 mx-auto mb-2"></div>
               <p className="text-xl sm:text-2xl font-semibold text-slate-900">{newLeads}</p>
               <p className="text-xs font-medium text-slate-600 mt-1">New</p>
-              <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'new').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
+              <p className="text-xs text-slate-500 mt-1">{formatCurrencyCompact(leads.filter(l => normalizeStatus(l.status) === 'new').reduce((sum, l) => sum + (l.value || 0), 0))}</p>
             </div>
             <div 
               className={`text-center p-3 sm:p-4 rounded-lg border transition-all cursor-pointer ${
@@ -646,7 +646,7 @@ const ManagerDashboard = () => {
               <div className="w-3 h-3 rounded-full bg-blue-500 mx-auto mb-2"></div>
               <p className="text-xl sm:text-2xl font-semibold text-slate-900">{qualifiedLeads}</p>
               <p className="text-xs font-medium text-blue-700 mt-1">Qualified</p>
-              <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'qualified').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
+              <p className="text-xs text-slate-500 mt-1">{formatCurrencyCompact(leads.filter(l => normalizeStatus(l.status) === 'qualified').reduce((sum, l) => sum + (l.value || 0), 0))}</p>
             </div>
             <div 
               className={`text-center p-3 sm:p-4 rounded-lg border transition-all cursor-pointer ${
@@ -659,7 +659,7 @@ const ManagerDashboard = () => {
               <div className="w-3 h-3 rounded-full bg-orange-500 mx-auto mb-2"></div>
               <p className="text-xl sm:text-2xl font-semibold text-slate-900">{negotiationLeads}</p>
               <p className="text-xs font-medium text-orange-700 mt-1">Negotiation</p>
-              <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'proposal').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
+              <p className="text-xs text-slate-500 mt-1">{formatCurrencyCompact(leads.filter(l => normalizeStatus(l.status) === 'proposal').reduce((sum, l) => sum + (l.value || 0), 0))}</p>
             </div>
             <div 
               className={`text-center p-3 sm:p-4 rounded-lg border transition-all cursor-pointer ${
@@ -672,7 +672,7 @@ const ManagerDashboard = () => {
               <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2"></div>
               <p className="text-xl sm:text-2xl font-semibold text-slate-900">{wonLeads}</p>
               <p className="text-xs font-medium text-green-700 mt-1">Won</p>
-              <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
+              <p className="text-xs text-slate-500 mt-1">{formatCurrencyCompact(leads.filter(l => normalizeStatus(l.status) === 'closed_won').reduce((sum, l) => sum + (l.value || 0), 0))}</p>
             </div>
             <div 
               className={`text-center p-3 sm:p-4 rounded-lg border transition-all cursor-pointer ${
@@ -685,7 +685,7 @@ const ManagerDashboard = () => {
               <div className="w-3 h-3 rounded-full bg-red-500 mx-auto mb-2"></div>
               <p className="text-xl sm:text-2xl font-semibold text-slate-900">{lostLeads}</p>
               <p className="text-xs font-medium text-red-700 mt-1">Lost</p>
-              <p className="text-xs text-slate-500 mt-1">${(leads.filter(l => normalizeStatus(l.status) === 'not_interested').reduce((sum, l) => sum + (l.value || 0), 0) / 1000).toFixed(0)}K</p>
+              <p className="text-xs text-slate-500 mt-1">{formatCurrencyCompact(leads.filter(l => normalizeStatus(l.status) === 'not_interested').reduce((sum, l) => sum + (l.value || 0), 0))}</p>
             </div>
           </div>
         </Card>
@@ -771,7 +771,7 @@ const ManagerDashboard = () => {
                         <p className="text-sm text-slate-600 truncate">{member.email}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-base sm:text-lg font-semibold text-slate-900">${(memberRevenue / 1000).toFixed(0)}K</p>
+                        <p className="text-base sm:text-lg font-semibold text-slate-900">{formatCurrencyCompact(memberRevenue)}</p>
                         <p className="text-xs text-slate-600">{memberWon} won • {memberLeads.length} total</p>
                       </div>
                     </div>
@@ -921,7 +921,7 @@ const ManagerDashboard = () => {
                     <td className="py-2 px-3">
                       <Badge className="capitalize border px-2 py-1 text-xs" variant="outline">{lead.status.replace('_', ' ')}</Badge>
                     </td>
-                    <td className="py-2 px-3 text-right text-sm font-semibold text-slate-900">${((lead.value || 0) / 1000).toFixed(0)}K</td>
+                    <td className="py-2 px-3 text-right text-sm font-semibold text-slate-900">{formatCurrencyCompact(lead.value || 0)}</td>
                   </tr>
                 ))}
                 {leads.length === 0 && (
@@ -963,7 +963,7 @@ const ManagerDashboard = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="proj_budget" className="text-slate-700">Budget (USD)</Label>
+                <Label htmlFor="proj_budget" className="text-slate-700">Budget (INR)</Label>
                 <Input
                   id="proj_budget"
                   type="number"

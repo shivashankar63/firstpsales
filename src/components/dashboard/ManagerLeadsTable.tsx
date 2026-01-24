@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getLeads, getUsers, supabase, subscribeToLeads, getActivitiesForLead } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 
 interface Lead {
   id: string;
@@ -288,7 +289,7 @@ const ManagerLeadsTable = () => {
                     <td className="py-3 px-4 text-sm text-foreground">{lead.contact_name}</td>
                     <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-foreground">
-                      ${(lead.value / 1000).toFixed(0)}K
+                      {formatCurrencyCompact(lead.value)}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-center gap-2">
@@ -350,7 +351,7 @@ const ManagerLeadsTable = () => {
               </div>
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
-                <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
+                <p className="text-sm font-medium text-foreground mt-1">{formatCurrencyCompact(selectedLead.value)}</p>
               </div>
             </div>
           )}

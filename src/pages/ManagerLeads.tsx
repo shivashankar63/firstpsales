@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getLeads, getCurrentUser, getUsers, createLead, updateLead, getProjects, deleteLead, testConnection, subscribeToUsers, subscribeToLeads, getActivitiesForLead, subscribeToLeadActivities, createBulkLeads, createLeadActivity } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -1974,7 +1975,7 @@ const ManagerLeads = () => {
                   <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
                     {/* Download icon removed */}
                     <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-green-700">${(totalValue / 1000).toFixed(0)}K</span>
+                      <span className="text-lg font-bold text-green-700">{formatCurrencyCompact(totalValue)}</span>
                       <span className="text-xs text-green-700 font-medium">Value</span>
                     </div>
                   </div>
@@ -2191,7 +2192,7 @@ const ManagerLeads = () => {
                               </Select>
                             </td>
                             <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
-                              ${((lead.value || 0) / 1000).toFixed(0)}K
+                              {formatCurrencyCompact(lead.value || 0)}
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
@@ -2409,7 +2410,7 @@ const ManagerLeads = () => {
                   <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
                     {/* Download icon removed */}
                     <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-green-700">${(totalValue / 1000).toFixed(0)}K</span>
+                      <span className="text-lg font-bold text-green-700">{formatCurrencyCompact(totalValue)}</span>
                       <span className="text-xs text-green-700 font-medium">Value</span>
                     </div>
                   </div>
@@ -2656,7 +2657,7 @@ const ManagerLeads = () => {
                           </Select>
                             </td>
                             <td className="py-2 px-3 text-right text-xs font-semibold text-slate-900">
-                              ${((lead.value || 0) / 1000).toFixed(0)}K
+                              {formatCurrencyCompact(lead.value || 0)}
                             </td>
                             <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
@@ -3381,7 +3382,7 @@ const ManagerLeads = () => {
                           </Badge>
                         )}
                         <span className="text-slate-500">•</span>
-                        <span className="font-semibold text-slate-900">${(selectedLead.value || 0).toLocaleString()}</span>
+                        <span className="font-semibold text-slate-900">{formatCurrency(selectedLead.value || 0)}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 justify-start sm:justify-end">
                         <span className="font-medium text-slate-700">Assigned:</span>
@@ -3687,7 +3688,7 @@ const ManagerLeads = () => {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                       <span className="text-xs font-semibold text-green-700 block mb-2 uppercase tracking-wide">💰 Deal Value</span>
-                      <span className="text-xl font-bold text-green-600">${((selectedLead.value || 0) / 1000).toFixed(1)}K</span>
+                      <span className="text-xl font-bold text-green-600">{formatCurrencyCompact(selectedLead.value || 0)}</span>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <span className="text-xs font-semibold text-blue-700 block mb-2 uppercase tracking-wide">📊 Status</span>

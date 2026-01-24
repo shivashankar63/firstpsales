@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCurrentUser, getQuotations, createQuotation, updateQuotation, deleteQuotation, getQuotation, getLeads, getProjects, getUserRole } from "@/lib/supabase";
+import { formatCurrency } from "@/utils/currency";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const ManagerQuotations = () => {
@@ -329,7 +330,7 @@ const ManagerQuotations = () => {
                     <TableCell className="font-medium">{quotation.quotation_number}</TableCell>
                     <TableCell>{quotation.customer_name}</TableCell>
                     <TableCell>{new Date(quotation.quotation_date).toLocaleDateString()}</TableCell>
-                    <TableCell>${quotation.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>{formatCurrency(quotation.total_amount)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(quotation.status)}>
                         {quotation.status}
@@ -542,7 +543,7 @@ const ManagerQuotations = () => {
                         className="col-span-2"
                       />
                       <div className="col-span-1 flex items-center">
-                        ${item.total_price.toFixed(2)}
+                        {formatCurrency(item.total_price, { showDecimals: true })}
                       </div>
                       <Button
                         type="button"
@@ -580,7 +581,7 @@ const ManagerQuotations = () => {
                 <div>
                   <Label>Total Amount</Label>
                   <div className="mt-1.5 p-2 bg-slate-50 rounded border font-semibold">
-                    ${formData.total_amount.toFixed(2)}
+                    {formatCurrency(formData.total_amount, { showDecimals: true })}
                   </div>
                 </div>
               </div>
@@ -656,7 +657,7 @@ const ManagerQuotations = () => {
                   </div>
                 )}
                 <div className="text-right">
-                  <p className="text-lg font-semibold">Total: ${selectedQuotation.total_amount.toLocaleString()}</p>
+                  <p className="text-lg font-semibold">Total: {formatCurrency(selectedQuotation.total_amount)}</p>
                 </div>
               </div>
             )}

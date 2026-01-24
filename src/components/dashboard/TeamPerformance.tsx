@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { Loader } from "lucide-react";
 import { getLeads, getUsers } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 interface TeamMember {
   id: string;
@@ -81,7 +82,7 @@ const TeamPerformance = () => {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-semibold text-foreground">${(member.revenue / 1000).toFixed(0)}K</p>
+              <p className="text-sm font-semibold text-foreground">{formatCurrencyCompact(member.revenue)}</p>
               <Badge variant="outline" className="text-xs mt-1 bg-success/10 text-success border-success/20">
                 {member.dealsWon} wins
               </Badge>

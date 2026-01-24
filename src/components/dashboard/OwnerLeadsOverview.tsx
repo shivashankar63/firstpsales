@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getLeads, getUsers, supabase } from "@/lib/supabase";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -245,7 +246,7 @@ const OwnerLeadsOverview = () => {
                     <td className="py-3 px-4 text-sm text-foreground">{lead.contact_name}</td>
                     <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-foreground">
-                      ${(lead.value / 1000).toFixed(0)}K
+                      {formatCurrencyCompact(lead.value)}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-center gap-2">
@@ -307,7 +308,7 @@ const OwnerLeadsOverview = () => {
               </div>
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">Value</Label>
-                <p className="text-sm font-medium text-foreground mt-1">${(selectedLead.value / 1000).toFixed(0)}K</p>
+                <p className="text-sm font-medium text-foreground mt-1">{formatCurrencyCompact(selectedLead.value)}</p>
               </div>
               <div>
                 <Label className="text-xs font-semibold text-muted-foreground">Assigned To</Label>

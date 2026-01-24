@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { Loader } from "lucide-react";
 import { getLeads, getCurrentUser } from "@/lib/supabase";
+import { formatCurrencyCompact } from "@/utils/currency";
 
 interface QuotaData {
   target: number;
@@ -82,15 +83,15 @@ const QuotaProgress = () => {
           </div>
           <Progress value={Math.min(percentage, 100)} className="h-2" />
           <div className="flex items-center justify-between mt-1.5 text-xs text-slate-600">
-            <span>${(quota.achieved / 1000).toFixed(0)}K / ${(quota.target / 1000).toFixed(0)}K</span>
-            <span className="text-slate-500">${(Math.max(0, quota.target - quota.achieved) / 1000).toFixed(0)}K left</span>
+            <span>{formatCurrencyCompact(quota.achieved)} / {formatCurrencyCompact(quota.target)}</span>
+            <span className="text-slate-500">{formatCurrencyCompact(Math.max(0, quota.target - quota.achieved))} left</span>
           </div>
         </div>
 
         {/* Daily Target */}
         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
           <p className="text-xs text-slate-600 mb-1">Daily Target · Next {quota.daysLeft} Days</p>
-          <p className="text-lg font-bold text-slate-900">${(dailyTarget / 1000).toFixed(1)}K/day</p>
+          <p className="text-lg font-bold text-slate-900">{formatCurrencyCompact(dailyTarget)}/day</p>
         </div>
 
         {/* Status */}

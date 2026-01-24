@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getProjectById, getLeadsForProject, getActivities, subscribeToProjects, subscribeToActivities, updateProject, createLead, deleteProject } from "@/lib/supabase";
 import { ArrowLeft, CalendarDays, DollarSign, Target, TrendingUp, Clock, Mail, Phone, FileText, CheckCircle2, ExternalLink, Edit2, AlertCircle, Check, Upload } from "lucide-react";
 
-const currency = (n: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n || 0);
+import { formatCurrency } from "@/utils/currency";
+const currency = (n: number) => formatCurrency(n);
 
 const ManagerProjectDetails = () => {
     const [showEditProjectModal, setShowEditProjectModal] = useState(false);

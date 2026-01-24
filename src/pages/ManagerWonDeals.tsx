@@ -5,6 +5,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser, getLeads, getUserRole } from "@/lib/supabase";
+import { formatCurrency } from "@/utils/currency";
 import { Button } from "@/components/ui/button";
 import { useNavigate as useNav } from "react-router-dom";
 
@@ -68,7 +69,7 @@ const ManagerWonDeals = () => {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">Won Deals</h1>
               <p className="text-sm sm:text-base text-slate-600">
-                {leads.length} won {leads.length === 1 ? 'deal' : 'deals'} • Total Value: ${totalValue.toLocaleString()}
+                {leads.length} won {leads.length === 1 ? 'deal' : 'deals'} • Total Value: {formatCurrency(totalValue)}
               </p>
             </div>
             <Button
@@ -110,7 +111,7 @@ const ManagerWonDeals = () => {
                       <div>
                         <span className="text-xs text-slate-500">Value</span>
                         <p className="text-lg font-semibold text-slate-900">
-                          ${(lead.value || 0).toLocaleString()}
+                          {formatCurrency(lead.value || 0)}
                         </p>
                       </div>
                       {lead.email && (
